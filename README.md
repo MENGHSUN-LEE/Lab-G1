@@ -1,4 +1,5 @@
 # Lab-G1
+```mermaid
 graph TD
     %% P1 (red) 
     style A fill:#F08080,stroke:#333,stroke-width:2px
