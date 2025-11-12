@@ -30,8 +30,8 @@ graph TD
     C --> H("Vendor Management<br>供應商管理頁面<br>負責人: ")
 
     %% 從材料總覽 (G) 延伸的功能
-    G --> I("Material Arrival Log<br>材料進貨時間紀錄<br>負責人: ")
-    G --> J("Material Quality Score<br>材料品質評分<br>負責人: ")
+    G --> I("Material Arrival Log<br>材料進貨時間紀錄<br>負責人: Steven Gaillard")
+    G --> J("Material Quality Score<br>材料品質評分<br>負責人: Steven Gaillard")
 
     %% 從供應商管理 (H) 延伸的功能
-    H --> K("Vendor Rating History<br>供應商評分紀錄<br>負責人: ")
+    H --> K("Vendor Rating History<br>供應商評分紀錄<br>負責人: Steven Gaillard")
