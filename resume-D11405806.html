@@ -3,7 +3,7 @@
 <head>
 	<meta charset="UTF-8">
  	<meta name="viewport" content="width=device-width, initial-scale=1.0">
- 	<title>Steven Gaillard - Professional Resume</title>
+ 	<title>Steven Gaillard - CV</title>
  	<style>
 		* {
 			margin: 0;
@@ -23,15 +23,15 @@
 
 		.container {
 			background: white;
-			padding: 40px;
+			padding: 50px;
 			box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 			border-radius: 10px;
 		}
  		
  		header {
 			text-align: center;
-			padding-bottom: 30px;
-			border-bottom: 3px solid #333366;
+			padding-bottom: 20px;
+			border-bottom: 3px solid #2c5aa0;
 			margin-bottom: 30px;
 		}
 
@@ -40,195 +40,188 @@
 		}
 
 		h1 {
- 			color: #333366;
-			font-size: 2.5em;
+ 			color: #2c5aa0;
+			font-size: 2.8em;
 			margin-bottom: 10px;
 			font-weight: 700;
+			letter-spacing: 1px;
  		}
 
 		.contact-info {
 			display: flex;
 			justify-content: center;
-			gap: 20px;
+			gap: 15px;
 			flex-wrap: wrap;
-			margin-top: 15px;
+			margin-top: 10px;
+			font-size: 0.95em;
 		}
 
 		.contact-item {
-			display: flex;
-			align-items: center;
-			gap: 5px;
-			color: #666;
-		}
-
-		.contact-item::before {
-			content: "•";
-			color: #333366;
-			font-weight: bold;
-			margin-right: 5px;
-		}
- 		
- 		h2 {
- 			color: #333366;
-			font-size: 1.8em;
- 			border-bottom: 3px solid #333366;
- 			padding-bottom: 8px;
- 			margin-top: 35px;
-			margin-bottom: 20px;
-			font-weight: 600;
- 		} 
-
-		h3 {
-			color: #444;
-			font-size: 1.3em;
-			margin-top: 15px;
-			margin-bottom: 8px;
-		}
-
-		.section {
-			margin-bottom: 30px;
-		}
-
-		.summary {
-			background: #f8f9fa;
-			padding: 20px;
-			border-left: 4px solid #333366;
-			border-radius: 5px;
-			margin-bottom: 30px;
-			font-style: italic;
 			color: #555;
 		}
 
-		.skills-grid {
-			display: grid;
-			grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-			gap: 20px;
-			margin-top: 20px;
+		.contact-item::after {
+			content: "•";
+			margin-left: 15px;
+			color: #2c5aa0;
 		}
 
-		.skill-category {
-			background: #f8f9fa;
-			padding: 15px;
-			border-radius: 8px;
-			border-left: 4px solid #333366;
+		.contact-item:last-child::after {
+			content: "";
+		}
+ 		
+ 		h2 {
+ 			color: #2c5aa0;
+			font-size: 1.4em;
+ 			border-bottom: 2px solid #2c5aa0;
+ 			padding-bottom: 5px;
+ 			margin-top: 30px;
+			margin-bottom: 15px;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+ 		} 
+
+		.section {
+			margin-bottom: 25px;
 		}
 
-		.skill-category h3 {
-			margin-top: 0;
-			font-size: 1.1em;
-			color: #333366;
+		.entry {
+			margin-bottom: 20px;
+			page-break-inside: avoid;
+		}
+
+		.entry-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: start;
+			margin-bottom: 5px;
+		}
+
+		.entry-title {
+			font-weight: 700;
+			color: #333;
+			font-size: 1.05em;
+		}
+
+		.entry-subtitle {
+			font-style: italic;
+			color: #555;
+			margin-bottom: 3px;
+		}
+
+		.entry-location {
+			font-style: italic;
+			color: #666;
+			text-align: right;
+		}
+
+		.entry-date {
+			color: #666;
+			font-weight: 500;
+			text-align: right;
+			white-space: nowrap;
+		}
+
+		.entry-details {
+			color: #555;
+			margin-top: 5px;
+			font-size: 0.95em;
+		}
+
+		.entry-details strong {
+			color: #333;
 		}
  		
  		ul {
- 			list-style-type: none;
- 			margin-left: 0;
-			margin-top: 10px;
+ 			margin-left: 20px;
+			margin-top: 5px;
+			list-style-type: disc;
  		}
 
 		ul li {
+			padding: 3px 0;
+			color: #555;
+		}
+
+		.skills-section {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+			gap: 15px;
+			margin-top: 10px;
+		}
+
+		.skill-group {
+			margin-bottom: 10px;
+		}
+
+		.skill-group strong {
+			color: #2c5aa0;
+			display: block;
+			margin-bottom: 5px;
+		}
+
+		.skill-list {
+			list-style: none;
+			margin-left: 0;
+		}
+
+		.skill-list li {
+			display: inline;
+			color: #555;
+		}
+
+		.skill-list li::after {
+			content: ", ";
+		}
+
+		.skill-list li:last-child::after {
+			content: "";
+		}
+
+		.awards-list {
+			list-style: none;
+			margin-left: 0;
+		}
+
+		.awards-list li {
 			padding: 5px 0;
 			padding-left: 20px;
 			position: relative;
+			color: #555;
 		}
 
-		ul li::before {
-			content: "▹";
-			color: #333366;
+		.awards-list li::before {
+			content: "•";
+			color: #2c5aa0;
 			font-weight: bold;
 			position: absolute;
 			left: 0;
 		}
 
-		.experience-item, .education-item {
-			margin-bottom: 25px;
-			padding: 20px;
-			background: #f8f9fa;
-			border-radius: 8px;
-			border-left: 4px solid #333366;
-		}
-
-		.item-header {
-			display: flex;
-			justify-content: space-between;
-			align-items: start;
-			margin-bottom: 10px;
-			flex-wrap: wrap;
-		}
-
-		.item-title {
+		.publication-title {
 			font-weight: 600;
-			color: #333366;
-			font-size: 1.2em;
+			color: #333;
+			margin-top: 8px;
 		}
 
-		.item-subtitle {
-			color: #666;
+		.publication-venue {
 			font-style: italic;
-			margin-top: 5px;
-		}
-
-		.item-date {
 			color: #666;
-			font-weight: 500;
-			background: white;
-			padding: 5px 15px;
-			border-radius: 20px;
-			white-space: nowrap;
+			margin-left: 10px;
 		}
 
-		.item-description {
-			margin-top: 10px;
-			color: #555;
-		}
- 		
- 		table {
- 			width: 100%;
- 			border-collapse: collapse;
-			margin-top: 15px;
-			background: white;
- 		}
-
-		th, td {
- 			border: 1px solid #ddd;
- 			padding: 12px;
- 			text-align: left;
- 		}
-
-		th {
-			background: #333366;
-			color: white;
-			font-weight: 600;
-		}
-
-		tr:nth-child(even) {
-			background: #f8f9fa;
-		}
-
-		tr:hover {
-			background: #e9ecef;
-		}
- 		
 		img {
  			display: block;
  			margin: auto;
  			border-radius: 50%;
-			border: 4px solid #333366;
+			border: 4px solid #2c5aa0;
 			box-shadow: 0 4px 8px rgba(0,0,0,0.1);
  		}
 
-		.badge {
-			display: inline-block;
-			background: #333366;
-			color: white;
-			padding: 3px 10px;
-			border-radius: 12px;
-			font-size: 0.85em;
-			margin: 3px;
-		}
-
 		@media (max-width: 600px) {
 			.container {
-				padding: 20px;
+				padding: 30px 20px;
 			}
 
 			h1 {
@@ -236,20 +229,41 @@
 			}
 
 			h2 {
-				font-size: 1.5em;
+				font-size: 1.2em;
 			}
 
 			.contact-info {
 				flex-direction: column;
-				gap: 10px;
+				gap: 5px;
+				align-items: center;
 			}
 
-			.item-header {
+			.contact-item::after {
+				content: "";
+			}
+
+			.entry-header {
 				flex-direction: column;
 			}
 
-			.item-date {
-				margin-top: 10px;
+			.entry-location, .entry-date {
+				text-align: left;
+				margin-top: 5px;
+			}
+
+			.skills-section {
+				grid-template-columns: 1fr;
+			}
+		}
+
+		@media print {
+			body {
+				background: white;
+				padding: 0;
+			}
+			.container {
+				box-shadow: none;
+				padding: 20px;
 			}
 		}
  	</style> 
@@ -258,128 +272,75 @@
 	<div class="container">
 		<header>
 			<div class="profile-img-container">
-				<img src="p-D11405806.jpg" alt="Steven Gaillard Profile Photo" width="150">
+				<img src="p-D11405806.jpg" alt="Steven Gaillard" width="140">
 			</div>
 			<h1>Steven Gaillard</h1>
 			<div class="contact-info">
-				<div class="contact-item">d11405806@mail.ntust.edu.tw</div>
-				<div class="contact-item">+886 987-067-808</div>
-				<div class="contact-item">Taipei, Taiwan</div>
+				<span class="contact-item">Taipei, Taiwan</span>
+				<span class="contact-item">gacchuguts@gmail.com</span>
+				<span class="contact-item">+62 895 335 774 359</span>
 			</div>
 		</header>
-
-		<div class="summary">
-			<strong>Professional Summary:</strong> Results-driven graduate student pursuing M.Sc. at National Taiwan University of Science and Technology with strong technical skills in programming and web development. Demonstrated leadership abilities and critical thinking skills with a passion for innovation and problem-solving. Seeking opportunities to leverage technical expertise and analytical capabilities in challenging projects.
-		</div>
-
-		<section class="section">
-			<h2>Skills</h2>
-			<div class="skills-grid">
-				<div class="skill-category">
-					<h3>Technical Skills</h3>
-					<ul>
-						<li>HTML5 & CSS3</li>
-						<li>Python Programming</li>
-						<li>JavaScript</li>
-						<li>Responsive Web Design</li>
-						<li>Version Control (Git)</li>
-					</ul>
-				</div>
-				<div class="skill-category">
-					<h3>Soft Skills</h3>
-					<ul>
-						<li>Leadership & Team Management</li>
-						<li>Critical Thinking</li>
-						<li>Problem Solving</li>
-						<li>Effective Communication</li>
-						<li>Project Management</li>
-					</ul>
-				</div>
-				<div class="skill-category">
-					<h3>Languages</h3>
-					<ul>
-						<li>English - Fluent</li>
-						<li>Mandarin Chinese - Intermediate</li>
-						<li>Indonesian - Native</li>
-					</ul>
-				</div>
-			</div>
-		</section>
 
 		<section class="section">
 			<h2>Education</h2>
 			
-			<div class="education-item">
-				<div class="item-header">
-					<div>
-						<div class="item-title">Master of Science (M.Sc.)</div>
-						<div class="item-subtitle">National Taiwan University of Science and Technology (NTUST)</div>
+			<div class="entry">
+				<div class="entry-header">
+					<div style="flex: 1;">
+						<div class="entry-title">NATIONAL TAIWAN UNIVERSITY OF SCIENCE AND TECHNOLOGY</div>
+						<div class="entry-subtitle">Master, Civil and Construction Engineering. GPA 4.20/4.30</div>
 					</div>
-					<div class="item-date">2023 - 2025</div>
-				</div>
-				<div class="item-description">
-					<strong>Focus:</strong> Advanced studies in Computer Science and Engineering
-					<br><strong>Location:</strong> Taipei, Taiwan
-					<br><strong>Relevant Coursework:</strong> Data Structures, Algorithms, Machine Learning, Web Technologies
-					<br><strong>GPA:</strong> [Your GPA if you'd like to include it]
-				</div>
-			</div>
-
-			<div class="education-item">
-				<div class="item-header">
 					<div>
-						<div class="item-title">High School Diploma</div>
-						<div class="item-subtitle">Petra Christian High School</div>
+						<div class="entry-location">Taipei, Taiwan</div>
+						<div class="entry-date">Sept. 2024 – Jul. 2025</div>
 					</div>
-					<div class="item-date">2017 - 2020</div>
 				</div>
-				<div class="item-description">
-					<strong>Location:</strong> Surabaya, Indonesia
-					<br><strong>Achievements:</strong> Graduated with honors, participated in science competitions
-				</div>
-			</div>
-		</section>
-
-		<section class="section">
-			<h2>Projects</h2>
-			
-			<div class="experience-item">
-				<div class="item-header">
-					<div>
-						<div class="item-title">Personal Portfolio Website</div>
-						<div class="item-subtitle">Web Development Project</div>
-					</div>
-					<div class="item-date">2024</div>
-				</div>
-				<div class="item-description">
-					<span class="badge">HTML5</span>
-					<span class="badge">CSS3</span>
-					<span class="badge">JavaScript</span>
+				<div class="entry-details">
+					<strong>Thesis:</strong> Optimizing High-Dimensional Steel Structure Design: A Hybrid Framework Integrating Dimensionality Reduction and Metaheuristic Algorithms<br>
+					<strong>Program:</strong> Dual Degree Program<br>
+					<strong>Relevant Coursework:</strong>
 					<ul>
-						<li>Designed and developed a responsive personal portfolio website</li>
-						<li>Implemented modern UI/UX principles for optimal user experience</li>
-						<li>Utilized CSS Grid and Flexbox for responsive layouts</li>
+						<li>Nonlinear Structural Behavior</li>
 					</ul>
 				</div>
 			</div>
 
-			<div class="experience-item">
-				<div class="item-header">
-					<div>
-						<div class="item-title">Python Data Analysis Tool</div>
-						<div class="item-subtitle">Academic Project</div>
+			<div class="entry">
+				<div class="entry-header">
+					<div style="flex: 1;">
+						<div class="entry-title">PETRA CHRISTIAN UNIVERSITY</div>
+						<div class="entry-subtitle">Master, Civil Engineering. GPA 4.00/4.00</div>
 					</div>
-					<div class="item-date">2024</div>
+					<div>
+						<div class="entry-location">Surabaya, Indonesia</div>
+						<div class="entry-date">Mar. 2024 – Jul. 2025</div>
+					</div>
 				</div>
-				<div class="item-description">
-					<span class="badge">Python</span>
-					<span class="badge">Pandas</span>
-					<span class="badge">Data Visualization</span>
+				<div class="entry-details">
+					<strong>Thesis:</strong> Optimizing High-Dimensional Steel Structure Design: A Hybrid Framework Integrating Dimensionality Reduction and Metaheuristic Algorithms<br>
+					<strong>Program:</strong> Fast-Track Program, Dual Degree Program<br>
+					<strong>Relevant Coursework:</strong>
 					<ul>
-						<li>Developed data analysis scripts for processing large datasets</li>
-						<li>Created visualization dashboards for data insights</li>
-						<li>Implemented efficient algorithms for data processing</li>
+						<li>Tall Building</li>
+						<li>Structural Dynamic</li>
 					</ul>
+				</div>
+			</div>
+
+			<div class="entry">
+				<div class="entry-header">
+					<div style="flex: 1;">
+						<div class="entry-title">PETRA CHRISTIAN UNIVERSITY</div>
+						<div class="entry-subtitle">Bachelor, Civil Engineering. GPA 3.95/4.00</div>
+					</div>
+					<div>
+						<div class="entry-location">Surabaya, Indonesia</div>
+						<div class="entry-date">Aug. 2020 – Mar. 2024</div>
+					</div>
+				</div>
+				<div class="entry-details">
+					<strong>Thesis:</strong> Optimization of Earthquake Resistance Reinforced Concrete Portal Using Metaheuristic
 				</div>
 			</div>
 		</section>
@@ -387,72 +348,174 @@
 		<section class="section">
 			<h2>Experience</h2>
 			
-			<div class="experience-item">
-				<div class="item-header">
-					<div>
-						<div class="item-title">Research Assistant</div>
-						<div class="item-subtitle">NTUST Department</div>
+			<div class="entry">
+				<div class="entry-header">
+					<div style="flex: 1;">
+						<div class="entry-title">CV. MULTI CONSTRUCT INDONESIA</div>
+						<div class="entry-subtitle">Structural Engineer, Site Engineer, Estimator, QA, QS</div>
 					</div>
-					<div class="item-date">2024 - Present</div>
+					<div>
+						<div class="entry-location">Surabaya, Indonesia</div>
+						<div class="entry-date">Dec. 2023 – Jul. 2024</div>
+					</div>
 				</div>
-				<div class="item-description">
+				<div class="entry-details">
 					<ul>
-						<li>Assisted in research projects related to computer science applications</li>
-						<li>Collaborated with professors and fellow students on innovative solutions</li>
-						<li>Presented findings at departmental seminars</li>
+						<li>Led the design and analysis of structural systems for residential and commercial projects, including mall, private houses, steel factories, ground water tank, and jetty.</li>
+						<li>Ensuring compliance with Indonesian building codes and safety standards, including American building codes such as ACI, ASCE, and AISC.</li>
+						<li>Managed on-site operations, coordinating with contractors and ensuring timely project execution while adhering to budget and schedule constraints.</li>
+						<li>Estimated material, labor, and time costs for various construction projects, optimizing project budgets and reducing overhead.</li>
+						<li>Conducted quality assurance (QA) inspections to ensure all construction processes met regulatory standards and project specifications.</li>
+						<li>Performed quantity surveying (QS) duties, calculating material quantities and preparing cost reports to support procurement and project bidding processes.</li>
+						<li>Collaborated with the project management team and external consultants to resolve construction issues, improving efficiency and reducing project delays.</li>
+						<li>Supervised site safety and compliance, reducing workplace accidents by implementing improved safety protocols.</li>
 					</ul>
 				</div>
 			</div>
 
-			<div class="experience-item">
-				<div class="item-header">
-					<div>
-						<div class="item-title">Student Leader</div>
-						<div class="item-subtitle">Campus Organization</div>
+			<div class="entry">
+				<div class="entry-header">
+					<div style="flex: 1;">
+						<div class="entry-title">PT. ARCHIMETRIC</div>
+						<div class="entry-subtitle">Structural Engineer (Intern)</div>
 					</div>
-					<div class="item-date">2023 - 2024</div>
+					<div>
+						<div class="entry-location">Surabaya, Indonesia</div>
+						<div class="entry-date">Jun. 2023 – Dec. 2023</div>
+					</div>
 				</div>
-				<div class="item-description">
+				<div class="entry-details">
 					<ul>
-						<li>Led team of 10+ students in organizing campus events</li>
-						<li>Coordinated logistics and managed project timelines</li>
-						<li>Demonstrated strong leadership and communication skills</li>
+						<li>Assisted in the design and structural analysis of residential and commercial buildings, applying Indonesian and American building codes.</li>
+						<li>Performed calculations for load-bearing elements, foundations, and structural integrity under supervision of senior engineers.</li>
+						<li>Created detailed construction drawings using AutoCAD and SAP2000, contributing to the project documentation process.</li>
 					</ul>
 				</div>
 			</div>
 		</section>
 
 		<section class="section">
-			<h2>Certifications</h2>
-			<table>
-				<thead>
-					<tr>
-						<th>Certification</th>
-						<th>Issuing Organization</th>
-						<th>Year</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr>
-						<td>Python Programming</td>
-						<td>Online Learning Platform</td>
-						<td>2024</td>
-					</tr>
-					<tr>
-						<td>Web Development Fundamentals</td>
-						<td>Online Learning Platform</td>
-						<td>2023</td>
-					</tr>
-				</tbody>
-			</table>
+			<h2>Research and Publications</h2>
+			
+			<div class="entry">
+				<strong>Conferences:</strong>
+				<div class="publication-title">
+					• Metaheuristic-Guided Structural Design Optimization Enhanced by Dimensionality Reduction Techniques
+					<span class="publication-venue">Mar. 2026</span>
+				</div>
+				<div style="margin-left: 15px; font-style: italic; color: #666;">
+					International Conference on Computing in Civil and Building Engineering
+				</div>
+				
+				<div class="publication-title">
+					• A Hybrid Framework for Structural Analysis and Optimization Using Dimensionality Reduction and Metaheuristics
+					<span class="publication-venue">Jul. 2025</span>
+				</div>
+				<div style="margin-left: 15px; font-style: italic; color: #666;">
+					The 29th Symposium on Construction Engineering and Management / International Conference
+				</div>
+			</div>
+
+			<div class="entry">
+				<strong>Papers:</strong>
+				<div class="publication-title">
+					• HYBRID FRAMEWORK FOR HIGH-DIMENSIONAL STEEL STRUCTURAL OPTIMIZATION WITH DIMENSIONALITY REDUCTION AND METAHEURISTICS
+				</div>
+				<div style="margin-left: 15px; font-style: italic; color: #666;">
+					China Civil and Hydraulic Engineering Journal 2026
+				</div>
+				
+				<div class="publication-title">
+					• An Intelligent Hybrid Framework for Reducing Computational Complexity in High-Dimensional Optimization
+				</div>
+				<div style="margin-left: 15px; font-style: italic; color: #666;">
+					Dimensi Utama Teknik Sipil 2026
+				</div>
+			</div>
+		</section>
+
+		<section class="section">
+			<h2>Leadership and Activities</h2>
+			
+			<div class="entry">
+				<div class="entry-header">
+					<div style="flex: 1;">
+						<div class="entry-title">PETRA SYNERGIC TEAM</div>
+						<div class="entry-subtitle">Freshmen Mentor</div>
+					</div>
+					<div>
+						<div class="entry-location">Surabaya, Indonesia</div>
+						<div class="entry-date">Jun. 2021 – Dec. 2023</div>
+					</div>
+				</div>
+				<div class="entry-details">
+					<ul>
+						<li>Mentored incoming freshmen, helping them navigate university life and develop personal, academic, and spiritual growth.</li>
+						<li>Guided students in understanding how to live a meaningful and successful life through Christian values and principles.</li>
+						<li>Organized group activities and discussions aimed at fostering a sense of community and spiritual connection among students.</li>
+						<li>Provided academic tutoring and support, helping freshmen adapt to the academic expectations of university life.</li>
+					</ul>
+				</div>
+			</div>
+		</section>
+
+		<section class="section">
+			<h2>Skills</h2>
+			
+			<div class="skills-section">
+				<div class="skill-group">
+					<strong>Technical:</strong>
+					<ul class="skill-list">
+						<li>Programming Languages: Python, C++, C</li>
+						<li>Software: Microsoft Office, ETABS, SAP2000, RISA, AutoCAD, MATLAB</li>
+					</ul>
+				</div>
+
+				<div class="skill-group">
+					<strong>Language:</strong>
+					<ul class="skill-list">
+						<li>Indonesian: Native proficiency</li>
+						<li>Malay: Full professional proficiency</li>
+						<li>English: Full professional proficiency</li>
+						<li>Chinese: Basic proficiency</li>
+					</ul>
+				</div>
+
+				<div class="skill-group">
+					<strong>Laboratory:</strong>
+					<ul class="skill-list">
+						<li>Proficient in experimental design, data collection, and statistical analysis</li>
+						<li>Skilled in database design and querying using SQL for data management and analysis</li>
+					</ul>
+				</div>
+			</div>
+		</section>
+
+		<section class="section">
+			<h2>Awards & Honors</h2>
+			<ul class="awards-list">
+				<li>NSTC Scholarship <span style="float: right;">Jul. 2024</span></li>
+				<li>Valedictorian of the 85th Graduation Ceremony of Petra Christian University <span style="float: right;">Mar. 2024</span></li>
+				<li>Cum Laude Representation of the 85th Graduation Ceremony <span style="float: right;">Mar. 2024</span></li>
+				<li>Active Graduate Representation of the 85th Graduation Ceremony <span style="float: right;">Mar. 2024</span></li>
+				<li>Best Civil Engineering Graduate Class of 2020 <span style="float: right;">Mar. 2024</span></li>
+				<li>PT Adaro Indonesia Scholarship 2023-2024 <span style="float: right;">Jun. 2023</span></li>
+				<li>1st winner of Civil Analysis and Photography 2022 <span style="float: right;">Jun. 2022</span></li>
+				<li>Ever-best Benjamin Gideon & Associates Scholarship 2021 <span style="float: right;">Jun. 2021</span></li>
+				<li>Academic Achievement Scholarship 2020 <span style="float: right;">Feb. 2021</span></li>
+			</ul>
 		</section>
 
 		<section class="section">
 			<h2>Interests</h2>
-			<div class="item-description">
-				<strong>Professional:</strong> Web Development, Machine Learning, Software Engineering, Open Source Contribution
-				<br><strong>Personal:</strong> Technology Trends, Reading, Problem Solving Challenges, Cultural Exchange
-			</div>
+			<ul>
+				<li><strong>Programming:</strong> Passionate about developing software solutions and enhancing coding skills in languages such as Python, C++, and MATLAB.</li>
+				<li><strong>Continuous Learning:</strong> Enthusiastic about acquiring new knowledge and skills, particularly in emerging technologies and methodologies.</li>
+				<li><strong>Communication:</strong> Committed to effective communication, both verbal and written, to facilitate collaboration and teamwork.</li>
+				<li><strong>Machine Learning & AI:</strong> Interested in exploring machine learning algorithms and artificial intelligence applications to solve complex problems.</li>
+				<li><strong>Construction Management:</strong> Eager to understand and implement best practices in construction management to optimize project execution and delivery.</li>
+				<li><strong>Structural Engineering:</strong> Dedicated to advancing knowledge in structural engineering principles and innovative design solutions. Ensuring compliance with Indonesian building codes and safety standards.</li>
+			</ul>
 		</section>
 	</div>
 </body>
