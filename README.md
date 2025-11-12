@@ -34,8 +34,8 @@ graph TD
     C --> D("Progress Tracking<br>專案進度追蹤<br>負責人: Lee Meng Hsun")
     C --> E("Add Work Item<br>新增工項<br>負責人: Lee Meng Hsun")
     C --> F("Edit Work Item<br>工項編輯<br>負責人: Lee Meng Hsun")
-    C --> G("Material Overview<br>材料總覽<br>負責人: ")
-    C --> H("Vendor Management<br>供應商管理頁面<br>負責人: ")
+    C --> G("Material Overview<br>材料總覽<br>負責人: Zi Yi Yang")
+    C --> H("Vendor Management<br>供應商管理頁面<br>負責人: Zi Yi Yang ")
     
     %% Material Overview branches
     G --> I("Material Arrival Log<br>材料進貨時間紀錄<br>負責人: Steven Gaillard")
