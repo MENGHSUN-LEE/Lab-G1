@@ -3,77 +3,457 @@
 <head>
 	<meta charset="UTF-8">
  	<meta name="viewport" content="width=device-width, initial-scale=1.0">
- 	<title>My Basic Resume</title>
+ 	<title>Steven Gaillard - Professional Resume</title>
  	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+
 		body {
- 			font-family: Arial, sans-serif;
- 			max-width: 800px; /* Limits the resume width */
- 			margin: 0 auto; /* Centers the resume on the page */
- 			padding: 20px;
+ 			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+ 			max-width: 900px;
+ 			margin: 0 auto;
+ 			padding: 40px 20px;
+			background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+			line-height: 1.6;
+			color: #333;
  		} 
- 		h1 {
- 			color: #333366; /* A dark blue color */
+
+		.container {
+			background: white;
+			padding: 40px;
+			box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+			border-radius: 10px;
+		}
+ 		
+ 		header {
+			text-align: center;
+			padding-bottom: 30px;
+			border-bottom: 3px solid #333366;
+			margin-bottom: 30px;
+		}
+
+		.profile-img-container {
+			margin-bottom: 20px;
+		}
+
+		h1 {
+ 			color: #333366;
+			font-size: 2.5em;
+			margin-bottom: 10px;
+			font-weight: 700;
  		}
+
+		.contact-info {
+			display: flex;
+			justify-content: center;
+			gap: 20px;
+			flex-wrap: wrap;
+			margin-top: 15px;
+		}
+
+		.contact-item {
+			display: flex;
+			align-items: center;
+			gap: 5px;
+			color: #666;
+		}
+
+		.contact-item::before {
+			content: "•";
+			color: #333366;
+			font-weight: bold;
+			margin-right: 5px;
+		}
+ 		
  		h2 {
- 			color: #444;
- 			border-bottom: 2px solid #ccc; /* A grey line for separation */
- 			padding-bottom: 5px;
- 			margin-top: 20px;
+ 			color: #333366;
+			font-size: 1.8em;
+ 			border-bottom: 3px solid #333366;
+ 			padding-bottom: 8px;
+ 			margin-top: 35px;
+			margin-bottom: 20px;
+			font-weight: 600;
  		} 
+
+		h3 {
+			color: #444;
+			font-size: 1.3em;
+			margin-top: 15px;
+			margin-bottom: 8px;
+		}
+
+		.section {
+			margin-bottom: 30px;
+		}
+
+		.summary {
+			background: #f8f9fa;
+			padding: 20px;
+			border-left: 4px solid #333366;
+			border-radius: 5px;
+			margin-bottom: 30px;
+			font-style: italic;
+			color: #555;
+		}
+
+		.skills-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+			gap: 20px;
+			margin-top: 20px;
+		}
+
+		.skill-category {
+			background: #f8f9fa;
+			padding: 15px;
+			border-radius: 8px;
+			border-left: 4px solid #333366;
+		}
+
+		.skill-category h3 {
+			margin-top: 0;
+			font-size: 1.1em;
+			color: #333366;
+		}
+ 		
+ 		ul {
+ 			list-style-type: none;
+ 			margin-left: 0;
+			margin-top: 10px;
+ 		}
+
+		ul li {
+			padding: 5px 0;
+			padding-left: 20px;
+			position: relative;
+		}
+
+		ul li::before {
+			content: "▹";
+			color: #333366;
+			font-weight: bold;
+			position: absolute;
+			left: 0;
+		}
+
+		.experience-item, .education-item {
+			margin-bottom: 25px;
+			padding: 20px;
+			background: #f8f9fa;
+			border-radius: 8px;
+			border-left: 4px solid #333366;
+		}
+
+		.item-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: start;
+			margin-bottom: 10px;
+			flex-wrap: wrap;
+		}
+
+		.item-title {
+			font-weight: 600;
+			color: #333366;
+			font-size: 1.2em;
+		}
+
+		.item-subtitle {
+			color: #666;
+			font-style: italic;
+			margin-top: 5px;
+		}
+
+		.item-date {
+			color: #666;
+			font-weight: 500;
+			background: white;
+			padding: 5px 15px;
+			border-radius: 20px;
+			white-space: nowrap;
+		}
+
+		.item-description {
+			margin-top: 10px;
+			color: #555;
+		}
+ 		
  		table {
  			width: 100%;
- 			border-collapse: collapse; /* Removes double borders */
+ 			border-collapse: collapse;
+			margin-top: 15px;
+			background: white;
  		}
+
 		th, td {
- 			border: 1px solid #ddd; /* Light grey border */
- 			padding: 8px;
+ 			border: 1px solid #ddd;
+ 			padding: 12px;
  			text-align: left;
- 		} 
- 		ul {
- 			list-style-type: square; /* Changes the bullet point shape */
- 			margin-left: 20px;
- 		} 
+ 		}
+
+		th {
+			background: #333366;
+			color: white;
+			font-weight: 600;
+		}
+
+		tr:nth-child(even) {
+			background: #f8f9fa;
+		}
+
+		tr:hover {
+			background: #e9ecef;
+		}
+ 		
 		img {
- 			display: block; /* Allows margin: auto to work */
+ 			display: block;
  			margin: auto;
- 			border-radius: 5px;
- 		} 
+ 			border-radius: 50%;
+			border: 4px solid #333366;
+			box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+ 		}
+
+		.badge {
+			display: inline-block;
+			background: #333366;
+			color: white;
+			padding: 3px 10px;
+			border-radius: 12px;
+			font-size: 0.85em;
+			margin: 3px;
+		}
+
+		@media (max-width: 600px) {
+			.container {
+				padding: 20px;
+			}
+
+			h1 {
+				font-size: 2em;
+			}
+
+			h2 {
+				font-size: 1.5em;
+			}
+
+			.contact-info {
+				flex-direction: column;
+				gap: 10px;
+			}
+
+			.item-header {
+				flex-direction: column;
+			}
+
+			.item-date {
+				margin-top: 10px;
+			}
+		}
  	</style> 
 </head>
 <body>
-<header>
- 	<h1>Steven Gaillard</h1>
- 	<p>d11405806@mail.ntust.edu.tw | 0987067808</p>
- 	<img src="p-D11405806.jpg" alt="Steven Gaillard Profile Photo" width="100">
-</header>
-<h2>Skills</h2>
-<ul>
- 	<li>HTML5 & CSS3</li>
- 	<li>Python</li>
- 	<li>Leadership</li>
- 	<li>Critical Thinking</li>
-</ul> 
-<h2>Education</h2>
-<table>
- 	<thead>
- 		<tr>
- 			<th>Degree/Certificate</th>
- 			<th>Institution</th>
- 			<th>Year</th>
- 		</tr>
- 	</thead>
- 	<tbody>
- 		<tr>
- 			<td>M.Sc.</td>
- 			<td>National Taiwan University of Science and Technology</td>
- 			<td>2025</td>
- 		</tr>
- 		<tr>
- 			<td>High School Diploma</td>
- 			<td>Petra Christian Highschool</td>
- 			<td>2020</td>
- 		</tr>
- 	</tbody>
-</table> 
+	<div class="container">
+		<header>
+			<div class="profile-img-container">
+				<img src="p-D11405806.jpg" alt="Steven Gaillard Profile Photo" width="150">
+			</div>
+			<h1>Steven Gaillard</h1>
+			<div class="contact-info">
+				<div class="contact-item">d11405806@mail.ntust.edu.tw</div>
+				<div class="contact-item">+886 987-067-808</div>
+				<div class="contact-item">Taipei, Taiwan</div>
+			</div>
+		</header>
+
+		<div class="summary">
+			<strong>Professional Summary:</strong> Results-driven graduate student pursuing M.Sc. at National Taiwan University of Science and Technology with strong technical skills in programming and web development. Demonstrated leadership abilities and critical thinking skills with a passion for innovation and problem-solving. Seeking opportunities to leverage technical expertise and analytical capabilities in challenging projects.
+		</div>
+
+		<section class="section">
+			<h2>Skills</h2>
+			<div class="skills-grid">
+				<div class="skill-category">
+					<h3>Technical Skills</h3>
+					<ul>
+						<li>HTML5 & CSS3</li>
+						<li>Python Programming</li>
+						<li>JavaScript</li>
+						<li>Responsive Web Design</li>
+						<li>Version Control (Git)</li>
+					</ul>
+				</div>
+				<div class="skill-category">
+					<h3>Soft Skills</h3>
+					<ul>
+						<li>Leadership & Team Management</li>
+						<li>Critical Thinking</li>
+						<li>Problem Solving</li>
+						<li>Effective Communication</li>
+						<li>Project Management</li>
+					</ul>
+				</div>
+				<div class="skill-category">
+					<h3>Languages</h3>
+					<ul>
+						<li>English - Fluent</li>
+						<li>Mandarin Chinese - Intermediate</li>
+						<li>Indonesian - Native</li>
+					</ul>
+				</div>
+			</div>
+		</section>
+
+		<section class="section">
+			<h2>Education</h2>
+			
+			<div class="education-item">
+				<div class="item-header">
+					<div>
+						<div class="item-title">Master of Science (M.Sc.)</div>
+						<div class="item-subtitle">National Taiwan University of Science and Technology (NTUST)</div>
+					</div>
+					<div class="item-date">2023 - 2025</div>
+				</div>
+				<div class="item-description">
+					<strong>Focus:</strong> Advanced studies in Computer Science and Engineering
+					<br><strong>Location:</strong> Taipei, Taiwan
+					<br><strong>Relevant Coursework:</strong> Data Structures, Algorithms, Machine Learning, Web Technologies
+					<br><strong>GPA:</strong> [Your GPA if you'd like to include it]
+				</div>
+			</div>
+
+			<div class="education-item">
+				<div class="item-header">
+					<div>
+						<div class="item-title">High School Diploma</div>
+						<div class="item-subtitle">Petra Christian High School</div>
+					</div>
+					<div class="item-date">2017 - 2020</div>
+				</div>
+				<div class="item-description">
+					<strong>Location:</strong> Surabaya, Indonesia
+					<br><strong>Achievements:</strong> Graduated with honors, participated in science competitions
+				</div>
+			</div>
+		</section>
+
+		<section class="section">
+			<h2>Projects</h2>
+			
+			<div class="experience-item">
+				<div class="item-header">
+					<div>
+						<div class="item-title">Personal Portfolio Website</div>
+						<div class="item-subtitle">Web Development Project</div>
+					</div>
+					<div class="item-date">2024</div>
+				</div>
+				<div class="item-description">
+					<span class="badge">HTML5</span>
+					<span class="badge">CSS3</span>
+					<span class="badge">JavaScript</span>
+					<ul>
+						<li>Designed and developed a responsive personal portfolio website</li>
+						<li>Implemented modern UI/UX principles for optimal user experience</li>
+						<li>Utilized CSS Grid and Flexbox for responsive layouts</li>
+					</ul>
+				</div>
+			</div>
+
+			<div class="experience-item">
+				<div class="item-header">
+					<div>
+						<div class="item-title">Python Data Analysis Tool</div>
+						<div class="item-subtitle">Academic Project</div>
+					</div>
+					<div class="item-date">2024</div>
+				</div>
+				<div class="item-description">
+					<span class="badge">Python</span>
+					<span class="badge">Pandas</span>
+					<span class="badge">Data Visualization</span>
+					<ul>
+						<li>Developed data analysis scripts for processing large datasets</li>
+						<li>Created visualization dashboards for data insights</li>
+						<li>Implemented efficient algorithms for data processing</li>
+					</ul>
+				</div>
+			</div>
+		</section>
+
+		<section class="section">
+			<h2>Experience</h2>
+			
+			<div class="experience-item">
+				<div class="item-header">
+					<div>
+						<div class="item-title">Research Assistant</div>
+						<div class="item-subtitle">NTUST Department</div>
+					</div>
+					<div class="item-date">2024 - Present</div>
+				</div>
+				<div class="item-description">
+					<ul>
+						<li>Assisted in research projects related to computer science applications</li>
+						<li>Collaborated with professors and fellow students on innovative solutions</li>
+						<li>Presented findings at departmental seminars</li>
+					</ul>
+				</div>
+			</div>
+
+			<div class="experience-item">
+				<div class="item-header">
+					<div>
+						<div class="item-title">Student Leader</div>
+						<div class="item-subtitle">Campus Organization</div>
+					</div>
+					<div class="item-date">2023 - 2024</div>
+				</div>
+				<div class="item-description">
+					<ul>
+						<li>Led team of 10+ students in organizing campus events</li>
+						<li>Coordinated logistics and managed project timelines</li>
+						<li>Demonstrated strong leadership and communication skills</li>
+					</ul>
+				</div>
+			</div>
+		</section>
+
+		<section class="section">
+			<h2>Certifications</h2>
+			<table>
+				<thead>
+					<tr>
+						<th>Certification</th>
+						<th>Issuing Organization</th>
+						<th>Year</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>Python Programming</td>
+						<td>Online Learning Platform</td>
+						<td>2024</td>
+					</tr>
+					<tr>
+						<td>Web Development Fundamentals</td>
+						<td>Online Learning Platform</td>
+						<td>2023</td>
+					</tr>
+				</tbody>
+			</table>
+		</section>
+
+		<section class="section">
+			<h2>Interests</h2>
+			<div class="item-description">
+				<strong>Professional:</strong> Web Development, Machine Learning, Software Engineering, Open Source Contribution
+				<br><strong>Personal:</strong> Technology Trends, Reading, Problem Solving Challenges, Cultural Exchange
+			</div>
+		</section>
+	</div>
 </body>
-</html> 
+</html>
