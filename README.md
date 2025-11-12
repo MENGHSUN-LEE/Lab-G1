@@ -1,33 +1,32 @@
 ```mermaid
 graph TD
-    %% P1 (red) 
-    style A fill:#F08080,stroke:#333,stroke-width:2px
-    style B fill:#F08080,stroke:#333,stroke-width:2px
-    style C fill:#F08080,stroke:#333,stroke-width:2px
-    style D fill:#F08080,stroke:#333,stroke-width:2px
-    style E fill:#F08080,stroke:#333,stroke-width:2px
-    style F fill:#F08080,stroke:#333,stroke-width:2px
+    style A fill:#F08080,stroke:#333,stroke-width:2px,color:#000
+    style B fill:#F08080,stroke:#333,stroke-width:2px,color:#000
+    style C fill:#F08080,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#F08080,stroke:#333,stroke-width:2px,color:#000
+    style E fill:#F08080,stroke:#333,stroke-width:2px,color:#000
+    style F fill:#F08080,stroke:#333,stroke-width:2px,color:#000
     
     %% P2 (orange)
-    style G fill:#FFA500,stroke:#333,stroke-width:2px
-    style H fill:#FFA500,stroke:#333,stroke-width:2px
+    style G fill:#FFA500,stroke:#333,stroke-width:2px,color:#000
+    style H fill:#FFA500,stroke:#333,stroke-width:2px,color:#000
     
     %% P3 (green)
-    style I fill:#90EE90,stroke:#333,stroke-width:2px
-    style J fill:#90EE90,stroke:#333,stroke-width:2px
-    style K fill:#90EE90,stroke:#333,stroke-width:2px
-    style L fill:#90EE90,stroke:#333,stroke-width:2px
-    style M fill:#90EE90,stroke:#333,stroke-width:2px
-    style N fill:#90EE90,stroke:#333,stroke-width:2px
-    style O fill:#90EE90,stroke:#333,stroke-width:2px
-    style P fill:#90EE90,stroke:#333,stroke-width:2px
-    style Q fill:#90EE90,stroke:#333,stroke-width:2px
-    style R fill:#90EE90,stroke:#333,stroke-width:2px
-    style S fill:#90EE90,stroke:#333,stroke-width:2px
-    style T fill:#90EE90,stroke:#333,stroke-width:2px
-    style U fill:#90EE90,stroke:#333,stroke-width:2px
-    style V fill:#90EE90,stroke:#333,stroke-width:2px
-    style W fill:#90EE90,stroke:#333,stroke-width:2px
+    style I fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style J fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style K fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style L fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style M fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style N fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style O fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style P fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style Q fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style R fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style S fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style T fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style U fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style V fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style W fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
     
     A["Login Page<br>入口/登入頁面<br>負責人: Lee Meng Hsun"] --> B("Registration Page<br>註冊頁面<br>負責人: Lee Meng Hsun")
     A --> C("Project Dashboard<br>專案管理首頁<br>負責人: Lee Meng Hsun")
