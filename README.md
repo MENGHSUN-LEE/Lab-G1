@@ -57,9 +57,9 @@ graph TD
     L --> T("Reorder Point Alerts<br>補貨點提醒<br>負責人: Steven Gaillard")
     
     %% Vendor Management branches
-    H --> K("Vendor Rating History<br>供應商評分紀錄<br>負責人: Steven Gaillard")
-    H --> U("Vendor Performance Dashboard<br>供應商績效儀表板<br>負責人: Steven Gaillard")
+    H --> K("Vendor Rating History<br>供應商評分紀錄<br>負責人: Zi Yi Yang")
+    H --> U("Vendor Performance Dashboard<br>供應商績效儀表板<br>負責人: Zi Yi Yang")
     
     %% Vendor Rating History sub-branches
-    K --> V("Delivery Punctuality Metrics<br>交貨準時率指標<br>負責人: Steven Gaillard")
-    K --> W("Price Competitiveness Analysis<br>價格競爭力分析<br>負責人: Steven Gaillard")
+    K --> V("Delivery Punctuality Metrics<br>交貨準時率指標<br>負責人: Zi Yi Yang")
+    K --> W("Price Competitiveness Analysis<br>價格競爭力分析<br>負責人: Zi Yi Yang")
