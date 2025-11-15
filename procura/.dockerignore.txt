@@ -1,0 +1,10 @@
+# .dockerignore
+
+# 排除 Node.js 依賴資料夾
+node_modules
+# 排除 Docker 相關文件本身
+Dockerfile
+.dockerignore
+# 排除其他本地端開發相關文件
+npm-debug.log
+.git
