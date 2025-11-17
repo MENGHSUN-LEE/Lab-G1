@@ -1,0 +1,89 @@
+:root { --primary:#2563eb; --bg:#f8fafc; --card:#ffffff; --text:#0f172a; --muted:#64748b; --border:#e2e8f0; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", Arial, "Helvetica Neue", sans-serif; color:var(--text); background:var(--bg); }
+
+/* Header / Buttons */
+header { display:none; position:sticky; top:0; background:var(--card); border-bottom:1px solid var(--border); padding:10px 16px; z-index:10; }
+header .brand { font-weight:700; }
+header nav { display:flex; gap:8px; }
+
+header button, .btn {
+  appearance:none; border:1px solid var(--border); background:var(--card);
+  cursor:pointer;
+}
+
+/* 按鈕統一尺寸與樣式 */
+.btn, .btn-primary {
+  display:inline-block;
+  min-width:120px;
+  text-align:center;
+  padding:10px 16px;
+  font-size:14px;
+  line-height:1.4;
+  border-radius:8px;
+}
+
+.btn-primary { background:var(--primary); color:#fff; border-color:transparent; }
+
+/* Layout */
+main { max-width:1040px; margin:24px auto; padding:0 16px; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+.stack { display:grid; gap:12px; }
+.grid { display:grid; gap:12px; }
+.grid.cols-1 { grid-template-columns: 1fr; }
+.grid.cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.grid.cols-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+@media (max-width: 720px) { .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; } }
+
+input, select { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; outline:none; background:#fff; }
+label { font-size:14px; color:var(--muted); }
+
+/* Tabs */
+.tabs { border-bottom:1px solid var(--border); display:flex; gap:8px; flex-wrap:wrap; }
+.tab-btn { padding:10px 12px; border:1px solid transparent; border-radius:10px 10px 0 0; cursor:pointer; background:transparent; color:var(--muted); }
+.tab-btn.active { color:var(--text); background:var(--card); border-color:var(--border) var(--border) var(--card) var(--border); }
+.tab-panel { display:none; padding:16px 0; }
+.tab-panel.active { display:block; }
+
+/* Lists / Tables */
+.list { display:grid; gap:10px; }
+.list-item { padding:12px; border:1px solid var(--border); border-radius:12px; background:#fff; display:flex; justify-content:space-between; align-items:center; }
+.list-item h4 { margin:0; font-size:16px; }
+.muted { color:var(--muted); font-size:13px; }
+.hidden { display:none !important; }
+
+/* Progress blocks */
+.date-block { border:1px solid var(--border); border-radius:12px; padding:12px; background:#fff; }
+.date-title { font-weight:700; margin:0 0 8px 0; }
+.work-item { border:1px dashed var(--border); border-radius:10px; padding:10px; margin:8px 0; background:#fff; }
+.badge {
+  display:inline-block; 
+  padding:2px 8px; 
+  border-radius:999px; 
+  font-size:12px; 
+  border:1px solid; /* 讓狀態顏色覆蓋邊框 */
+}
+
+/* -------------------- 視覺優化：狀態顏色 -------------------- */
+
+/* 引入 Icon 樣式（需搭配 HTML 中引入 Material Symbols） */
+.material-symbols-outlined { 
+  font-size: 1.1em; 
+  vertical-align: middle; 
+  margin-right: 4px; 
+}
+
+/* 工項狀態 */
+.badge-ahead { background: #dcfce7; color: #15803d; border-color: #a7f3d0; }      /* 提前 (0) - 綠色 */
+.badge-normal { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }    /* 正常 (1) - 藍色 */
+.badge-delayed { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }  /* 延後 (2) - 紅色 */
+
+/* 建材狀態 */
+.badge-mat-arrived { background: #dcfce7; color: #15803d; border-color: #a7f3d0; } /* 已到貨 (0) - 綠色 */
+.badge-mat-ordered { background: #fef9c3; color: #b45309; border-color: #fde68a; } /* 已叫貨 (1) - 黃色 */
+.badge-mat-pending { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; } /* 未叫貨 (2) - 藍色 */
+.badge-mat-enroute { background: #fef3c7; color: #ca8a04; border-color: #fcd34d; } /* 已叫貨但未抵達 (3) - 橘黃色 */
+
+/* Helpers */
+.actions { display:flex; gap:8px; flex-wrap:wrap; }
+.align-end { align-self: end; }
