@@ -16,7 +16,6 @@ export const pages = {
 };
 export const headerEl = document.getElementById("appHeader");
 
-// --- 啟動與初始化 ---
 function init(){
   // 1. 綁定所有頁面的事件
   bindLoginEvents();

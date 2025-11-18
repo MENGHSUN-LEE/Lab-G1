@@ -2,7 +2,7 @@
 
 import { state, pages, headerEl } from './app.js';
 import { PROJECTS } from './data.js';
-import { renderSearchResults, doSearch } from './pages/search.js';
+import { renderSearchResults } from './pages/search.js';
 import { renderDetail } from './pages/detail.js';
 
 /**
