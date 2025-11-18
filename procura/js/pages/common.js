@@ -3,7 +3,6 @@
 import { WORK_STATUS, MAT_STATUS } from '../data.js';
 import { state } from '../app.js';
 import { renderMaterialsTable, renderProgress, syncCreateSelectors, syncEditSelectors } from './detail.js';
-
 /** 根據工項狀態值返回 CSS 類別 */
 export function getWorkStatusClass(status){
     switch(status){

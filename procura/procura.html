@@ -17,7 +17,6 @@
   <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
     <div class="brand">Procura Co., Ltd. </div>
     <nav>
-      <!-- 增加 Icon 結構 -->
       <button class="btn" data-nav="#search"><span class="material-symbols-outlined">work</span> Project</button>
       <button class="btn" id="logoutBtn"><span class="material-symbols-outlined">logout</span> Log out</button>
     </nav>
@@ -29,20 +28,36 @@
   <section id="page-login" class="card stack">
     <h1>Procura 智供管理系統</h1>
     <h2>Log in</h2>
-    <div class="grid cols-1">
+    
+    <form class="stack" onsubmit="event.preventDefault(); document.getElementById('loginBtn').click();">
       <div class="stack">
-        <label>Email</label>
-        <input id="loginEmail" type="text" placeholder="you@example.com" />
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" type="email" placeholder="you@example.com" required />
       </div>
       <div class="stack">
-        <label>Password</label>
-        <input id="loginPassword" type="password" placeholder="••••••••" />
+        <label for="loginPassword">Password</label>
+        <!-- 新增 .password-container 容器來定位 Icon -->
+        <div class="password-container">
+          <input id="loginPassword" type="password" placeholder="••••••••" required />
+          <!-- 眼睛 Icon (Material Symbols)，ID用於 JS 綁定事件 -->
+          <span class="material-symbols-outlined password-toggle" id="togglePassword">
+            visibility_off
+          </span>
+        </div>
       </div>
-      <div class="actions">
-        <button id="loginBtn" class="btn-primary">Log in</button>
-        <button id="signupBtn" class="btn">Sign up</button>
+      <div class="flex-between">
+          <div class="flex-center">
+              <input type="checkbox" id="rememberMe" style="width: auto; margin-right: 8px;" />
+              <label for="rememberMe" style="margin-bottom: 0;">Remember Me</label>
+          </div>
+          <a href="#" class="muted" style="font-size: 14px; text-decoration: none;" id="forgotPasswordLink">Forgot Password？</a>
       </div>
-    </div>
+
+      <div class="actions" style="margin-top: 12px;">
+        <button id="loginBtn" class="btn-primary" type="submit">Log in</button>
+        <button id="signupBtn" class="btn" type="button">Sign up</button>
+      </div>
+    </form>
   </section>
   
 <!-- 註冊頁 -->
