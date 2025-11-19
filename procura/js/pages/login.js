@@ -31,7 +31,7 @@ export function bindLoginEvents(){
 
   // demo：創建帳號按鈕（僅導回登入，不存資料）
   document.getElementById("createAccountBtn")?.addEventListener("click", ()=>{
-    alert("Demo：尚未接上後端，僅導回登入頁。");
+    alert("Not connected to DB");
     location.hash = "#login";
   });
   

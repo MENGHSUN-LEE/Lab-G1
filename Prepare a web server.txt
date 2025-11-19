@@ -2,3 +2,11 @@ docker run -it --name procura-dev -p 8080:80 -v C:\Users\meng\Documents\procura:
 cd /app
 npm install express
 node app.js
+
+
+-------------------------------------
+
+docker run -it --name procura-dev --network my-assignment-net -p 8080:80 -v C:\Users\417\Documents\Lab-G1\procura:/app node bash
+cd /app
+npm install express
+node app.js

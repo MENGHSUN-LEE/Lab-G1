@@ -10,6 +10,9 @@ const detailMeta   = document.getElementById("detailMeta");
 const progressContainer = document.getElementById("progressContainer");
 const materialsTableTbody = document.querySelector("#materialsTable tbody");
 
+// 進度日期選單
+const progressDateSelector = document.getElementById("progressDateSelector");
+
 // 新增工項/建材
 const createDate = document.getElementById("create-date");
 const createWorkName = document.getElementById("create-work-name");
@@ -38,23 +41,52 @@ export function renderDetail(p){
   detailTitle.textContent = p.name;
   detailMeta.textContent  = `Owner：${p.owner}　｜　Tags：${p.tags.join(", ")}`;
   setActiveTab("progress"); // 預設顯示進度頁籤
-  renderProgress();
-  // 確保選單資料同步
+  syncProgressDates();
+  renderProgress('all'); 
   syncCreateSelectors();
   syncEditSelectors();
   renderMaterialsTable();
 }
 
+// 同步進度頁籤的日期選單
+function syncProgressDates() {
+    const proj = state.currentProject;
+    const dates = (proj.progress || []).map(d => d.date).sort((a,b)=> b.localeCompare(a)); 
+
+    let options = `<option value="all">-- Show All Dates --</option>`;
+    options += dates.map(d => `<option value="${d}">${d}</option>`).join("");
+    
+    progressDateSelector.innerHTML = options;
+}
+
 // --- 專案進度 (Progress) ---
 
+/** 渲染專案進度區塊
+ * @param {string} dateFilter - 要顯示的日期字串，或 'all'
+ */
+
 /** 渲染專案進度區塊 */
-export function renderProgress(){
+export function renderProgress(dateFilter){
   const proj = state.currentProject;
   progressContainer.innerHTML = "";
-  if(!proj?.progress?.length){ progressContainer.innerHTML = "<div class='muted'>尚無進度</div>"; return; }
+  if(!proj?.progress?.length){ progressContainer.innerHTML = "<div class='muted'>No Progress Items.</div>"; return; }
 
-  // 排序日期
-  const dates = [...proj.progress].sort((a,b)=> a.date.localeCompare(b.date));
+  let dates = [...proj.progress].sort((a,b)=> a.date.localeCompare(b.date)); // 確保日期是升序
+
+  // **根據 dateFilter 過濾要顯示的日期**
+  if (dateFilter && dateFilter !== 'all') {
+    dates = dates.filter(d => d.date === dateFilter);
+  } else if (dateFilter === 'all') {
+    // 預設顯示所有日期，不需要額外過濾
+  }
+
+  // 如果過濾後沒有資料
+  if (!dates.length) {
+    progressContainer.innerHTML = `<div class='muted'>No progress data found for the selected date.</div>`;
+    return;
+  }
+  
+  // 渲染篩選或排序後的日期
   dates.forEach(d=>{
     const div = document.createElement("div");
     div.className = "date-block";
@@ -67,13 +99,13 @@ export function renderProgress(){
         <div>
           <div style="font-weight:600;">${it.name}</div>
           <div class="muted">
-            開始時間：${it.start}　|　狀態：
+            Start Time：${it.start}　|　Status：
             <span class="badge ${getWorkStatusClass(it.status)}">${WORK_STATUS[it.status] ?? "-"}</span>
           </div>
         </div>
         <div style="margin-top:8px;">
           <table class="table">
-            <thead><tr><th>建材細項</th><th>供應商</th><th>數量</th><th>單位</th><th>狀態</th></tr></thead>
+            <thead><tr><th>Material Detail</th><th>Vendor</th><th>Quantity</th><th>Unit</th><th>Status</th></tr></thead>
             <tbody>
               ${(it.materials||[]).map(m=>`
                 <tr>
@@ -177,6 +209,11 @@ function syncEditMaterialOptions(dateStr, workIdx){
 // --- 事件綁定 ---
 
 export function bindDetailEvents(){
+  // **新增：進度日期選單變動事件**
+  progressDateSelector?.addEventListener("change", (e) => {
+      renderProgress(e.target.value);
+  });
+
   // 新增工項
   document.getElementById("addWorkBtn").onclick = ()=>{
     const proj = state.currentProject;
@@ -195,7 +232,9 @@ export function bindDetailEvents(){
     dateNode.items.push({ name, start, status: statusDefault, materials: [] });
     
     createWorkName.value = "";
-    renderProgress(); 
+    syncProgressDates(); 
+    progressDateSelector.value = d;
+    renderProgress(d); 
     syncCreateSelectors(); 
     setActiveTab("progress");
   };
@@ -221,7 +260,8 @@ export function bindDetailEvents(){
     work.materials.push({ name, vendor, qty, unit, mstatus: mstatusDefault });
     
     matName.value=""; matVendor.value=""; matQty.value="0"; matUnit.value="";
-    renderProgress(); 
+    progressDateSelector.value = d; // 選中當前日期
+    renderProgress(d); 
     renderMaterialsTable(); 
     setActiveTab("materials");
   };
