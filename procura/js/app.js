@@ -1,5 +1,6 @@
 // js/app.js
-
+import { bindMaterialEvents } from './pages/materials.js';
+import { bindVendorEvents } from './pages/vendors.js';
 import { router } from './router.js';
 import { bindLoginEvents } from './pages/login.js';
 import { bindSearchEvents } from './pages/search.js';
@@ -23,6 +24,8 @@ function init(){
   bindSearchEvents();
   bindDetailEvents();
   bindTabEvents();
+  bindMaterialEvents();
+  bindVendorEvents(); 
 
   // 2. 啟動路由監聽 (處理 URL 雜湊變更)
   window.addEventListener("hashchange", router);
