@@ -1,35 +1,35 @@
 // 對照表
-export const WORK_STATUS = ["提前", "正常", "延後"];
-export const MAT_STATUS  = ["已到貨", "已叫貨", "未叫貨", "已叫貨但未抵達"];
+export const WORK_STATUS = ["Early", "On time", "Delayed"];
+export const MAT_STATUS  = ["Delivered", "Ordered", "Pending Order", "In Transit"];
 
 // 假資料
 export const PROJECTS = [
   {
     id: "p-001",
-    name: "社會住宅",
-    tags: ["住宅", "房屋", "公寓"],
+    name: "Social Housing Project A",
+    tags: ["Residential", "Housing", "Apartment"],
     owner: "G1",
-    overview: "社會住宅新建工程。",
+    overview: "New social housing construction projects.",
     progress: [
       {
         date: "2025-09-20",
         items: [
-          { name:"磁磚地坪鋪設", start:"09:00", status:1,
-            materials:[{ name:"60x60拋光磚", vendor:"A磚行", qty:120, unit:"片", mstatus:0 }] },
-          { name:"室內木門安裝", start:"09:00", status:1,
-            materials:[{ name:"木門", vendor:"B木作", qty:8, unit:"扇", mstatus:0 }] },
-          { name:"牆面油漆粉刷", start:"13:00", status:2,
-            materials:[{ name:"乳膠漆", vendor:"C塗料", qty:25, unit:"L", mstatus:2 }]
+          { name:"Tile Flooring Installation", start:"09:00", status:1,
+            materials:[{ name:"60x60 Polished Tile", vendor:"A Tile Supply", qty:120, unit:"PCS", mstatus:0 }] },
+          { name:"Interior Wooden Door Installation", start:"09:00", status:1,
+            materials:[{ name:"Wooden Door", vendor:"B Carpentry", qty:8, unit:"Set", mstatus:0 }] },
+          { name:"Wall Painting and Brushing", start:"13:00", status:2,
+            materials:[{ name:"Latex Paint", vendor:"C Coating Supplier", qty:25, unit:"L", mstatus:2 }]
           }
         ]
       },
       {
         date: "2025-09-21",
         items: [
-          { name:"落地窗安裝", start:"09:00", status:1,
-            materials:[{ name:"180x200落地窗", vendor:"D門窗", qty:12, unit:"扇", mstatus:0 }] },
-          { name:"廚房廚具安裝", start:"11:00", status:1,
-            materials:[{ name:"電磁爐", vendor:"E廚具", qty:1, unit:"座", mstatus:0 }] }
+          { name:"French Window Installation", start:"09:00", status:1,
+            materials:[{ name:"180x200 French Window", vendor:"D Window Supply", qty:12, unit:"Set", mstatus:0 }] },
+          { name:"Kitchen Cabinet Installation", start:"11:00", status:1,
+            materials:[{ name:"Induction Cooktop", vendor:"E Kitchenware", qty:1, unit:"Unit", mstatus:0 }] }
         ]
       }
     ]

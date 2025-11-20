@@ -7,6 +7,7 @@ export function bindLoginEvents(){
   
   // 登入
   document.getElementById("loginBtn").onclick = ()=>{ 
+    // 這裡是 Demo，略過表單驗證
     state.authed=true; 
     location.hash="#search"; 
   };
@@ -30,10 +31,30 @@ export function bindLoginEvents(){
 
   // demo：創建帳號按鈕（僅導回登入，不存資料）
   document.getElementById("createAccountBtn")?.addEventListener("click", ()=>{
-    alert("Demo：尚未接上後端，僅導回登入頁。");
+    alert("Not connected to DB");
     location.hash = "#login";
   });
   
   // header 導覽
   document.querySelectorAll("[data-nav]").forEach(btn=> btn.onclick=()=> location.hash=btn.getAttribute("data-nav"));
+  
+  // 密碼切換邏輯
+  const passwordInput = document.getElementById('loginPassword');
+  const toggleIcon = document.getElementById('togglePassword');
+
+  if (passwordInput && toggleIcon) {
+      toggleIcon.addEventListener('click', function () {
+          // 切換 type 屬性
+          const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+          passwordInput.setAttribute('type', type);
+          
+          // 切換 Icon 樣式
+          this.textContent = (type === 'password' ? 'visibility_off' : 'visibility');
+      });
+  }
+  document.getElementById("forgotPasswordLink")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      // console.log("DEMO: 觸發忘記密碼流程。此功能尚未實作後端。");
+      alert("Please contact customer service at: 02-1234-1234");
+  });
 }

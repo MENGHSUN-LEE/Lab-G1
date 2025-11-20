@@ -64,6 +64,11 @@ label { font-size:14px; color:var(--muted); }
   border:1px solid; /* 讓狀態顏色覆蓋邊框 */
 }
 
+/* Table */
+.table { width:100%; border-collapse: collapse; }
+.table th, .table td { border:1px solid var(--border); padding:8px; text-align:left; }
+.table th { background:#f1f5f9; }
+
 /* -------------------- 視覺優化：狀態顏色 -------------------- */
 
 /* 引入 Icon 樣式（需搭配 HTML 中引入 Material Symbols） */
@@ -87,3 +92,43 @@ label { font-size:14px; color:var(--muted); }
 /* Helpers */
 .actions { display:flex; gap:8px; flex-wrap:wrap; }
 .align-end { align-self: end; }
+
+/* --- 登入頁排版輔助 (Flex) --- */
+.flex-between { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+}
+.flex-center {
+    display: flex;
+    align-items: center;
+}
+/* 覆蓋 input 樣式以修正 checkbox 尺寸 */
+#page-login input[type="checkbox"] {
+    width: auto;
+    padding: 0;
+    margin: 0;
+}
+/* 容器用於定位 Icon */
+.password-container {
+    position: relative;
+    width: 100%;
+}
+
+/* 確保輸入框在容器內正常顯示 */
+.password-container input {
+    /* 增加右邊內距，留出空間給 Icon */
+    padding-right: 40px; 
+}
+
+/* Icon 的定位和樣式 */
+.password-toggle {
+    position: absolute;
+    top: 50%; /* 垂直居中 */
+    right: 10px; /* 靠右邊緣 */
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 20px !important; 
+    margin: 0; /* 覆蓋 .material-symbols-outlined 的 margin-right */
+}
