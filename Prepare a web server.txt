@@ -1,4 +1,4 @@
-docker run -it --name procura-dev -p 8080:80 -v C:\Users\meng\Documents\procura:/app node bash
+docker run -it --name procura-dev -p 8080:80 -v C:\Users\Steven\Documents\GitHub\Lab-G1\procura:/app node bash
 cd /app
 npm install express
 node app.js
