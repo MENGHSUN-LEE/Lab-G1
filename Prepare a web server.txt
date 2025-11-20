@@ -1,12 +1,439 @@
-docker run -it --name procura-dev -p 8080:80 -v C:\Users\meng\Documents\procura:/app node bash
-cd /app
-npm install express
-node app.js
+--建立老師給的資料庫--
+
+-- import data--
+docker cp C:\Users\417\Downloads\companies.tsv assignment-mysql:/var/lib/mysql-files/companies.tsv
+docker cp C:\Users\417\Downloads\transactions.tsv assignment-mysql:/var/lib/mysql-files/transactions.tsv
+docker cp C:\Users\417\Downloads\materials.tsv assignment-mysql:/var/lib/mysql-files/materials.tsv
+
+-- create datebase --
+docker run --name assignment-mysql --env "MYSQL_ROOT_PASSWORD=417" --network my-assignment-net -p 3306:3306 --detach mysql:latest
+docker start assignment-mysql
+docker exec -it assignment-mysql mysql -p
 
 
--------------------------------------
+--可以直接貼上--
+CREATE DATABASE assignment_db;
+USE assignment_db;
+
+
+CREATE TABLE Companies (
+    company_id VARCHAR(20),
+    name VARCHAR(255),
+    description TEXT,
+    address VARCHAR(255),
+    phone VARCHAR(50),
+    email VARCHAR(100),
+    comments TEXT
+);
+
+LOAD DATA INFILE '/var/lib/mysql-files/companies.tsv'
+INTO TABLE Companies
+FIELDS TERMINATED BY '\t'   
+OPTIONALLY ENCLOSED BY '"'  
+LINES TERMINATED BY '\n'    
+IGNORE 1 ROWS;
+
+SELECT * FROM  Companies;
+
+CREATE TABLE Transactions (
+    transaction_id VARCHAR(20),
+    company_id VARCHAR(100),
+    material_id VARCHAR(100),
+    quantity VARCHAR(100),
+    price_per_unit VARCHAR(50),
+    discount_rate VARCHAR(100),
+    total_price VARCHAR(100),
+    transaction_date VARCHAR(50),
+    notes TEXT
+);
+
+
+LOAD DATA INFILE '/var/lib/mysql-files/transactions.tsv'
+INTO TABLE Transactions
+FIELDS TERMINATED BY '\t'
+OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS;
+
+SELECT * FROM  Transactions;
+
+CREATE TABLE Materials (
+    material_id VARCHAR(100),
+    Item TEXT,
+    Unit VARCHAR(100),
+    PriceAvg VARCHAR(100),
+    PriceStdev VARCHAR(100),
+    NoSamples VARCHAR(100)
+);
+
+
+LOAD DATA INFILE '/var/lib/mysql-files/materials.tsv'
+INTO TABLE Materials
+FIELDS TERMINATED BY '\t'
+OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS;
+
+SELECT * FROM  Materials;
+
+CREATE TABLE FilteredTransactions (
+    transaction_id VARCHAR(20),
+    company_id VARCHAR(100),
+    material_id VARCHAR(100),
+    quantity VARCHAR(100),
+    price_per_unit VARCHAR(50),
+    discount_rate VARCHAR(100),
+    total_price VARCHAR(100),
+    transaction_date VARCHAR(50),
+    notes TEXT
+);
+INSERT INTO FilteredTransactions (
+    transaction_id,
+    company_id,
+    material_id,
+    quantity,
+    price_per_unit,
+    discount_rate,
+    total_price,
+    transaction_date,
+    notes
+)
+SELECT
+    T.transaction_id,
+    T.company_id,
+    T.material_id,
+    T.quantity,
+    T.price_per_unit,
+    T.discount_rate,
+    T.total_price,
+    T.transaction_date,
+    T.notes
+FROM
+    Transactions AS T
+WHERE
+    STR_TO_DATE(T.transaction_date, '%Y-%m-%d') > '2000-01-01'
+AND STR_TO_DATE(T.transaction_date, '%Y-%m-%d') IS NOT NULL;
+
+SELECT * FROM  FilteredTransactions;
+
+CREATE TABLE FilteredMaterials (
+    material_id VARCHAR(100),
+    Item TEXT,
+    Unit VARCHAR(100),
+    PriceAvg VARCHAR(100),
+    PriceStdev VARCHAR(100),
+    NoSamples VARCHAR(100)
+);
+INSERT INTO FilteredMaterials (
+    material_id,
+    Item,
+    Unit,
+    PriceAvg,
+    PriceStdev,
+    NoSamples
+)
+SELECT DISTINCT
+    M.material_id,
+    M.Item,
+    M.Unit,
+    M.PriceAvg,
+    M.PriceStdev,
+    M.NoSamples
+FROM
+    Materials AS M
+INNER JOIN
+    FilteredTransactions AS FT ON M.material_id = FT.material_id;
+
+SELECT * FROM  FilteredMaterials;
+
+
+CREATE TABLE FilteredCompanies (
+    company_id VARCHAR(20),
+    name VARCHAR(255),
+    description TEXT,
+    address VARCHAR(255),
+    phone VARCHAR(50),
+    email VARCHAR(100),
+    comments TEXT
+);
+INSERT INTO FilteredCompanies (
+    company_id,
+    name,
+    description,
+    address,
+    phone,
+    email,
+    comments
+)
+SELECT DISTINCT
+    C.company_id,
+    C.name,
+    C.description,
+    C.address,
+    C.phone,
+    C.email,
+    C.comments
+FROM
+    Companies AS C 
+INNER JOIN
+    FilteredTransactions AS FT 
+    ON C.company_id = FT.company_id;
+
+SELECT * FROM  FilteredCompanies;
+
+
+CREATE TABLE Materials_Quality_management (
+    material_id VARCHAR(100),
+    Item TEXT,
+    Unit VARCHAR(100),
+    PriceAvg VARCHAR(100),
+    PriceStdev VARCHAR(100),
+    NoSamples VARCHAR(100)
+);
+
+CREATE TABLE Materials_Products (
+    material_id VARCHAR(100),
+    Item TEXT,
+    Unit VARCHAR(100),
+    PriceAvg VARCHAR(100),
+    PriceStdev VARCHAR(100),
+    NoSamples VARCHAR(100)
+);
+
+CREATE TABLE Materials_Machine (
+    material_id VARCHAR(100),
+    Item TEXT,
+    Unit VARCHAR(100),
+    PriceAvg VARCHAR(100),
+    PriceStdev VARCHAR(100),
+    NoSamples VARCHAR(100)
+);
+
+CREATE TABLE Materials_Others (
+    material_id VARCHAR(100),
+    Item TEXT,
+    Unit VARCHAR(100),
+    PriceAvg VARCHAR(100),
+    PriceStdev VARCHAR(100),
+    NoSamples VARCHAR(100)
+);
+
+INSERT INTO Materials_Quality_management
+SELECT
+    *
+FROM
+    FilteredMaterials
+WHERE
+    LOWER(Item) LIKE '%quality management%';
+
+INSERT INTO Materials_Products
+SELECT
+    *
+FROM
+    FilteredMaterials
+WHERE
+    LOWER(Item) LIKE '%product%';
+
+INSERT INTO Materials_Machine
+SELECT
+    *
+FROM
+    FilteredMaterials
+WHERE
+    LOWER(Item) LIKE '%machine%' OR LOWER(Item) LIKE '%technician%';
+
+
+INSERT INTO Materials_Others
+SELECT
+    *
+FROM
+    FilteredMaterials
+WHERE
+    NOT (
+        LOWER(Item) LIKE '%quality management%'
+        OR LOWER(Item) LIKE '%product%' 
+        OR LOWER(Item) LIKE '%machine%'
+        OR LOWER(Item) LIKE '%technician%'
+    );
+
+
+
+
+CREATE TABLE UnitOfMeasure (
+    unit_id INT AUTO_INCREMENT PRIMARY KEY,
+    unit_name VARCHAR(100) UNIQUE NOT NULL
+);
+
+CREATE TABLE MaterialCategory (
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    category_name VARCHAR(100) UNIQUE NOT NULL
+);
+
+
+CREATE TABLE Address (
+    address_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_address VARCHAR(255) UNIQUE NOT NULL
+);
+
+CREATE TABLE ContactInfo (
+    contact_id INT AUTO_INCREMENT PRIMARY KEY,
+    phone VARCHAR(50) NOT NULL,
+    email VARCHAR(100)
+);
+
+CREATE TABLE Company (
+    company_id BIGINT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    FK_address_id INT,
+    FK_contact_id INT,
+    FOREIGN KEY (FK_address_id) REFERENCES Address(address_id),
+    FOREIGN KEY (FK_contact_id) REFERENCES ContactInfo(contact_id)
+);
+
+CREATE TABLE Material (
+    material_id BIGINT PRIMARY KEY,
+    Item_Description TEXT,
+    PriceAvg DECIMAL(18, 2),
+    PriceStdev DECIMAL(18, 2),
+    NoSamples INT,
+    FK_unit_id INT,
+    FK_category_id INT,
+    FOREIGN KEY (FK_unit_id) REFERENCES UnitOfMeasure(unit_id),
+    FOREIGN KEY (FK_category_id) REFERENCES MaterialCategory(category_id)
+);
+
+CREATE TABLE Transaction (
+    transaction_id BIGINT PRIMARY KEY,
+    quantity DECIMAL(18, 2),
+    price_per_unit DECIMAL(18, 2),
+    discount_rate DECIMAL(5, 2),
+    total_price DECIMAL(18, 2),
+    transaction_date DATE,
+    notes TEXT,
+    FK_company_id BIGINT,
+    FK_material_id BIGINT,
+    FOREIGN KEY (FK_company_id) REFERENCES Company(company_id),
+    FOREIGN KEY (FK_material_id) REFERENCES Material(material_id)
+);
+
+
+INSERT IGNORE INTO UnitOfMeasure (unit_name)
+SELECT DISTINCT Unit FROM Materials_Quality_management
+UNION
+SELECT DISTINCT Unit FROM Materials_Products
+UNION
+SELECT DISTINCT Unit FROM Materials_Machine
+UNION
+SELECT DISTINCT Unit FROM Materials_Others;
+
+
+INSERT INTO MaterialCategory (category_name) VALUES
+('Quality management'),
+('Product'),
+('Machine'),
+('Technician'),
+('Other');
+
+INSERT IGNORE INTO Address (full_address)
+SELECT DISTINCT address FROM FilteredCompanies;
+
+INSERT IGNORE INTO ContactInfo (phone, email)
+SELECT DISTINCT phone, email FROM FilteredCompanies;
+
+INSERT INTO Company (company_id, name, description, FK_address_id, FK_contact_id)
+SELECT
+    CAST(FC.company_id AS UNSIGNED),
+    FC.name,
+    FC.description,
+    A.address_id,
+    CI.contact_id
+FROM
+    FilteredCompanies AS FC
+INNER JOIN
+    Address AS A ON FC.address = A.full_address
+INNER JOIN
+    ContactInfo AS CI ON FC.phone = CI.phone AND FC.email = CI.email;
+
+INSERT INTO Material (
+    material_id, Item_Description, PriceAvg, PriceStdev, NoSamples, FK_unit_id, FK_category_id
+)
+SELECT
+    CONVERT(FM.material_id, UNSIGNED),
+    FM.Item,
+    CONVERT(REPLACE(FM.PriceAvg, ',', ''), DECIMAL(18, 2)),
+    CONVERT(REPLACE(FM.PriceStdev, ',', ''), DECIMAL(18, 2)),
+    CONVERT(FM.NoSamples, SIGNED),
+    UOM.unit_id,
+    MC.category_id
+FROM
+    FilteredMaterials AS FM
+INNER JOIN
+    UnitOfMeasure AS UOM ON FM.Unit = UOM.unit_name
+INNER JOIN
+    MaterialCategory AS MC ON MC.category_name = 
+    (
+        CASE
+            WHEN LOWER(FM.Item) LIKE '%quality management%' THEN 'Quality management'
+            WHEN LOWER(FM.Item) LIKE '%product%' THEN 'Product'
+            WHEN LOWER(FM.Item) LIKE '%technician%' THEN 'Technician'
+            WHEN LOWER(FM.Item) LIKE '%machine%' THEN 'Machine'
+            ELSE 'Other'
+        END
+    )
+ON DUPLICATE KEY UPDATE 
+    material_id = VALUES(material_id);
+
+INSERT INTO Transaction (
+    transaction_id, quantity, price_per_unit, discount_rate, total_price,
+    transaction_date, notes, FK_company_id, FK_material_id
+)
+SELECT
+    -- Conversion of all values
+    CONVERT(FT.transaction_id, UNSIGNED),
+    CONVERT(REPLACE(FT.quantity, ',', ''), DECIMAL(18, 2)),
+    CONVERT(REPLACE(FT.price_per_unit, ',', ''), DECIMAL(18, 2)),
+    CONVERT(FT.discount_rate, DECIMAL(5, 2)),
+    CONVERT(REPLACE(FT.total_price, ',', ''), DECIMAL(18, 2)),
+    STR_TO_DATE(FT.transaction_date, '%Y-%m-%d'),
+    FT.notes,
+    C.company_id, 
+    M.material_id 
+FROM
+    FilteredTransactions AS FT
+INNER JOIN
+    Company AS C ON CONVERT(FT.company_id, UNSIGNED) = C.company_id
+INNER JOIN
+    Material AS M ON CONVERT(FT.material_id, UNSIGNED) = M.material_id
+WHERE
+    STR_TO_DATE(FT.transaction_date, '%Y-%m-%d') IS NOT NULL;
+
+DROP TABLE IF EXISTS
+    Companies,
+    FilteredCompanies,
+    FilteredMaterials,
+    FilteredTransactions,
+    Materials,
+    Materials_Machine,
+    Materials_Others,
+    Materials_Products,
+    Materials_Quality_management,
+    Transactions;
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+docker exec -it assignment-mysql mysql -p
+USE assignment_db; 
+CREATE USER 'Procura'@'%' IDENTIFIED BY '417'; 
+GRANT ALL ON assignment_db.* TO 'Procura'@'%';
+EXIT;
+
+-----------------------------------------------------------------------------------------------------------------------------------------
 
 docker run -it --name procura-dev --network my-assignment-net -p 8080:80 -v C:\Users\417\Documents\Lab-G1\procura:/app node bash
 cd /app
 npm install express
 node app.js
+
+docker exec -it procura-dev node app.js
