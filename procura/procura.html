@@ -453,118 +453,118 @@
       <h3 data-lang="quality-title">📊 材料品質評分</h3>
       <div class="grid cols-2">
         <div class="stack">
-          <label>材料名稱</label>
+          <label data-lang="material-name">材料名稱</label>
           <input type="text" id="quality-material" placeholder="鋼筋 / 水泥 / 磚塊..." />
         </div>
         <div class="stack">
-          <label>品質評分 (1-10)</label>
+          <label data-lang="quality-score-label">品質評分 (1-10)</label>
           <input type="number" id="quality-score" min="1" max="10" value="8" />
         </div>
         <div class="stack">
-          <label>檢驗日期</label>
+          <label data-lang="inspection-date">檢驗日期</label>
           <input type="date" id="quality-date" />
         </div>
         <div class="stack">
-          <label>檢驗備註</label>
+          <label data-lang="inspection-notes">檢驗備註</label>
           <input type="text" id="quality-notes" placeholder="品質檢驗詳細說明..." />
         </div>
         <div class="stack">
-          <button class="btn-success">✓ 儲存品質評分</button>
+          <button class="btn-success" data-lang="save-quality">✓ 儲存品質評分</button>
         </div>
       </div>
 
       <hr/>
 
-      <h3>📅 材料進貨時間紀錄</h3>
+      <h3 data-lang="arrival-title">📅 材料進貨時間紀錄</h3>
       <div class="grid cols-3">
         <div class="stack">
-          <label>材料名稱</label>
+          <label data-lang="material-name">材料名稱</label>
           <input type="text" placeholder="材料名稱..." />
         </div>
         <div class="stack">
-          <label>預計到貨日期</label>
+          <label data-lang="expected-date">預計到貨日期</label>
           <input type="date" />
         </div>
         <div class="stack">
-          <label>實際到貨日期</label>
+          <label data-lang="actual-date">實際到貨日期</label>
           <input type="date" />
         </div>
         <div class="stack">
-          <label>延遲天數</label>
+          <label data-lang="delay-days">延遲天數</label>
           <input type="number" value="0" readonly style="background: #f3f4f6;" />
         </div>
         <div class="stack">
-          <button class="btn-success">✓ 記錄到貨時間</button>
+          <button class="btn-success" data-lang="save-arrival">✓ 記錄到貨時間</button>
         </div>
       </div>
 
       <hr/>
 
-      <h3>📊 庫存水位監控</h3>
+      <h3 data-lang="stock-title">📊 庫存水位監控</h3>
       <div class="grid cols-3">
         <div class="stack">
-          <label>材料名稱</label>
+          <label data-lang="material-name">材料名稱</label>
           <input type="text" placeholder="材料名稱..." />
         </div>
         <div class="stack">
-          <label>當前庫存</label>
+          <label data-lang="current-stock">當前庫存</label>
           <input type="number" min="0" value="150" />
         </div>
         <div class="stack">
-          <label>安全庫存</label>
+          <label data-lang="safety-stock">安全庫存</label>
           <input type="number" min="0" value="50" />
         </div>
         <div class="stack">
-          <label>補貨點</label>
+          <label data-lang="reorder-point">補貨點</label>
           <input type="number" min="0" value="30" />
         </div>
         <div class="stack">
-          <button class="btn-warning">⚠ 更新庫存水位</button>
+          <button class="btn-warning" data-lang="update-stock">⚠ 更新庫存水位</button>
         </div>
       </div>
 
       <hr/>
 
-      <h3>💰 材料成本分析</h3>
+      <h3 data-lang="cost-title">💰 材料成本分析</h3>
       <div class="grid cols-3">
         <div class="stack">
-          <label>材料名稱</label>
+          <label data-lang="material-name">材料名稱</label>
           <input type="text" placeholder="材料名稱..." />
         </div>
         <div class="stack">
-          <label>單價 (NT$)</label>
+          <label data-lang="unit-price">單價 (NT$)</label>
           <input type="number" min="0" value="1500" />
         </div>
         <div class="stack">
-          <label>採購數量</label>
+          <label data-lang="purchase-qty">採購數量</label>
           <input type="number" min="0" value="100" />
         </div>
         <div class="stack">
-          <label>總成本 (NT$)</label>
+          <label data-lang="total-cost">總成本 (NT$)</label>
           <input type="number" value="150000" readonly style="background: #f3f4f6;" />
         </div>
         <div class="stack">
-          <button class="btn-success">✓ 儲存成本資料</button>
+          <button class="btn-success" data-lang="save-cost">✓ 儲存成本資料</button>
         </div>
       </div>
     </div>
 
     <!-- Vendor Management -->
     <div id="tab-vendor" class="tab-panel">
-      <h3>🏢 供應商管理系統</h3>
+      <h3 data-lang="vendor-system">🏢 供應商管理系統</h3>
 
-      <h3>➕ 新增供應商</h3>
+      <h3 data-lang="add-vendor-title">➕ 新增供應商</h3>
       <div class="grid cols-3">
         <div class="stack">
-          <label>供應商名稱</label>
+          <label data-lang="vendor-name">供應商名稱</label>
           <input type="text" placeholder="XX建材有限公司" />
         </div>
         <div class="stack">
-          <label>聯絡人</label>
+          <label data-lang="contact-person">聯絡人</label>
           <input type="text" placeholder="張三" />
         </div>
         <div class="stack">
-          <label>聯絡電話</label>
+          <label data-lang="contact-phone">聯絡電話</label>
           <input type="tel" placeholder="02-1234-5678" />
         </div>
         <div class="stack">
@@ -572,141 +572,141 @@
           <input type="email" placeholder="vendor@example.com" />
         </div>
         <div class="stack">
-          <label>地址</label>
+          <label data-lang="vendor-address">地址</label>
           <input type="text" placeholder="台北市..." />
         </div>
         <div class="stack">
-          <button class="btn-primary">➕ 新增供應商</button>
+          <button class="btn-primary" data-lang="add-vendor-btn">➕ 新增供應商</button>
         </div>
       </div>
 
       <hr/>
 
-      <h3>⭐ 供應商評分紀錄</h3>
+      <h3 data-lang="vendor-rating-title">⭐ 供應商評分紀錄</h3>
       <div class="grid cols-3">
         <div class="stack">
-          <label>供應商名稱</label>
+          <label data-lang="vendor-name">供應商名稱</label>
           <input type="text" placeholder="選擇或輸入供應商..." />
         </div>
         <div class="stack">
-          <label>交貨準時率 (1-10)</label>
+          <label data-lang="punctuality-rating">交貨準時率 (1-10)</label>
           <input type="number" min="1" max="10" value="9" />
         </div>
         <div class="stack">
-          <label>價格競爭力 (1-10)</label>
+          <label data-lang="price-rating">價格競爭力 (1-10)</label>
           <input type="number" min="1" max="10" value="8" />
         </div>
         <div class="stack">
-          <label>產品品質 (1-10)</label>
+          <label data-lang="quality-rating">產品品質 (1-10)</label>
           <input type="number" min="1" max="10" value="9" />
         </div>
         <div class="stack">
-          <label>服務態度 (1-10)</label>
+          <label data-lang="service-rating">服務態度 (1-10)</label>
           <input type="number" min="1" max="10" value="8" />
         </div>
         <div class="stack">
-          <label>評分日期</label>
+          <label data-lang="rating-date">評分日期</label>
           <input type="date" />
         </div>
         <div class="stack">
-          <button class="btn-success">✓ 儲存評分</button>
+          <button class="btn-success" data-lang="save-rating">✓ 儲存評分</button>
         </div>
       </div>
 
       <hr/>
 
-      <h3>📊 供應商績效儀表板</h3>
+      <h3 data-lang="vendor-dashboard">📊 供應商績效儀表板</h3>
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-number">12</div>
-          <div class="stat-label">合作供應商</div>
+          <div class="stat-label" data-lang="partner-vendors">合作供應商</div>
         </div>
         <div class="stat-card">
           <div class="stat-number">95%</div>
-          <div class="stat-label">平均準時率</div>
+          <div class="stat-label" data-lang="avg-punctuality">平均準時率</div>
         </div>
         <div class="stat-card">
           <div class="stat-number">8.5</div>
-          <div class="stat-label">平均評分</div>
+          <div class="stat-label" data-lang="avg-rating">平均評分</div>
         </div>
         <div class="stat-card">
           <div class="stat-number">3</div>
-          <div class="stat-label">優質供應商</div>
+          <div class="stat-label" data-lang="premium-vendors">優質供應商</div>
         </div>
       </div>
 
       <hr/>
 
-      <h3>📈 交貨準時率指標</h3>
+      <h3 data-lang="punctuality-metrics">📈 交貨準時率指標</h3>
       <div class="grid cols-2">
         <div class="stack">
-          <label>供應商名稱</label>
+          <label data-lang="vendor-name">供應商名稱</label>
           <input type="text" placeholder="供應商名稱..." />
         </div>
         <div class="stack">
-          <label>本月準時交貨次數</label>
+          <label data-lang="ontime-deliveries">本月準時交貨次數</label>
           <input type="number" min="0" value="18" />
         </div>
         <div class="stack">
-          <label>本月總交貨次數</label>
+          <label data-lang="total-deliveries">本月總交貨次數</label>
           <input type="number" min="0" value="20" />
         </div>
         <div class="stack">
-          <label>準時率 (%)</label>
+          <label data-lang="punctuality-rate">準時率 (%)</label>
           <input type="number" value="90" readonly style="background: #f3f4f6;" />
         </div>
       </div>
 
       <hr/>
 
-      <h3>💰 價格競爭力分析</h3>
+      <h3 data-lang="price-analysis">💰 價格競爭力分析</h3>
       <div class="grid cols-3">
         <div class="stack">
-          <label>材料名稱</label>
+          <label data-lang="material-name">材料名稱</label>
           <input type="text" placeholder="鋼筋" />
         </div>
         <div class="stack">
-          <label>供應商A報價</label>
+          <label data-lang="vendor-a-price">供應商A報價</label>
           <input type="number" placeholder="1500" />
         </div>
         <div class="stack">
-          <label>供應商B報價</label>
+          <label data-lang="vendor-b-price">供應商B報價</label>
           <input type="number" placeholder="1450" />
         </div>
         <div class="stack">
-          <label>供應商C報價</label>
+          <label data-lang="vendor-c-price">供應商C報價</label>
           <input type="number" placeholder="1550" />
         </div>
         <div class="stack">
-          <label>市場平均價</label>
+          <label data-lang="market-avg-price">市場平均價</label>
           <input type="number" value="1500" readonly style="background: #f3f4f6;" />
         </div>
         <div class="stack">
-          <button class="btn-success">✓ 分析價格</button>
+          <button class="btn-success" data-lang="analyze-price">✓ 分析價格</button>
         </div>
       </div>
     </div>
 
     <!-- Progress Tracking -->
     <div id="tab-progress" class="tab-panel">
-      <h3>📋 專案進度追蹤</h3>
-      <p class="muted">此功能由 Lee Meng Hsun 負責開發</p>
+      <h3 data-lang="progress-title">📋 專案進度追蹤</h3>
+      <p class="muted" data-lang="progress-note">沒問題</p>
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-number">75%</div>
-          <div class="stat-label">專案完成度</div>
+          <div class="stat-label" data-lang="progress-completion">專案完成度</div>
         </div>
         <div class="stat-card">
           <div class="stat-number">45</div>
-          <div class="stat-label">已完成工項</div>
+          <div class="stat-label" data-lang="progress-completed">已完成工項</div>
         </div>
         <div class="stat-card">
           <div class="stat-number">15</div>
-          <div class="stat-label">進行中工項</div>
+          <div class="stat-label" data-lang="progress-ongoing">進行中工項</div>
         </div>
         <div class="stat-card">
           <div class="stat-number">8</div>
-          <div class="stat-label">待開始工項</div>
+          <div class="stat-label" data-lang="progress-pending">待開始工項</div>
         </div>
       </div>
     </div>
@@ -842,10 +842,40 @@
 
   const translations = {
     zh: {
-      // ... existing translations ...
+      'nav-project': 'Project',
+      'nav-logout': 'Log out',
+      'login-title': 'Procura 智供管理系統',
+      'login-heading': 'Log in',
+      'login-email': 'Email',
+      'login-password': 'Password',
+      'login-btn': 'Log in',
+      'signup-btn': 'Sign up',
+      'login-demo': 'Demo credentials: demo@procura.com / demo123',
+      'signup-heading': 'Create your account',
+      'signup-company': 'Company',
+      'signup-email': 'Email',
+      'signup-phone': 'Phone',
+      'signup-password': 'Password',
+      'signup-confirm': 'Check Password',
+      'signup-subscription': 'Subscription',
+      'plan-trial': 'Free Trial (1 project)',
+      'plan-personal': 'Personal Account ($12.99/month)',
+      'plan-business': 'Business Account ($75.99/month)',
+      'create-account-btn': 'Sign up',
+      'back-btn': '← Back',
+      'signup-note': 'For detailed subscription plans, please refer to the company\'s official website',
+      'search-project': 'Project',
+      'search-placeholder': 'Enter project name or tags...',
+      'search-btn': 'Search',
+      'tab-materials': '材料管理',
+      'tab-vendor': '供應商管理',
+      'tab-progress': '專案進度',
+      'materials-title': '📦 材料管理總覽',
+      'stat-total': '總材料數',
+      'stat-arrived': '已到貨',
+      'stat-transit': '運送中',
+      'stat-pending': '待叫貨',
       'quality-title': '📊 材料品質評分',
-      
-      // ADD THESE NEW ONES:
       'material-name': '材料名稱',
       'quality-score-label': '品質評分 (1-10)',
       'inspection-date': '檢驗日期',
@@ -866,8 +896,6 @@
       'purchase-qty': '採購數量',
       'total-cost': '總成本 (NT$)',
       'save-cost': '✓ 儲存成本資料',
-      
-      // Vendor translations
       'vendor-system': '🏢 供應商管理系統',
       'add-vendor-title': '➕ 新增供應商',
       'vendor-name': '供應商名稱',
@@ -896,13 +924,49 @@
       'vendor-b-price': '供應商B報價',
       'vendor-c-price': '供應商C報價',
       'market-avg-price': '市場平均價',
-      'analyze-price': '✓ 分析價格'
+      'analyze-price': '✓ 分析價格',
+      'progress-title': '📋 專案進度追蹤',
+      'progress-note': '沒問題',
+      'progress-completion': '專案完成度',
+      'progress-completed': '已完成工項',
+      'progress-ongoing': '進行中工項',
+      'progress-pending': '待開始工項'
     },
     en: {
-      // ... existing translations ...
+      'nav-project': 'Project',
+      'nav-logout': 'Log out',
+      'login-title': 'Procura Smart Supply Management System',
+      'login-heading': 'Log in',
+      'login-email': 'Email',
+      'login-password': 'Password',
+      'login-btn': 'Log in',
+      'signup-btn': 'Sign up',
+      'login-demo': 'Demo credentials: demo@procura.com / demo123',
+      'signup-heading': 'Create your account',
+      'signup-company': 'Company',
+      'signup-email': 'Email',
+      'signup-phone': 'Phone',
+      'signup-password': 'Password',
+      'signup-confirm': 'Confirm Password',
+      'signup-subscription': 'Subscription',
+      'plan-trial': 'Free Trial (1 project)',
+      'plan-personal': 'Personal Account ($12.99/month)',
+      'plan-business': 'Business Account ($75.99/month)',
+      'create-account-btn': 'Sign up',
+      'back-btn': '← Back',
+      'signup-note': 'For detailed subscription plans, please refer to the company\'s official website',
+      'search-project': 'Project',
+      'search-placeholder': 'Enter project name or tags...',
+      'search-btn': 'Search',
+      'tab-materials': 'Material Management',
+      'tab-vendor': 'Vendor Management',
+      'tab-progress': 'Project Progress',
+      'materials-title': '📦 Material Management Overview',
+      'stat-total': 'Total Materials',
+      'stat-arrived': 'Arrived',
+      'stat-transit': 'In Transit',
+      'stat-pending': 'Pending Order',
       'quality-title': '📊 Material Quality Rating',
-      
-      // ADD THESE NEW ONES:
       'material-name': 'Material Name',
       'quality-score-label': 'Quality Score (1-10)',
       'inspection-date': 'Inspection Date',
@@ -923,8 +987,6 @@
       'purchase-qty': 'Purchase Quantity',
       'total-cost': 'Total Cost (NT$)',
       'save-cost': '✓ Save Cost Data',
-      
-      // Vendor translations
       'vendor-system': '🏢 Vendor Management System',
       'add-vendor-title': '➕ Add New Vendor',
       'vendor-name': 'Vendor Name',
@@ -953,7 +1015,13 @@
       'vendor-b-price': 'Vendor B Quote',
       'vendor-c-price': 'Vendor C Quote',
       'market-avg-price': 'Market Average Price',
-      'analyze-price': '✓ Analyze Price'
+      'analyze-price': '✓ Analyze Price',
+      'progress-title': '📋 Project Progress Tracking',
+      'progress-note': 'No problem',
+      'progress-completion': 'Project Completion',
+      'progress-completed': 'Completed Tasks',
+      'progress-ongoing': 'Ongoing Tasks',
+      'progress-pending': 'Pending Tasks'
     }
   };
 
