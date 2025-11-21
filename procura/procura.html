@@ -318,6 +318,93 @@
         grid-template-columns: 1fr;
       }
     }
+  /* Data Table Styles */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+
+    .data-table thead {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .data-table th {
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      letter-spacing: 0.5px;
+    }
+
+    .data-table tbody tr {
+      transition: background 0.2s ease;
+    }
+
+    .data-table tbody tr:hover {
+      background: #f8f9ff;
+    }
+
+    .data-table tbody tr:nth-child(even) {
+      background: #fafafa;
+    }
+
+    .data-table tbody tr:nth-child(even):hover {
+      background: #f0f4ff;
+    }
+
+    .table-status {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .table-status.arrived {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .table-status.transit {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .table-status.pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .btn-sm {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      border: none;
+      margin-right: 0.25rem;
+    }
+
+    .btn-edit {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .btn-delete {
+      background: #ef4444;
+      color: white;
+    }
+
+    .btn-sm:hover {
+      opacity: 0.8;
+    }
   </style>
 </head>
 <body>
@@ -449,6 +536,29 @@
           <div class="stat-label" data-lang="stat-pending">待叫貨</div>
         </div>
       </div>
+
+      <h3 data-lang="materials-table-title">📋 材料清單</h3>
+      <div style="overflow-x: auto;">
+        <table class="data-table" id="materialsTable">
+          <thead>
+            <tr>
+              <th data-lang="th-material">建材細項</th>
+              <th data-lang="th-vendor">供應商</th>
+              <th data-lang="th-quantity">數量</th>
+              <th data-lang="th-unit">單位</th>
+              <th data-lang="th-status">狀態</th>
+              <th data-lang="th-date">日期</th>
+              <th data-lang="th-task">工項</th>
+              <th data-lang="th-actions">操作</th>
+            </tr>
+          </thead>
+          <tbody id="materialsTableBody">
+            <!-- Data will be populated by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <hr/>
 
       <h3 data-lang="quality-title">📊 材料品質評分</h3>
       <div class="grid cols-2">
@@ -930,7 +1040,19 @@
       'progress-completion': '專案完成度',
       'progress-completed': '已完成工項',
       'progress-ongoing': '進行中工項',
-      'progress-pending': '待開始工項'
+      'progress-pending': '待開始工項',
+      'materials-table-title': '📋 材料清單',
+      'th-material': '建材細項',
+      'th-vendor': '供應商',
+      'th-quantity': '數量',
+      'th-unit': '單位',
+      'th-status': '狀態',
+      'th-date': '日期',
+      'th-task': '工項',
+      'th-actions': '操作',
+      'status-arrived': '已到貨',
+      'status-transit': '運送中',
+      'status-pending': '待叫貨'
     },
     en: {
       'nav-project': 'Project',
@@ -1021,7 +1143,19 @@
       'progress-completion': 'Project Completion',
       'progress-completed': 'Completed Tasks',
       'progress-ongoing': 'Ongoing Tasks',
-      'progress-pending': 'Pending Tasks'
+      'progress-pending': 'Pending Tasks',
+      'materials-table-title': '📋 Materials List',
+      'th-material': 'Material',
+      'th-vendor': 'Vendor',
+      'th-quantity': 'Quantity',
+      'th-unit': 'Unit',
+      'th-status': 'Status',
+      'th-date': 'Date',
+      'th-task': 'Task',
+      'th-actions': 'Actions',
+      'status-arrived': 'Arrived',
+      'status-transit': 'In Transit',
+      'status-pending': 'Pending'
     }
   };
 

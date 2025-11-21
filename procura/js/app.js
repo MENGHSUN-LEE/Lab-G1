@@ -1,11 +1,12 @@
 // js/app.js
-import { bindMaterialEvents } from './pages/materials.js';
+import { bindMaterialEvents, MaterialsModule } from './pages/materials.js';
 import { bindVendorEvents } from './pages/vendors.js';
 import { router } from './router.js';
 import { bindLoginEvents } from './pages/login.js';
 import { bindSearchEvents } from './pages/search.js';
 import { bindDetailEvents } from './pages/detail.js';
 import { bindTabEvents } from './pages/common.js';
+import { Store } from './store.js';
 
 // --- 全域狀態與元素 (Exported for other modules) ---
 export const state = { authed:false, currentProject:null };
@@ -31,6 +32,12 @@ function init(){
 
   // 3. 首次載入執行路由
   router(); 
+
+  // 4. Export to window for inline onclick handlers
+  window.MaterialsModule = MaterialsModule;
+  window.Store = Store;
+
+  console.log('Procura App Initialized');
 }
 
 // 應用程式啟動

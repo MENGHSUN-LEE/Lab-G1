@@ -1,6 +1,7 @@
 // js/pages/materials.js
+import { Store } from '../store.js';
 
-// Material management data storage
+// Material management data storage (your existing local data)
 const materialData = {
   qualityRecords: [],
   arrivalLogs: [],
@@ -8,6 +9,103 @@ const materialData = {
   costAnalysis: []
 };
 
+// Get current language
+function getLang() {
+  return window.currentLang || 'zh';
+}
+
+const statusLabels = {
+  zh: { arrived: '已到貨', transit: '運送中', pending: '待叫貨' },
+  en: { arrived: 'Arrived', transit: 'In Transit', pending: 'Pending' }
+};
+
+// ============================================
+// Materials Table Module (NEW)
+// ============================================
+export const MaterialsModule = {
+  renderTable() {
+    const tbody = document.getElementById('materialsTableBody');
+    if (!tbody) return;
+
+    const lang = getLang();
+
+    if (Store.materials.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">
+        ${lang === 'zh' ? '目前沒有材料資料' : 'No materials data available'}
+      </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = Store.materials.map(material => `
+      <tr data-id="${material.id}">
+        <td><strong>${material.name}</strong></td>
+        <td>${material.vendor}</td>
+        <td>${material.quantity.toLocaleString()}</td>
+        <td>${material.unit}</td>
+        <td><span class="table-status ${material.status}">${statusLabels[lang][material.status]}</span></td>
+        <td>${material.date}</td>
+        <td>${material.task}</td>
+        <td>
+          <button class="btn-sm btn-edit" onclick="MaterialsModule.edit(${material.id})">
+            <span class="material-symbols-outlined" style="font-size:14px;">edit</span>
+          </button>
+          <button class="btn-sm btn-delete" onclick="MaterialsModule.delete(${material.id})">
+            <span class="material-symbols-outlined" style="font-size:14px;">delete</span>
+          </button>
+        </td>
+      </tr>
+    `).join('');
+
+    this.updateStats();
+  },
+
+  updateStats() {
+    const stats = Store.getMaterialStats();
+    const statNumbers = document.querySelectorAll('#tab-materials .stat-card .stat-number');
+    
+    if (statNumbers.length >= 4) {
+      statNumbers[0].textContent = stats.total;
+      statNumbers[1].textContent = stats.arrived;
+      statNumbers[2].textContent = stats.transit;
+      statNumbers[3].textContent = stats.pending;
+    }
+  },
+
+  edit(id) {
+    const material = Store.materials.find(m => m.id === id);
+    if (!material) return;
+
+    const lang = getLang();
+    const msg = lang === 'zh'
+      ? `編輯材料: ${material.name}\n供應商: ${material.vendor}\n數量: ${material.quantity} ${material.unit}\n\n(編輯功能開發中)`
+      : `Edit Material: ${material.name}\nVendor: ${material.vendor}\nQuantity: ${material.quantity} ${material.unit}\n\n(Edit feature in development)`;
+    
+    alert(msg);
+  },
+
+  delete(id) {
+    const lang = getLang();
+    const confirmMsg = lang === 'zh' ? '確定要刪除此材料嗎？' : 'Are you sure you want to delete this material?';
+    
+    if (confirm(confirmMsg)) {
+      Store.deleteMaterial(id);
+      this.renderTable();
+    }
+  },
+
+  add(materialData) {
+    Store.addMaterial(materialData);
+    this.renderTable();
+  },
+
+  refresh() {
+    this.renderTable();
+  }
+};
+
+// ============================================
+// Bind Events (Your existing + new)
+// ============================================
 export function bindMaterialEvents() {
   // Quality Score Save
   const qualityBtn = document.querySelector('#tab-materials .btn-success');
@@ -38,8 +136,24 @@ export function bindMaterialEvents() {
   
   // Auto-calculate delay days
   setupDelayCalculation();
+
+  // NEW: Render table when materials tab is clicked
+  const materialsTab = document.querySelector('[data-tab="materials"]');
+  if (materialsTab) {
+    materialsTab.addEventListener('click', () => {
+      MaterialsModule.renderTable();
+    });
+  }
+
+  // NEW: Initial render after short delay (ensure DOM is ready)
+  setTimeout(() => {
+    MaterialsModule.renderTable();
+  }, 150);
 }
 
+// ============================================
+// Your Existing Functions (unchanged)
+// ============================================
 function saveQualityScore() {
   const material = document.getElementById('quality-material').value;
   const score = document.getElementById('quality-score').value;
