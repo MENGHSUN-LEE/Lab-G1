@@ -1,218 +1,34 @@
 <!doctype html>
 <html lang="zh-Hant">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>專案管理 Demo</title>
-  
-  <!-- 引入 CSS 樣式 -->
+  <title>Procura 智供管理系統</title>
+
   <link rel="stylesheet" href="procura.css" />
-  
-  <!-- 引入 Icon Font (Google Material Symbols) -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 </head>
+
 <body>
 
-<header id="appHeader">
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-    <div class="brand">Procura Co., Ltd. </div>
-    <nav>
-      <button class="btn" data-nav="#search"><span class="material-symbols-outlined">work</span> Project</button>
-      <button class="btn" id="logoutBtn"><span class="material-symbols-outlined">logout</span> Log out</button>
-    </nav>
-  </div>
-</header>
-
-<main>
-  <!-- 登入頁 -->
-  <section id="page-login" class="card stack">
-    <h1>Procura 智供管理系統</h1>
-    <h2>Log in</h2>
-    
-    <form class="stack" onsubmit="event.preventDefault(); document.getElementById('loginBtn').click();">
-      <div class="stack">
-        <label for="loginEmail">Email</label>
-        <input id="loginEmail" type="email" placeholder="you@example.com" required />
-      </div>
-      <div class="stack">
-        <label for="loginPassword">Password</label>
-        <!-- 新增 .password-container 容器來定位 Icon -->
-        <div class="password-container">
-          <input id="loginPassword" type="password" placeholder="••••••••" required />
-          <!-- 眼睛 Icon (Material Symbols)，ID用於 JS 綁定事件 -->
-          <span class="material-symbols-outlined password-toggle" id="togglePassword">
-            visibility_off
-          </span>
-        </div>
-      </div>
-      <div class="flex-between">
-          <div class="flex-center">
-              <input type="checkbox" id="rememberMe" style="width: auto; margin-right: 8px;" />
-              <label for="rememberMe" style="margin-bottom: 0;">Remember Me</label>
-          </div>
-          <a href="#" class="muted" style="font-size: 14px; text-decoration: none;" id="forgotPasswordLink">Forgot Password？</a>
-      </div>
-
-      <div class="actions" style="margin-top: 12px;">
-        <button id="loginBtn" class="btn-primary" type="submit">Log in</button>
-        <button id="signupBtn" class="btn" type="button">Sign up</button>
-      </div>
-    </form>
-  </section>
-  
-<!-- 註冊頁 -->
-<section id="page-signup" class="card stack hidden">
-  <h2>Create your account</h2>
-  <div class="grid cols-2">
-    <div class="stack">
-      <label>Company</label>
-      <input id="suCompany" type="text" placeholder="Procura Co., Ltd." />
+  <header id="appHeader">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+      <div class="brand">Procura Co., Ltd. </div>
+      <nav>
+        <button class="btn" data-nav="#search"><span class="material-symbols-outlined">work</span> Project</button>
+        <button class="btn" id="logoutBtn"><span class="material-symbols-outlined">logout</span> Log out</button>
+      </nav>
     </div>
-    <div class="stack">
-      <label>Email</label>
-      <input id="suEmail" type="email" placeholder="you@example.com" />
-    </div>
-    <div class="stack">
-      <label>Phone</label>
-      <input id="suPhone" type="tel" placeholder="0912-345-678" />
-    </div>
-    <div class="stack">
-      <label>Password</label>
-      <input id="suPassword" type="password" placeholder="••••••••" />
-    </div>
-    <div class="stack">
-      <label>Check Password</label>
-      <input id="suPassword2" type="password" placeholder="Enter password agin" />
-    </div>
-    <div class="stack">
-      <label>Subscription</label>
-      <select id="suPlan">
-        <option value="trial">Free Trial (1 project)</option>
-        <option value="personal">Personal Account ($12.99/month)</option>
-        <option value="business">Business Account ($75.99/month)</option>
-      </select>
-    </div>
-  </div>
+  </header>
 
-  <div class="actions">
-    <button id="createAccountBtn" class="btn-primary">Sign up</button>
-    <button id="backToLoginBtn" class="btn">← Back</button>
-  </div>
+  <main id="appContainer">
+    </main>
 
-  <p class="muted">For detailed subscription plans, please refer to the company's official website</p>
-</section>
-  
-  <!-- 搜尋頁 -->
-  <section id="page-search" class="card stack hidden">
-    <h2>Procura Co., Ltd. </h2>
-    <div class="grid cols-2">
-      <div class="stack">
-        <label>Project</label>
-        <input id="q" type="text" placeholder="Enter project name or tags..." />
-      </div>
-      <div class="stack">
-        <label>&nbsp;</label>
-        <!-- 增加 Icon 結構 -->
-        <button id="searchBtn" class="btn"><span class="material-symbols-outlined">search</span> Search</button>
-      </div>
-    </div>
-    <div id="result" class="list"></div>
-  </section>
-
-  <!-- 專案細項頁 -->
-  <section id="page-detail" class="card stack hidden">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-      <h2 id="detailTitle">專案細項</h2>
-      <!-- 增加 Icon 結構 -->
-      <button class="btn" data-nav="#search"><span class="material-symbols-outlined">arrow_back</span> Back</button>
-    </div>
-    <p class="muted" id="detailMeta"></p>
-
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="progress">專案進度</button>
-      <button class="tab-btn" data-tab="create">新增工項</button>
-      <button class="tab-btn" data-tab="edit">編輯工項</button>
-      <button class="tab-btn" data-tab="materials">材料總管</button>
-    </div>
-
-    <!-- 專案進度 -->
-    <div id="tab-progress" class="tab-panel active">
-      <div id="progressContainer" class="stack"></div>
-    </div>
-
-    <!-- 新增工項（不含狀態） + 新增建材（不含狀態） -->
-    <div id="tab-create" class="tab-panel">
-      <h3>新增工項</h3>
-      <div class="grid cols-3">
-        <div class="stack"><label>日期</label><input type="date" id="create-date"/></div>
-        <div class="stack"><label>工項名稱</label><input type="text" id="create-work-name"/></div>
-        <div class="stack"><label>開始時間</label><input type="time" id="create-start-time" value="08:00"/></div>
-        <div class="stack align-end"><button id="addWorkBtn" class="btn-primary">新增工項</button></div>
-      </div>
-
-      <hr/>
-
-      <h3>新增建材</h3>
-      <div class="grid cols-3">
-        <div class="stack"><label>日期</label><select id="mat-date"></select></div>
-        <div class="stack"><label>工項</label><select id="mat-work"></select></div>
-        <div class="stack"><label>建材</label><input type="text" id="mat-name"/></div>
-        <div class="stack"><label>供應商</label><input type="text" id="mat-vendor"/></div>
-        <div class="stack"><label>數量</label><input type="number" id="mat-qty" value="0" min="0"/></div>
-        <div class="stack"><label>單位</label><input type="text" id="mat-unit" placeholder="片 / 扇 / L"/></div>
-        <div class="stack align-end"><button id="addMaterialBtn" class="btn-primary">新增建材</button></div>
-      </div>
-      <p class="muted">（新增建材預設狀態：未叫貨）</p>
-    </div>
-
-    <!-- 編輯工項：只改狀態 + 編輯建材狀態 -->
-    <div id="tab-edit" class="tab-panel">
-      <h3>編輯工項狀態</h3>
-      <div class="grid cols-3">
-        <div class="stack"><label>日期</label><select id="edit-date"></select></div>
-        <div class="stack"><label>工項</label><select id="edit-work"></select></div>
-        <div class="stack"><label>狀態</label>
-          <select id="edit-status">
-            <option value="0">0. 提前</option>
-            <option value="1">1. 正常</option>
-            <option value="2">2. 延後</option>
-          </select>
-        </div>
-        <div class="stack align-end"><button id="saveStatusBtn" class="btn-primary">儲存狀態</button></div>
-      </div>
-
-      <hr/>
-
-      <h3>編輯建材狀態</h3>
-      <div class="grid cols-3">
-        <div class="stack"><label>建材</label><select id="edit-material"></select></div>
-        <div class="stack">
-          <label>建材狀態</label>
-          <select id="edit-mstatus">
-            <option value="0">0. 已到貨</option>
-            <option value="1">1. 已叫貨</option>
-            <option value="2">2. 未叫貨</option>
-            <option value="3">3. 已叫貨但未抵達</option>
-          </select>
-        </div>
-        <div class="stack align-end"><button id="saveMatStatusBtn" class="btn-primary">儲存建材狀態</button></div>
-      </div>
-    </div>
-
-    <!-- 材料總管 -->
-    <div id="tab-materials" class="tab-panel">
-      <table class="table" id="materialsTable">
-        <thead>
-          <tr><th>建材細項</th><th>供應商</th><th>數量</th><th>單位</th><th>狀態</th><th>日期</th><th>工項</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
-</main>
-
-<!-- 引入新的主入口 JS 檔案。請確保 js/app.js 位於根目錄下的 js/ 子資料夾中。 -->
-<script type="module" src="./js/app.js"></script>
+  <script type="module" src="./js/app.js"></script>
 
 </body>
+
 </html>
