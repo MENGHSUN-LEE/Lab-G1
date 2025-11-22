@@ -67,53 +67,67 @@ export const detailTemplate = `
 </div>
 
       <div id="tab-edit" class="tab-panel">
-        <h3>編輯工項狀態</h3>
-        <div class="grid cols-3">
-          <div class="stack"><label>日期</label><select id="edit-date"></select></div>
-          <div class="stack"><label>工項</label><select id="edit-work"></select></div>
-          <div class="stack"><label>狀態</label>
+    
+    <h3>Edit Work Item Status</h3>
+    <div class="grid cols-3">
+        <div class="stack">
+            <label>Date</label>
+            <select id="edit-date"></select>
+        </div>
+        <div class="stack">
+            <label>Work Item</label>
+            <select id="edit-work"></select>
+        </div>
+        <div class="stack">
+            <label>Status</label>
             <select id="edit-status">
-              <option value="0">0. 提前</option>
-              <option value="1">1. 正常</option>
-              <option value="2">2. 延後</option>
+                <option value="0">Ahead</option>
+                <option value="1">On Time</option>
+                <option value="2">Delayed</option>
             </select>
-          </div>
-          <div class="stack align-end"><button id="saveStatusBtn" class="btn-primary">儲存狀態</button></div>
         </div>
+        <div class="stack align-end">
+            <button id="saveStatusBtn" class="btn-primary">Save Status</button>
+        </div>
+    </div>
 
-        <hr />
+    <hr />
 
-        <h3>編輯建材狀態</h3>
-        <div class="grid cols-3">
-          <div class="stack"><label>建材</label><select id="edit-material"></select></div>
-          <div class="stack">
-            <label>建材狀態</label>
+    <h3>Edit Material Status</h3>
+    <div class="grid cols-3">
+        <div class="stack">
+            <label>Material Item</label>
+            <select id="edit-material"></select> 
+        </div>
+        <div class="stack">
+            <label>Material Status</label>
             <select id="edit-mstatus">
-              <option value="0">0. 已到貨</option>
-              <option value="1">1. 已叫貨</option>
-              <option value="2">2. 未叫貨</option>
-              <option value="3">3. 已叫貨但未抵達</option>
+                <option value="0">Arrived</option>
+                <option value="1">Ordered</option>
+                <option value="2">Pending Order</option>
+                <option value="3">In Transit</option>
             </select>
-          </div>
-          <div class="stack align-end"><button id="saveMatStatusBtn" class="btn-primary">儲存建材狀態</button></div>
         </div>
-      </div>
-
-      <div id="tab-materials" class="tab-panel">
-        <table class="table" id="materialsTable">
-          <thead>
+        <div class="stack align-end">
+            <button id="saveMatStatusBtn" class="btn-primary">Save Material Status</button>
+        </div>
+    </div>
+</div>
+<div id="tab-materials" class="tab-panel">
+    <table class="table" id="materialsTable">
+        <thead>
             <tr>
-              <th>建材細項</th>
-              <th>供應商</th>
-              <th>數量</th>
-              <th>單位</th>
-              <th>狀態</th>
-              <th>日期</th>
-              <th>工項</th>
+                <th>Material Detail</th>
+                <th>Supplier</th>
+                <th>Quantity</th>
+                <th>Unit</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Work Item</th>
             </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
     </section>
 `;
