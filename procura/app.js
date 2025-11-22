@@ -493,6 +493,62 @@ app.post('/api/materials-used', async (req, res) => {
     }
 });
 
+app.put('/api/work-items/:id/status', async (req, res) => {
+    const workItemId = req.params.id;
+    const { status } = req.body; // 預期接收新的狀態值 (0, 1, or 2)
+    const dbPool = app.locals.dbPool;
+
+    if (status === undefined) {
+        return res.status(400).json({ success: false, message: '新的狀態值是必需的。' });
+    }
+
+    try {
+        const query = `
+            UPDATE work_items
+            SET status = ?
+            WHERE id = ?;
+        `;
+        const [result] = await dbPool.execute(query, [status, workItemId]);
+
+        if (result.affectedRows === 1) {
+            res.json({ success: true, message: '工項狀態更新成功。' });
+        } else {
+            res.status(404).json({ success: false, message: '找不到該工項或狀態未更改。' });
+        }
+    } catch (error) {
+        console.error('Update Work Item Status error:', error);
+        res.status(500).json({ success: false, message: '伺服器錯誤：無法更新工項狀態。' });
+    }
+});
+
+app.put('/api/materials-used/:id/status', async (req, res) => {
+    const materialUsedId = req.params.id;
+    const { status } = req.body; // 預期接收新的狀態值 (0, 1, 2, or 3)
+    const dbPool = app.locals.dbPool;
+
+    if (status === undefined) {
+        return res.status(400).json({ success: false, message: '新的建材狀態值是必需的。' });
+    }
+
+    try {
+        const query = `
+            UPDATE materials_used
+            SET material_status = ?
+            WHERE id = ?;
+        `;
+        const [result] = await dbPool.execute(query, [status, materialUsedId]);
+
+        if (result.affectedRows === 1) {
+            res.json({ success: true, message: '建材狀態更新成功。' });
+        } else {
+            res.status(404).json({ success: false, message: '找不到該建材紀錄或狀態未更改。' });
+        }
+    } catch (error) {
+        console.error('Update Material Status error:', error);
+        res.status(500).json({ success: false, message: '伺服器錯誤：無法更新建材狀態。' });
+    }
+});
+
 // 啟動伺服器
 app.listen(PORT, () => {
   console.log(`[Express] Server running on port ${PORT}`);

@@ -124,45 +124,86 @@ export function bindEditEvents() {
 
     // 4. 儲存工項狀態
     if (saveStatusBtn) {
-        saveStatusBtn.onclick = () => {
+        saveStatusBtn.onclick = async () => {
             const proj = state.currentProject;
             const d = editDateSel?.value;
             const idx = parseInt(editWorkSel?.value || "0", 10) || 0;
+            const newStatus = parseInt(editStatus?.value, 10);
+
             if (!d || Number.isNaN(idx)) { alert("請選擇日期與工項"); return; }
 
-            const node = (proj.progress || []).find(pNode =>
-                pNode.date.split('T')[0] === d
-            );
-
+            const node = (proj.progress || []).find(pNode => pNode.date.split('T')[0] === d);
             const work = node?.items?.[idx];
-            if (!work) { alert("工項不存在"); return; }
-            work.status = parseInt(editStatus?.value, 10);
-            renderProgress(d);
-            setActiveTab("progress");
+
+            if (!work || !work.id) { alert("工項不存在或 ID 遺失，請重新載入。"); return; } // 檢查 ID
+
+            try {
+                const response = await fetch(`/api/work-items/${work.id}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert("工項狀態儲存成功！");
+
+                    work.status = newStatus;
+                    renderProgress(d);
+                    setActiveTab("progress");
+
+                } else {
+                    alert(`更新失敗: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Status Update Fetch Error:', error);
+                alert('網路錯誤，無法更新狀態。');
+            }
         };
     }
 
     // 5. 儲存建材狀態
     if (saveMatStatusBtn) {
-        saveMatStatusBtn.onclick = () => {
+        saveMatStatusBtn.onclick = async () => {
             const proj = state.currentProject;
             const d = editDateSel?.value;
             const wIdx = parseInt(editWorkSel?.value || "0", 10) || 0;
             const mIdx = parseInt(editMatSel?.value || "0", 10) || 0;
+            const newMStatus = parseInt(editMatStatus?.value, 10); // 獲取新的狀態值
+
             if (!d || Number.isNaN(wIdx) || Number.isNaN(mIdx)) { alert("請選擇日期/工項/建材"); return; }
 
-            const node = (proj.progress || []).find(pNode =>
-                pNode.date.split('T')[0] === d
-            );
-
+            // 查找建材節點 (需要前面修復過的日期格式化邏輯)
+            const node = (proj.progress || []).find(pNode => pNode.date.split('T')[0] === d);
             const work = node?.items?.[wIdx];
             const mat = work?.materials?.[mIdx];
-            if (!mat) { alert("建材不存在"); return; }
 
-            mat.mstatus = parseInt(editMatStatus?.value, 10);
-            renderProgress(d);
-            renderMaterialsTable();
-            setActiveTab("materials");
+            if (!mat || !mat.id) { alert("建材紀錄不存在或 ID 遺失，請重新載入。"); return; }
+
+            try {
+                const response = await fetch(`/api/materials-used/${mat.id}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newMStatus })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert("建材狀態儲存成功！");
+
+                    mat.mstatus = newMStatus;
+                    renderProgress(d); // 重新渲染進度
+                    renderMaterialsTable(); // 重新渲染材料總管
+                    setActiveTab("materials"); // 切換到材料總管顯示即時變化
+
+                } else {
+                    alert(`更新失敗: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Material Status Update Fetch Error:', error);
+                alert('網路錯誤，無法更新建材狀態。');
+            }
         };
     }
 }
