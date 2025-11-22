@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 procura/node_modules/.bin/mime
 procura/node_modules/.bin/node-gyp-build
 procura/node_modules/.bin/node-gyp-build-optional
@@ -67,3 +68,10 @@ procura/node_modules/node-gyp-build/optional.js
 procura/node_modules/node-gyp-build/package.json
 procura/node_modules/node-gyp-build/README.md
 procura/node_modules/node-gyp-build/SECURITY.md
+=======
+# macOS system files
+**/.DS_Store
+
+# Node.js dependency directory
+**/node_modules
+>>>>>>> e1ff2e565fad8f28037bea0d7178457479a19e51
