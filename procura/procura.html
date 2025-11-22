@@ -1,34 +1,1206 @@
 <!doctype html>
 <html lang="zh-Hant">
-
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Procura 智供管理系統</title>
+<<<<<<< HEAD
 
   <link rel="stylesheet" href="procura.css" />
 
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-</head>
+=======
+  
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: #333;
+    }
+
+    #appHeader {
+      background: white;
+      padding: 1.5rem 2rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    nav {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border: 2px solid #667eea;
+      background: white;
+      color: #667eea;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.95rem;
+    }
+
+    .btn:hover {
+      background: #667eea;
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.95rem;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-success {
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-success:hover {
+      background: #059669;
+      transform: translateY(-2px);
+    }
+
+    .btn-warning {
+      background: #f59e0b;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-warning:hover {
+      background: #d97706;
+      transform: translateY(-2px);
+    }
+
+    main {
+      max-width: 1400px;
+      margin: 2rem auto;
+      padding: 0 2rem;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 2.5rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1rem;
+    }
+
+    h2 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #1f2937;
+      margin-bottom: 1.5rem;
+    }
+
+    h3 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #374151;
+      margin: 1.5rem 0 1rem 0;
+    }
+
+    label {
+      font-weight: 600;
+      color: #4b5563;
+      font-size: 0.9rem;
+    }
+
+    input, select {
+      padding: 0.75rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      font-family: 'Inter', sans-serif;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .grid {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .cols-1 { grid-template-columns: 1fr; }
+    .cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .cols-3 { grid-template-columns: repeat(3, 1fr); }
+
+    .actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .muted {
+      color: #6b7280;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 2px solid #e5e7eb;
+      margin: 2rem 0 1.5rem 0;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      padding: 1rem 1.5rem;
+      background: none;
+      border: none;
+      color: #6b7280;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s ease;
+      font-size: 1rem;
+    }
+
+    .tab-btn:hover {
+      color: #667eea;
+    }
+
+    .tab-btn.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    hr {
+      border: none;
+      border-top: 2px solid #e5e7eb;
+      margin: 2rem 0;
+    }
+
+    .project-card {
+      background: linear-gradient(135deg, #f0f4ff 0%, #e8e4ff 100%);
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+
+    .project-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+      border-color: #667eea;
+    }
+
+    .project-card h3 {
+      margin: 0 0 0.5rem 0;
+      color: #667eea;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+
+    .status-0 { background: #d1fae5; color: #065f46; }
+    .status-1 { background: #dbeafe; color: #1e40af; }
+    .status-2 { background: #fee2e2; color: #991b1b; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin: 2rem 0;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-label {
+      color: #6b7280;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .cols-2, .cols-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+  /* Data Table Styles */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+
+    .data-table thead {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .data-table th {
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      letter-spacing: 0.5px;
+    }
+
+    .data-table tbody tr {
+      transition: background 0.2s ease;
+    }
+
+    .data-table tbody tr:hover {
+      background: #f8f9ff;
+    }
+
+    .data-table tbody tr:nth-child(even) {
+      background: #fafafa;
+    }
+
+    .data-table tbody tr:nth-child(even):hover {
+      background: #f0f4ff;
+    }
+
+    .table-status {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .table-status.arrived {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .table-status.transit {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .table-status.pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .btn-sm {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      border: none;
+      margin-right: 0.25rem;
+    }
+
+    .btn-edit {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .btn-delete {
+      background: #ef4444;
+      color: white;
+    }
+
+    .btn-sm:hover {
+      opacity: 0.8;
+    }
+  </style>
+>>>>>>> e1ff2e565fad8f28037bea0d7178457479a19e51
+</head>
 <body>
 
-  <header id="appHeader">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-      <div class="brand">Procura Co., Ltd. </div>
-      <nav>
-        <button class="btn" data-nav="#search"><span class="material-symbols-outlined">work</span> Project</button>
-        <button class="btn" id="logoutBtn"><span class="material-symbols-outlined">logout</span> Log out</button>
-      </nav>
-    </div>
-  </header>
+<header id="appHeader">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+    <div class="brand">Procura Co., Ltd.</div>
+    <nav>
+      <button class="btn" id="langToggleBtn"><span class="material-symbols-outlined">language</span> <span id="langText">English</span></button>
+      <button class="btn" data-nav="search" id="navProjectBtn"><span class="material-symbols-outlined">work</span> <span data-lang="nav-project">Project</span></button>
+      <button class="btn" id="logoutBtn"><span class="material-symbols-outlined">logout</span> <span data-lang="nav-logout">Log out</span></button>
+    </nav>
+  </div>
+</header>
 
+<main>
+  <!-- Login Page -->
+  <section id="page-login" class="card stack">
+    <h1 data-lang="login-title">Procura 智供管理系統</h1>
+    <h2 data-lang="login-heading">Log in</h2>
+    <div class="grid cols-1">
+      <div class="stack">
+        <label data-lang="login-email">Email</label>
+        <input id="loginEmail" type="text" placeholder="you@example.com" value="demo@procura.com" />
+      </div>
+      <div class="stack">
+        <label data-lang="login-password">Password</label>
+        <input id="loginPassword" type="password" placeholder="••••••••" value="demo123" />
+      </div>
+      <div class="actions">
+        <button id="loginBtn" class="btn-primary" data-lang="login-btn">Log in</button>
+        <button id="signupBtn" class="btn" data-lang="signup-btn">Sign up</button>
+      </div>
+      <p class="muted" data-lang="login-demo">Demo credentials: demo@procura.com / demo123</p>
+    </div>
+  </section>
+  
+  <!-- Registration Page -->
+  <section id="page-signup" class="card stack hidden">
+    <h2 data-lang="signup-heading">Create your account</h2>
+    <div class="grid cols-2">
+      <div class="stack">
+        <label data-lang="signup-company">Company</label>
+        <input id="suCompany" type="text" placeholder="Procura Co., Ltd." />
+      </div>
+      <div class="stack">
+        <label data-lang="signup-email">Email</label>
+        <input id="suEmail" type="email" placeholder="you@example.com" />
+      </div>
+      <div class="stack">
+        <label data-lang="signup-phone">Phone</label>
+        <input id="suPhone" type="tel" placeholder="0912-345-678" />
+      </div>
+      <div class="stack">
+        <label data-lang="signup-password">Password</label>
+        <input id="suPassword" type="password" placeholder="••••••••" />
+      </div>
+      <div class="stack">
+        <label data-lang="signup-confirm">Check Password</label>
+        <input id="suPassword2" type="password" placeholder="Enter password again" />
+      </div>
+      <div class="stack">
+        <label data-lang="signup-subscription">Subscription</label>
+        <select id="suPlan">
+          <option value="trial" data-lang="plan-trial">Free Trial (1 project)</option>
+          <option value="personal" data-lang="plan-personal">Personal Account ($12.99/month)</option>
+          <option value="business" data-lang="plan-business">Business Account ($75.99/month)</option>
+        </select>
+      </div>
+    </div>
+
+<<<<<<< HEAD
   <main id="appContainer">
     </main>
 
   <script type="module" src="./js/app.js"></script>
+=======
+    <div class="actions">
+      <button id="createAccountBtn" class="btn-primary" data-lang="create-account-btn">Sign up</button>
+      <button id="backToLoginBtn" class="btn" data-lang="back-btn">← Back</button>
+    </div>
+
+    <p class="muted" data-lang="signup-note">For detailed subscription plans, please refer to the company's official website</p>
+  </section>
+  
+  <!-- Search Page -->
+  <section id="page-search" class="card stack hidden">
+    <h2>Procura Co., Ltd.</h2>
+    <div class="grid cols-2">
+      <div class="stack">
+        <label data-lang="search-project">Project</label>
+        <input id="q" type="text" data-lang-placeholder="search-placeholder" placeholder="Enter project name or tags..." />
+      </div>
+      <div class="stack">
+        <label>&nbsp;</label>
+        <button id="searchBtn" class="btn"><span class="material-symbols-outlined">search</span> <span data-lang="search-btn">Search</span></button>
+      </div>
+    </div>
+    <div id="result" class="list"></div>
+  </section>
+
+  <!-- Project Detail Page -->
+  <section id="page-detail" class="card stack hidden">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+      <h2 id="detailTitle">專案細項</h2>
+      <button class="btn" id="backToSearchBtn"><span class="material-symbols-outlined">arrow_back</span> Back</button>
+    </div>
+    <p class="muted" id="detailMeta"></p>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="materials"><span data-lang="tab-materials">材料管理</span></button>
+      <button class="tab-btn" data-tab="vendor"><span data-lang="tab-vendor">供應商管理</span></button>
+      <button class="tab-btn" data-tab="progress"><span data-lang="tab-progress">專案進度</span></button>
+    </div>
+
+    <!-- Materials Management -->
+    <div id="tab-materials" class="tab-panel active">
+      <h3 data-lang="materials-title">📦 材料管理總覽</h3>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number">24</div>
+          <div class="stat-label" data-lang="stat-total">總材料數</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">18</div>
+          <div class="stat-label" data-lang="stat-arrived">已到貨</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">4</div>
+          <div class="stat-label" data-lang="stat-transit">運送中</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">2</div>
+          <div class="stat-label" data-lang="stat-pending">待叫貨</div>
+        </div>
+      </div>
+
+      <h3 data-lang="materials-table-title">📋 材料清單</h3>
+      <div style="overflow-x: auto;">
+        <table class="data-table" id="materialsTable">
+          <thead>
+            <tr>
+              <th data-lang="th-material">建材細項</th>
+              <th data-lang="th-vendor">供應商</th>
+              <th data-lang="th-quantity">數量</th>
+              <th data-lang="th-unit">單位</th>
+              <th data-lang="th-status">狀態</th>
+              <th data-lang="th-date">日期</th>
+              <th data-lang="th-task">工項</th>
+              <th data-lang="th-actions">操作</th>
+            </tr>
+          </thead>
+          <tbody id="materialsTableBody">
+            <!-- Data will be populated by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <hr/>
+
+      <h3 data-lang="quality-title">📊 材料品質評分</h3>
+      <div class="grid cols-2">
+        <div class="stack">
+          <label data-lang="material-name">材料名稱</label>
+          <input type="text" id="quality-material" placeholder="鋼筋 / 水泥 / 磚塊..." />
+        </div>
+        <div class="stack">
+          <label data-lang="quality-score-label">品質評分 (1-10)</label>
+          <input type="number" id="quality-score" min="1" max="10" value="8" />
+        </div>
+        <div class="stack">
+          <label data-lang="inspection-date">檢驗日期</label>
+          <input type="date" id="quality-date" />
+        </div>
+        <div class="stack">
+          <label data-lang="inspection-notes">檢驗備註</label>
+          <input type="text" id="quality-notes" placeholder="品質檢驗詳細說明..." />
+        </div>
+        <div class="stack">
+          <button class="btn-success" data-lang="save-quality">✓ 儲存品質評分</button>
+        </div>
+      </div>
+
+      <hr/>
+
+      <h3 data-lang="arrival-title">📅 材料進貨時間紀錄</h3>
+      <div class="grid cols-3">
+        <div class="stack">
+          <label data-lang="material-name">材料名稱</label>
+          <input type="text" placeholder="材料名稱..." />
+        </div>
+        <div class="stack">
+          <label data-lang="expected-date">預計到貨日期</label>
+          <input type="date" />
+        </div>
+        <div class="stack">
+          <label data-lang="actual-date">實際到貨日期</label>
+          <input type="date" />
+        </div>
+        <div class="stack">
+          <label data-lang="delay-days">延遲天數</label>
+          <input type="number" value="0" readonly style="background: #f3f4f6;" />
+        </div>
+        <div class="stack">
+          <button class="btn-success" data-lang="save-arrival">✓ 記錄到貨時間</button>
+        </div>
+      </div>
+
+      <hr/>
+
+      <h3 data-lang="stock-title">📊 庫存水位監控</h3>
+      <div class="grid cols-3">
+        <div class="stack">
+          <label data-lang="material-name">材料名稱</label>
+          <input type="text" placeholder="材料名稱..." />
+        </div>
+        <div class="stack">
+          <label data-lang="current-stock">當前庫存</label>
+          <input type="number" min="0" value="150" />
+        </div>
+        <div class="stack">
+          <label data-lang="safety-stock">安全庫存</label>
+          <input type="number" min="0" value="50" />
+        </div>
+        <div class="stack">
+          <label data-lang="reorder-point">補貨點</label>
+          <input type="number" min="0" value="30" />
+        </div>
+        <div class="stack">
+          <button class="btn-warning" data-lang="update-stock">⚠ 更新庫存水位</button>
+        </div>
+      </div>
+
+      <hr/>
+
+      <h3 data-lang="cost-title">💰 材料成本分析</h3>
+      <div class="grid cols-3">
+        <div class="stack">
+          <label data-lang="material-name">材料名稱</label>
+          <input type="text" placeholder="材料名稱..." />
+        </div>
+        <div class="stack">
+          <label data-lang="unit-price">單價 (NT$)</label>
+          <input type="number" min="0" value="1500" />
+        </div>
+        <div class="stack">
+          <label data-lang="purchase-qty">採購數量</label>
+          <input type="number" min="0" value="100" />
+        </div>
+        <div class="stack">
+          <label data-lang="total-cost">總成本 (NT$)</label>
+          <input type="number" value="150000" readonly style="background: #f3f4f6;" />
+        </div>
+        <div class="stack">
+          <button class="btn-success" data-lang="save-cost">✓ 儲存成本資料</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vendor Management -->
+    <div id="tab-vendor" class="tab-panel">
+      <h3 data-lang="vendor-system">🏢 供應商管理系統</h3>
+
+      <h3 data-lang="add-vendor-title">➕ 新增供應商</h3>
+      <div class="grid cols-3">
+        <div class="stack">
+          <label data-lang="vendor-name">供應商名稱</label>
+          <input type="text" placeholder="XX建材有限公司" />
+        </div>
+        <div class="stack">
+          <label data-lang="contact-person">聯絡人</label>
+          <input type="text" placeholder="張三" />
+        </div>
+        <div class="stack">
+          <label data-lang="contact-phone">聯絡電話</label>
+          <input type="tel" placeholder="02-1234-5678" />
+        </div>
+        <div class="stack">
+          <label>Email</label>
+          <input type="email" placeholder="vendor@example.com" />
+        </div>
+        <div class="stack">
+          <label data-lang="vendor-address">地址</label>
+          <input type="text" placeholder="台北市..." />
+        </div>
+        <div class="stack">
+          <button class="btn-primary" data-lang="add-vendor-btn">➕ 新增供應商</button>
+        </div>
+      </div>
+
+      <hr/>
+
+      <h3 data-lang="vendor-rating-title">⭐ 供應商評分紀錄</h3>
+      <div class="grid cols-3">
+        <div class="stack">
+          <label data-lang="vendor-name">供應商名稱</label>
+          <input type="text" placeholder="選擇或輸入供應商..." />
+        </div>
+        <div class="stack">
+          <label data-lang="punctuality-rating">交貨準時率 (1-10)</label>
+          <input type="number" min="1" max="10" value="9" />
+        </div>
+        <div class="stack">
+          <label data-lang="price-rating">價格競爭力 (1-10)</label>
+          <input type="number" min="1" max="10" value="8" />
+        </div>
+        <div class="stack">
+          <label data-lang="quality-rating">產品品質 (1-10)</label>
+          <input type="number" min="1" max="10" value="9" />
+        </div>
+        <div class="stack">
+          <label data-lang="service-rating">服務態度 (1-10)</label>
+          <input type="number" min="1" max="10" value="8" />
+        </div>
+        <div class="stack">
+          <label data-lang="rating-date">評分日期</label>
+          <input type="date" />
+        </div>
+        <div class="stack">
+          <button class="btn-success" data-lang="save-rating">✓ 儲存評分</button>
+        </div>
+      </div>
+
+      <hr/>
+
+      <h3 data-lang="vendor-dashboard">📊 供應商績效儀表板</h3>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number">12</div>
+          <div class="stat-label" data-lang="partner-vendors">合作供應商</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">95%</div>
+          <div class="stat-label" data-lang="avg-punctuality">平均準時率</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">8.5</div>
+          <div class="stat-label" data-lang="avg-rating">平均評分</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">3</div>
+          <div class="stat-label" data-lang="premium-vendors">優質供應商</div>
+        </div>
+      </div>
+
+      <hr/>
+
+      <h3 data-lang="punctuality-metrics">📈 交貨準時率指標</h3>
+      <div class="grid cols-2">
+        <div class="stack">
+          <label data-lang="vendor-name">供應商名稱</label>
+          <input type="text" placeholder="供應商名稱..." />
+        </div>
+        <div class="stack">
+          <label data-lang="ontime-deliveries">本月準時交貨次數</label>
+          <input type="number" min="0" value="18" />
+        </div>
+        <div class="stack">
+          <label data-lang="total-deliveries">本月總交貨次數</label>
+          <input type="number" min="0" value="20" />
+        </div>
+        <div class="stack">
+          <label data-lang="punctuality-rate">準時率 (%)</label>
+          <input type="number" value="90" readonly style="background: #f3f4f6;" />
+        </div>
+      </div>
+
+      <hr/>
+
+      <h3 data-lang="price-analysis">💰 價格競爭力分析</h3>
+      <div class="grid cols-3">
+        <div class="stack">
+          <label data-lang="material-name">材料名稱</label>
+          <input type="text" placeholder="鋼筋" />
+        </div>
+        <div class="stack">
+          <label data-lang="vendor-a-price">供應商A報價</label>
+          <input type="number" placeholder="1500" />
+        </div>
+        <div class="stack">
+          <label data-lang="vendor-b-price">供應商B報價</label>
+          <input type="number" placeholder="1450" />
+        </div>
+        <div class="stack">
+          <label data-lang="vendor-c-price">供應商C報價</label>
+          <input type="number" placeholder="1550" />
+        </div>
+        <div class="stack">
+          <label data-lang="market-avg-price">市場平均價</label>
+          <input type="number" value="1500" readonly style="background: #f3f4f6;" />
+        </div>
+        <div class="stack">
+          <button class="btn-success" data-lang="analyze-price">✓ 分析價格</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Tracking -->
+    <div id="tab-progress" class="tab-panel">
+      <h3 data-lang="progress-title">📋 專案進度追蹤</h3>
+      <p class="muted" data-lang="progress-note">沒問題</p>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number">75%</div>
+          <div class="stat-label" data-lang="progress-completion">專案完成度</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">45</div>
+          <div class="stat-label" data-lang="progress-completed">已完成工項</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">15</div>
+          <div class="stat-label" data-lang="progress-ongoing">進行中工項</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">8</div>
+          <div class="stat-label" data-lang="progress-pending">待開始工項</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Simple navigation system
+  let currentPage = 'login';
+  let isLoggedIn = false;
+
+  function showPage(pageName) {
+    // Hide all pages
+    document.querySelectorAll('section').forEach(section => {
+      section.classList.add('hidden');
+    });
+
+    // Show selected page
+    const page = document.getElementById(`page-${pageName}`);
+    if (page) {
+      page.classList.remove('hidden');
+      currentPage = pageName;
+    }
+  }
+
+  // Login button
+  document.getElementById('loginBtn').addEventListener('click', () => {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    
+    if (email && password) {
+      isLoggedIn = true;
+      alert('登入成功！');
+      showPage('search');
+      loadProjects();
+    } else {
+      alert('請輸入Email和密碼');
+    }
+  });
+
+  // Signup button
+  document.getElementById('signupBtn').addEventListener('click', () => {
+    showPage('signup');
+  });
+
+  // Back to login
+  document.getElementById('backToLoginBtn').addEventListener('click', () => {
+    showPage('login');
+  });
+
+  // Create account
+  document.getElementById('createAccountBtn').addEventListener('click', () => {
+    alert('帳號創建成功！');
+    showPage('login');
+  });
+
+  // Nav to project
+  document.getElementById('navProjectBtn').addEventListener('click', () => {
+    if (isLoggedIn) {
+      showPage('search');
+    }
+  });
+
+  // Logout
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    if (confirm('確定要登出嗎？')) {
+      isLoggedIn = false;
+      showPage('login');
+    }
+  });
+
+  // Search button
+  document.getElementById('searchBtn').addEventListener('click', () => {
+    loadProjects();
+  });
+
+  // Back to search from detail
+  document.getElementById('backToSearchBtn').addEventListener('click', () => {
+    showPage('search');
+  });
+
+  // Load demo projects
+  function loadProjects() {
+    const resultDiv = document.getElementById('result');
+    resultDiv.innerHTML = `
+      <div class="project-card" onclick="openProject('台北101新建案')">
+        <h3>台北101新建案</h3>
+        <p class="muted">負責人: 張三 | 起始日期: 2024-01-15</p>
+        <span class="status-badge status-1">進行中</span>
+      </div>
+      <div class="project-card" onclick="openProject('新竹科技園區')">
+        <h3>新竹科技園區</h3>
+        <p class="muted">負責人: 李四 | 起始日期: 2024-03-01</p>
+        <span class="status-badge status-1">進行中</span>
+      </div>
+      <div class="project-card" onclick="openProject('高雄港區開發')">
+        <h3>高雄港區開發</h3>
+        <p class="muted">負責人: 王五 | 起始日期: 2024-02-10</p>
+        <span class="status-badge status-0">提前完成</span>
+      </div>
+    `;
+  }
+
+  // Open project detail
+  function openProject(projectName) {
+    document.getElementById('detailTitle').textContent = projectName;
+    document.getElementById('detailMeta').textContent = `專案管理系統 | ${projectName}`;
+    showPage('detail');
+  }
+
+  // Tab switching
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.getAttribute('data-tab');
+      
+      // Remove active class from all tabs
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      
+      // Add active class to clicked tab
+      btn.classList.add('active');
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+    });
+  });
+
+  // Initialize on load
+  window.addEventListener('DOMContentLoaded', () => {
+    showPage('login');
+  });
+
+  // Language Toggle System
+  let currentLang = 'zh'; // default Chinese
+
+  const translations = {
+    zh: {
+      'nav-project': 'Project',
+      'nav-logout': 'Log out',
+      'login-title': 'Procura 智供管理系統',
+      'login-heading': 'Log in',
+      'login-email': 'Email',
+      'login-password': 'Password',
+      'login-btn': 'Log in',
+      'signup-btn': 'Sign up',
+      'login-demo': 'Demo credentials: demo@procura.com / demo123',
+      'signup-heading': 'Create your account',
+      'signup-company': 'Company',
+      'signup-email': 'Email',
+      'signup-phone': 'Phone',
+      'signup-password': 'Password',
+      'signup-confirm': 'Check Password',
+      'signup-subscription': 'Subscription',
+      'plan-trial': 'Free Trial (1 project)',
+      'plan-personal': 'Personal Account ($12.99/month)',
+      'plan-business': 'Business Account ($75.99/month)',
+      'create-account-btn': 'Sign up',
+      'back-btn': '← Back',
+      'signup-note': 'For detailed subscription plans, please refer to the company\'s official website',
+      'search-project': 'Project',
+      'search-placeholder': 'Enter project name or tags...',
+      'search-btn': 'Search',
+      'tab-materials': '材料管理',
+      'tab-vendor': '供應商管理',
+      'tab-progress': '專案進度',
+      'materials-title': '📦 材料管理總覽',
+      'stat-total': '總材料數',
+      'stat-arrived': '已到貨',
+      'stat-transit': '運送中',
+      'stat-pending': '待叫貨',
+      'quality-title': '📊 材料品質評分',
+      'material-name': '材料名稱',
+      'quality-score-label': '品質評分 (1-10)',
+      'inspection-date': '檢驗日期',
+      'inspection-notes': '檢驗備註',
+      'save-quality': '✓ 儲存品質評分',
+      'arrival-title': '📅 材料進貨時間紀錄',
+      'expected-date': '預計到貨日期',
+      'actual-date': '實際到貨日期',
+      'delay-days': '延遲天數',
+      'save-arrival': '✓ 記錄到貨時間',
+      'stock-title': '📊 庫存水位監控',
+      'current-stock': '當前庫存',
+      'safety-stock': '安全庫存',
+      'reorder-point': '補貨點',
+      'update-stock': '⚠ 更新庫存水位',
+      'cost-title': '💰 材料成本分析',
+      'unit-price': '單價 (NT$)',
+      'purchase-qty': '採購數量',
+      'total-cost': '總成本 (NT$)',
+      'save-cost': '✓ 儲存成本資料',
+      'vendor-system': '🏢 供應商管理系統',
+      'add-vendor-title': '➕ 新增供應商',
+      'vendor-name': '供應商名稱',
+      'contact-person': '聯絡人',
+      'contact-phone': '聯絡電話',
+      'vendor-address': '地址',
+      'add-vendor-btn': '➕ 新增供應商',
+      'vendor-rating-title': '⭐ 供應商評分紀錄',
+      'punctuality-rating': '交貨準時率 (1-10)',
+      'price-rating': '價格競爭力 (1-10)',
+      'quality-rating': '產品品質 (1-10)',
+      'service-rating': '服務態度 (1-10)',
+      'rating-date': '評分日期',
+      'save-rating': '✓ 儲存評分',
+      'vendor-dashboard': '📊 供應商績效儀表板',
+      'partner-vendors': '合作供應商',
+      'avg-punctuality': '平均準時率',
+      'avg-rating': '平均評分',
+      'premium-vendors': '優質供應商',
+      'punctuality-metrics': '📈 交貨準時率指標',
+      'ontime-deliveries': '本月準時交貨次數',
+      'total-deliveries': '本月總交貨次數',
+      'punctuality-rate': '準時率 (%)',
+      'price-analysis': '💰 價格競爭力分析',
+      'vendor-a-price': '供應商A報價',
+      'vendor-b-price': '供應商B報價',
+      'vendor-c-price': '供應商C報價',
+      'market-avg-price': '市場平均價',
+      'analyze-price': '✓ 分析價格',
+      'progress-title': '📋 專案進度追蹤',
+      'progress-note': '沒問題',
+      'progress-completion': '專案完成度',
+      'progress-completed': '已完成工項',
+      'progress-ongoing': '進行中工項',
+      'progress-pending': '待開始工項',
+      'materials-table-title': '📋 材料清單',
+      'th-material': '建材細項',
+      'th-vendor': '供應商',
+      'th-quantity': '數量',
+      'th-unit': '單位',
+      'th-status': '狀態',
+      'th-date': '日期',
+      'th-task': '工項',
+      'th-actions': '操作',
+      'status-arrived': '已到貨',
+      'status-transit': '運送中',
+      'status-pending': '待叫貨'
+    },
+    en: {
+      'nav-project': 'Project',
+      'nav-logout': 'Log out',
+      'login-title': 'Procura Smart Supply Management System',
+      'login-heading': 'Log in',
+      'login-email': 'Email',
+      'login-password': 'Password',
+      'login-btn': 'Log in',
+      'signup-btn': 'Sign up',
+      'login-demo': 'Demo credentials: demo@procura.com / demo123',
+      'signup-heading': 'Create your account',
+      'signup-company': 'Company',
+      'signup-email': 'Email',
+      'signup-phone': 'Phone',
+      'signup-password': 'Password',
+      'signup-confirm': 'Confirm Password',
+      'signup-subscription': 'Subscription',
+      'plan-trial': 'Free Trial (1 project)',
+      'plan-personal': 'Personal Account ($12.99/month)',
+      'plan-business': 'Business Account ($75.99/month)',
+      'create-account-btn': 'Sign up',
+      'back-btn': '← Back',
+      'signup-note': 'For detailed subscription plans, please refer to the company\'s official website',
+      'search-project': 'Project',
+      'search-placeholder': 'Enter project name or tags...',
+      'search-btn': 'Search',
+      'tab-materials': 'Material Management',
+      'tab-vendor': 'Vendor Management',
+      'tab-progress': 'Project Progress',
+      'materials-title': '📦 Material Management Overview',
+      'stat-total': 'Total Materials',
+      'stat-arrived': 'Arrived',
+      'stat-transit': 'In Transit',
+      'stat-pending': 'Pending Order',
+      'quality-title': '📊 Material Quality Rating',
+      'material-name': 'Material Name',
+      'quality-score-label': 'Quality Score (1-10)',
+      'inspection-date': 'Inspection Date',
+      'inspection-notes': 'Inspection Notes',
+      'save-quality': '✓ Save Quality Rating',
+      'arrival-title': '📅 Material Arrival Log',
+      'expected-date': 'Expected Arrival Date',
+      'actual-date': 'Actual Arrival Date',
+      'delay-days': 'Delay Days',
+      'save-arrival': '✓ Record Arrival Time',
+      'stock-title': '📊 Stock Level Monitoring',
+      'current-stock': 'Current Stock',
+      'safety-stock': 'Safety Stock',
+      'reorder-point': 'Reorder Point',
+      'update-stock': '⚠ Update Stock Level',
+      'cost-title': '💰 Material Cost Analysis',
+      'unit-price': 'Unit Price (NT$)',
+      'purchase-qty': 'Purchase Quantity',
+      'total-cost': 'Total Cost (NT$)',
+      'save-cost': '✓ Save Cost Data',
+      'vendor-system': '🏢 Vendor Management System',
+      'add-vendor-title': '➕ Add New Vendor',
+      'vendor-name': 'Vendor Name',
+      'contact-person': 'Contact Person',
+      'contact-phone': 'Contact Phone',
+      'vendor-address': 'Address',
+      'add-vendor-btn': '➕ Add Vendor',
+      'vendor-rating-title': '⭐ Vendor Rating History',
+      'punctuality-rating': 'Punctuality Rating (1-10)',
+      'price-rating': 'Price Competitiveness (1-10)',
+      'quality-rating': 'Product Quality (1-10)',
+      'service-rating': 'Service Attitude (1-10)',
+      'rating-date': 'Rating Date',
+      'save-rating': '✓ Save Rating',
+      'vendor-dashboard': '📊 Vendor Performance Dashboard',
+      'partner-vendors': 'Partner Vendors',
+      'avg-punctuality': 'Avg Punctuality',
+      'avg-rating': 'Avg Rating',
+      'premium-vendors': 'Premium Vendors',
+      'punctuality-metrics': '📈 Delivery Punctuality Metrics',
+      'ontime-deliveries': 'On-time Deliveries This Month',
+      'total-deliveries': 'Total Deliveries This Month',
+      'punctuality-rate': 'Punctuality Rate (%)',
+      'price-analysis': '💰 Price Competitiveness Analysis',
+      'vendor-a-price': 'Vendor A Quote',
+      'vendor-b-price': 'Vendor B Quote',
+      'vendor-c-price': 'Vendor C Quote',
+      'market-avg-price': 'Market Average Price',
+      'analyze-price': '✓ Analyze Price',
+      'progress-title': '📋 Project Progress Tracking',
+      'progress-note': 'No problem',
+      'progress-completion': 'Project Completion',
+      'progress-completed': 'Completed Tasks',
+      'progress-ongoing': 'Ongoing Tasks',
+      'progress-pending': 'Pending Tasks',
+      'materials-table-title': '📋 Materials List',
+      'th-material': 'Material',
+      'th-vendor': 'Vendor',
+      'th-quantity': 'Quantity',
+      'th-unit': 'Unit',
+      'th-status': 'Status',
+      'th-date': 'Date',
+      'th-task': 'Task',
+      'th-actions': 'Actions',
+      'status-arrived': 'Arrived',
+      'status-transit': 'In Transit',
+      'status-pending': 'Pending'
+    }
+  };
+
+  function switchLanguage(lang) {
+    currentLang = lang;
+    
+    // Update all elements with data-lang attribute
+    document.querySelectorAll('[data-lang]').forEach(element => {
+      const key = element.getAttribute('data-lang');
+      if (translations[lang][key]) {
+        element.textContent = translations[lang][key];
+      }
+    });
+
+    // Update placeholder for search input
+    const searchInput = document.querySelector('[data-lang-placeholder]');
+    if (searchInput) {
+      searchInput.placeholder = translations[lang]['search-placeholder'];
+    }
+
+    // Update language button text
+    document.getElementById('langText').textContent = lang === 'zh' ? 'English' : '中文';
+  }
+
+  // Language toggle button
+  document.getElementById('langToggleBtn').addEventListener('click', () => {
+    const newLang = currentLang === 'zh' ? 'en' : 'zh';
+    switchLanguage(newLang);
+  });
+</script>
+>>>>>>> e1ff2e565fad8f28037bea0d7178457479a19e51
 
 </body>
-
 </html>
