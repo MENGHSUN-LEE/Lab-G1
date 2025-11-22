@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -10,74 +11,18 @@
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 </head>
+
 <body>
 
-<header id="appHeader">
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-    <div class="brand">Procura Co., Ltd.</div>
-    <nav>
-      <button class="btn" id="langToggleBtn"><span class="material-symbols-outlined">language</span> <span id="langText">English</span></button>
-      <button class="btn" data-nav="search" id="navProjectBtn"><span class="material-symbols-outlined">work</span> <span data-lang="nav-project">Project</span></button>
-      <button class="btn" id="logoutBtn"><span class="material-symbols-outlined">logout</span> <span data-lang="nav-logout">Log out</span></button>
-    </nav>
-  </div>
-</header>
-
-<main>
-  <!-- Login Page -->
-  <section id="page-login" class="card stack">
-    <h1 data-lang="login-title">Procura 智供管理系統</h1>
-    <h2 data-lang="login-heading">Log in</h2>
-    <div class="grid cols-1">
-      <div class="stack">
-        <label data-lang="login-email">Email</label>
-        <input id="loginEmail" type="text" placeholder="you@example.com" value="demo@procura.com" />
-      </div>
-      <div class="stack">
-        <label data-lang="login-password">Password</label>
-        <input id="loginPassword" type="password" placeholder="••••••••" value="demo123" />
-      </div>
-      <div class="actions">
-        <button id="loginBtn" class="btn-primary" data-lang="login-btn">Log in</button>
-        <button id="signupBtn" class="btn" data-lang="signup-btn">Sign up</button>
-      </div>
-      <p class="muted" data-lang="login-demo">Demo credentials: demo@procura.com / demo123</p>
+  <header id="appHeader">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+      <div class="brand">Procura Co., Ltd. </div>
+      <nav>
+        <button class="btn" data-nav="#search"><span class="material-symbols-outlined">work</span> Project</button>
+        <button class="btn" id="logoutBtn"><span class="material-symbols-outlined">logout</span> Log out</button>
+      </nav>
     </div>
-  </section>
-  
-  <!-- Registration Page -->
-  <section id="page-signup" class="card stack hidden">
-    <h2 data-lang="signup-heading">Create your account</h2>
-    <div class="grid cols-2">
-      <div class="stack">
-        <label data-lang="signup-company">Company</label>
-        <input id="suCompany" type="text" placeholder="Procura Co., Ltd." />
-      </div>
-      <div class="stack">
-        <label data-lang="signup-email">Email</label>
-        <input id="suEmail" type="email" placeholder="you@example.com" />
-      </div>
-      <div class="stack">
-        <label data-lang="signup-phone">Phone</label>
-        <input id="suPhone" type="tel" placeholder="0912-345-678" />
-      </div>
-      <div class="stack">
-        <label data-lang="signup-password">Password</label>
-        <input id="suPassword" type="password" placeholder="••••••••" />
-      </div>
-      <div class="stack">
-        <label data-lang="signup-confirm">Check Password</label>
-        <input id="suPassword2" type="password" placeholder="Enter password again" />
-      </div>
-      <div class="stack">
-        <label data-lang="signup-subscription">Subscription</label>
-        <select id="suPlan">
-          <option value="trial" data-lang="plan-trial">Free Trial (1 project)</option>
-          <option value="personal" data-lang="plan-personal">Personal Account ($12.99/month)</option>
-          <option value="business" data-lang="plan-business">Business Account ($75.99/month)</option>
-        </select>
-      </div>
-    </div>
+  </header>
 
   <main id="appContainer">
     </main>
@@ -85,4 +30,5 @@
   <script type="module" src="./js/app.js"></script>
 
 </body>
+
 </html>
