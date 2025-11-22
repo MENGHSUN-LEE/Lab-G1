@@ -127,13 +127,15 @@ export function bindEditEvents() {
         saveStatusBtn.onclick = () => {
             const proj = state.currentProject;
             const d = editDateSel?.value;
-            const wIdx = parseInt(editWorkSel?.value || "0", 10) || 0;
-            if (!d || Number.isNaN(wIdx)) { alert("請選擇日期與工項"); return; }
+            const idx = parseInt(editWorkSel?.value || "0", 10) || 0;
+            if (!d || Number.isNaN(idx)) { alert("請選擇日期與工項"); return; }
 
-            const node = proj.progress.find(x => x.date === d);
-            const work = node?.items?.[wIdx];
+            const node = (proj.progress || []).find(pNode =>
+                pNode.date.split('T')[0] === d
+            );
+
+            const work = node?.items?.[idx];
             if (!work) { alert("工項不存在"); return; }
-
             work.status = parseInt(editStatus?.value, 10);
             renderProgress(d);
             setActiveTab("progress");
@@ -149,7 +151,10 @@ export function bindEditEvents() {
             const mIdx = parseInt(editMatSel?.value || "0", 10) || 0;
             if (!d || Number.isNaN(wIdx) || Number.isNaN(mIdx)) { alert("請選擇日期/工項/建材"); return; }
 
-            const node = proj.progress.find(x => x.date === d);
+            const node = (proj.progress || []).find(pNode =>
+                pNode.date.split('T')[0] === d
+            );
+
             const work = node?.items?.[wIdx];
             const mat = work?.materials?.[mIdx];
             if (!mat) { alert("建材不存在"); return; }
