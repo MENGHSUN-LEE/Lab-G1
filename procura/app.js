@@ -43,17 +43,17 @@ initializeDB();
 // 1. 註冊 (Sign Up) 路由
 app.post('/api/signup', async (req, res) => {
     const { suCompany, suEmail, suPhone, suPassword, suPlan } = req.body;
-    
+
     // 簡單的輸入驗證
     if (!suEmail || !suPassword) {
         return res.status(400).json({ success: false, message: 'Email and password are required.' });
     }
-    
+
     try {
         const dbPool = app.locals.dbPool;
         // 1. 密碼加密 (saltRounds = 10 是標準推薦值)
         const passwordHash = await bcrypt.hash(suPassword, 10);
-        
+
         // 2. 執行插入操作
         const query = `
             INSERT INTO users 
@@ -61,10 +61,10 @@ app.post('/api/signup', async (req, res) => {
             VALUES (?, ?, ?, ?, ?);
         `;
         const [result] = await dbPool.execute(query, [
-            suCompany, 
-            suEmail, 
-            suPhone, 
-            passwordHash, 
+            suCompany,
+            suEmail,
+            suPhone,
+            passwordHash,
             suPlan
         ]);
 
@@ -103,13 +103,13 @@ app.post('/api/login', async (req, res) => {
         // 2. 比較密碼
         const match = await bcrypt.compare(loginPassword, user.password_hash);
 
-       if (match) {
+        if (match) {
             // 登入成功：返回用戶 ID 和訂閱方案
-            res.json({ 
-                success: true, 
-                message: 'Login successful.', 
+            res.json({
+                success: true,
+                message: 'Login successful.',
                 user_id: user.id,
-                subscription_plan: user.subscription_plan 
+                subscription_plan: user.subscription_plan
             });
         } else {
             res.status(401).json({ success: false, message: 'Invalid email or password.' });
@@ -123,7 +123,7 @@ app.post('/api/login', async (req, res) => {
 // 3. 創建專案 (Create Project) 路由
 app.post('/api/projects', async (req, res) => {
     // 預期前端傳來 user_id 和 user_plan，以及專案資料
-    const { user_id, user_plan, name, tags, owner } = req.body; 
+    const { user_id, user_plan, name, tags, owner } = req.body;
     const dbPool = app.locals.dbPool;
 
     if (!user_id || !name || !tags || !owner) {
@@ -137,11 +137,11 @@ app.post('/api/projects', async (req, res) => {
                 'SELECT COUNT(*) as project_count FROM projects WHERE user_id = ?',
                 [user_id]
             );
-            
+
             if (countRows[0].project_count >= 1) {
-                return res.status(403).json({ 
-                    success: false, 
-                    message: '免費 (trial) 帳號僅限創建一個專案。請升級您的方案。' 
+                return res.status(403).json({
+                    success: false,
+                    message: '免費 (trial) 帳號僅限創建一個專案。請升級您的方案。'
                 });
             }
         }
@@ -159,9 +159,9 @@ app.post('/api/projects', async (req, res) => {
         ]);
 
         if (result.affectedRows === 1) {
-            res.json({ 
-                success: true, 
-                message: '專案創建成功。', 
+            res.json({
+                success: true,
+                message: '專案創建成功。',
                 project_id: result.insertId,
                 name: name,
                 owner: owner
@@ -181,11 +181,11 @@ app.use(express.static(path.join(__dirname)));
 
 // 確保在瀏覽器直接存取根目錄 '/' 時，會回傳 procura.html
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'procura.html'));
+    res.sendFile(path.join(__dirname, 'procura.html'));
 });
 
 app.get('/api/projects', async (req, res) => {
-    const { user_id, q } = req.query; 
+    const { user_id, q } = req.query;
     const dbPool = app.locals.dbPool;
 
     if (!user_id) {
@@ -203,15 +203,15 @@ app.get('/api/projects', async (req, res) => {
 
     try {
         const [projects] = await dbPool.execute(query, params);
-        
+
         const formattedProjects = projects.map(p => ({
             ...p,
             tags: p.tags ? p.tags.split(',').map(tag => tag.trim()) : []
         }));
 
-        res.json({ 
-            success: true, 
-            projects: formattedProjects 
+        res.json({
+            success: true,
+            projects: formattedProjects
         });
 
     } catch (error) {
@@ -239,11 +239,11 @@ app.get('/api/projects/:id', async (req, res) => {
 
     try {
         const [rows] = await dbPool.execute(query, [projectId]);
-        
+
         if (rows.length === 0 || rows[0].project_id === null) {
             return res.status(404).json({ success: false, message: '專案未找到。' });
         }
-        
+
         const projectRow = rows[0];
 
         // --- 1. 處理基本專案資訊 ---
@@ -256,23 +256,26 @@ app.get('/api/projects/:id', async (req, res) => {
             overview: '專案詳細概述 (可從 projects 表新增欄位)', // 暫時保留 placeholder
             progress: [],
         };
-        
+
         // --- 2. 轉換為巢狀 Progress 結構 ---
         const progressMap = new Map(); // 用來儲存 { '2025-09-20': { date: ..., items: [...] } }
         const workItemMap = new Map(); // 用來儲存 { work_id: work_item_object }
 
         rows.forEach(row => {
             // 如果沒有 work_id，表示專案存在但沒有工項，跳過後續處理
-            if (!row.work_id) return; 
+            if (!row.work_id) return;
 
             // 處理 Progress Date Node (進度日期節點)
-            if (!progressMap.has(row.work_date)) {
-                progressMap.set(row.work_date, {
+            // Fix: Use string key to avoid duplicates caused by Date object references
+            const dateKey = row.work_date instanceof Date ? row.work_date.toISOString().split('T')[0] : row.work_date;
+
+            if (!progressMap.has(dateKey)) {
+                progressMap.set(dateKey, {
                     date: row.work_date,
                     items: [],
                 });
             }
-            const dateNode = progressMap.get(row.work_date);
+            const dateNode = progressMap.get(dateKey);
 
             // 處理 Work Item (工項)
             if (!workItemMap.has(row.work_id)) {
@@ -300,7 +303,7 @@ app.get('/api/projects/:id', async (req, res) => {
                 });
             }
         });
-        
+
         // 將 Map 轉換為陣列並賦值給 project.progress
         project.progress = Array.from(progressMap.values());
 
@@ -314,7 +317,7 @@ app.get('/api/projects/:id', async (req, res) => {
 
 app.post('/api/work-items', async (req, res) => {
     // 預期前端傳來 project ID (從 state.currentProject) 和工項資料
-    const { projectId, date, name, startTime } = req.body; 
+    const { projectId, date, name, startTime } = req.body;
     const dbPool = app.locals.dbPool;
 
     // 必填欄位檢查
@@ -327,14 +330,14 @@ app.post('/api/work-items', async (req, res) => {
         const query = `
             INSERT INTO work_items (project_id, work_date, name, start_time, status)
             VALUES (?, ?, ?, ?, 1); 
-        `; 
+        `;
 
         const [result] = await dbPool.execute(query, [projectId, date, name, startTime]);
 
         if (result.affectedRows === 1) {
-            res.json({ 
-                success: true, 
-                message: '工項新增成功。', 
+            res.json({
+                success: true,
+                message: '工項新增成功。',
                 work_item_id: result.insertId
             });
         } else {
@@ -368,7 +371,7 @@ app.get('/api/work-items/selectors', async (req, res) => {
         const groupedData = {};
         rows.forEach(row => {
             // 格式化日期為 YYYY-MM-DD 字串
-            const date = row.work_date.toISOString().split('T')[0]; 
+            const date = row.work_date.toISOString().split('T')[0];
             if (!groupedData[date]) {
                 groupedData[date] = [];
             }
@@ -384,7 +387,7 @@ app.get('/api/work-items/selectors', async (req, res) => {
 });
 
 app.get('/api/materials', async (req, res) => {
-    const { category_id } = req.query; 
+    const { category_id } = req.query;
     const dbPool = app.locals.dbPool;
 
     if (!category_id) {
@@ -392,7 +395,7 @@ app.get('/api/materials', async (req, res) => {
     }
 
     try {
-       const query = `
+        const query = `
             SELECT material_id AS id, Item_Description 
             FROM Material 
             WHERE FK_category_id = ?  
@@ -403,7 +406,7 @@ app.get('/api/materials', async (req, res) => {
         res.json({ success: true, materials: materials });
 
     } catch (error) {
-        console.error('Material Options Fetch Error:', error); 
+        console.error('Material Options Fetch Error:', error);
         res.status(500).json({ success: false, message: 'Server error retrieving material list.' });
     }
 });
@@ -438,8 +441,8 @@ app.get('/api/material-details', async (req, res) => {
         const unitName = unitRows.length > 0 ? unitRows[0].unit_name : '';
         const vendors = vendorRows.map(row => row.name);
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             unit_name: unitName,
             vendors: vendors // 供應商列表
         });
@@ -469,18 +472,18 @@ app.post('/api/materials-used', async (req, res) => {
         `;
 
         const [result] = await dbPool.execute(query, [
-            work_item_id, 
-            material_name, 
-            vendor || null, 
-            qty, 
-            unit || null,   
+            work_item_id,
+            material_name,
+            vendor || null,
+            qty,
+            unit || null,
             default_status
         ]);
 
         if (result.affectedRows === 1) {
-            res.json({ 
-                success: true, 
-                message: '建材紀錄新增成功。', 
+            res.json({
+                success: true,
+                message: '建材紀錄新增成功。',
                 material_used_id: result.insertId
             });
         } else {
@@ -551,6 +554,190 @@ app.put('/api/materials-used/:id/status', async (req, res) => {
 
 // 啟動伺服器
 app.listen(PORT, () => {
-  console.log(`[Express] Server running on port ${PORT}`);
-  console.log(`Access: http://localhost:${PORT}`);
+    console.log(`[Express] Server running on port ${PORT}`);
+    console.log(`Access: http://localhost:${PORT}`);
+});
+
+// --- Vendor Management APIs ---
+
+// 0. 初始化 Vendor Ratings Table
+async function initVendorRatingsTable() {
+    const dbPool = app.locals.dbPool;
+    try {
+        const query = `
+            CREATE TABLE IF NOT EXISTS vendor_ratings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                vendor_name VARCHAR(255) NOT NULL,
+                rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+                comment TEXT,
+                project_id INT,
+                rated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `;
+        await dbPool.execute(query);
+        console.log('[MySQL] vendor_ratings table checked/created.');
+    } catch (error) {
+        console.error('[MySQL] Failed to init vendor_ratings table:', error);
+    }
+}
+// 在 DB 連線後呼叫
+setTimeout(() => {
+    if (app.locals.dbPool) initVendorRatingsTable();
+}, 1000);
+
+
+// 1. Get Unique Vendors (from materials_used & Company)
+app.get('/api/vendors', async (req, res) => {
+    const dbPool = app.locals.dbPool;
+    try {
+        // User Requirement: 
+        // 1. Show supplier data (from Company table).
+        // 2. Ensure vendors with "Arrived" status (from materials_used) are included.
+
+        const query = `
+            SELECT name AS vendor FROM Company
+            UNION
+            SELECT DISTINCT vendor FROM materials_used WHERE vendor IS NOT NULL AND vendor != ''
+            ORDER BY vendor;
+        `;
+        const [rows] = await dbPool.execute(query);
+        const vendors = rows.map(r => r.vendor);
+        res.json({ success: true, vendors });
+    } catch (error) {
+        console.error('Get Vendors error:', error);
+        res.status(500).json({ success: false, message: 'Server error retrieving vendors.' });
+    }
+});
+
+// 2. Add Vendor Rating
+app.post('/api/vendor-ratings', async (req, res) => {
+    const { vendor_name, rating, comment, project_id } = req.body;
+    const dbPool = app.locals.dbPool;
+
+    if (!vendor_name || !rating) {
+        return res.status(400).json({ success: false, message: 'Vendor name and rating are required.' });
+    }
+
+    try {
+        const query = `
+            INSERT INTO vendor_ratings (vendor_name, rating, comment, project_id)
+            VALUES (?, ?, ?, ?)
+        `;
+        const [result] = await dbPool.execute(query, [vendor_name, rating, comment || '', project_id || null]);
+
+        if (result.affectedRows === 1) {
+            res.json({ success: true, message: 'Rating added successfully.' });
+        } else {
+            res.status(500).json({ success: false, message: 'Failed to add rating.' });
+        }
+    } catch (error) {
+        console.error('Add Vendor Rating error:', error);
+        res.status(500).json({ success: false, message: 'Server error adding rating.' });
+    }
+});
+
+// 3. Get Vendor Ratings
+app.get('/api/vendor-ratings', async (req, res) => {
+    const { vendor_name } = req.query;
+    const dbPool = app.locals.dbPool;
+
+    if (!vendor_name) {
+        return res.status(400).json({ success: false, message: 'Vendor name is required.' });
+    }
+
+    try {
+        const query = `
+            SELECT * FROM vendor_ratings 
+            WHERE vendor_name = ? 
+            ORDER BY rated_at DESC
+        `;
+        const [rows] = await dbPool.execute(query, [vendor_name]);
+        res.json({ success: true, ratings: rows });
+    } catch (error) {
+        console.error('Get Vendor Ratings error:', error);
+        res.status(500).json({ success: false, message: 'Server error retrieving ratings.' });
+    }
+});
+
+// 4. Get Vendor Performance Stats (Grouped by Category)
+app.get('/api/vendor-performance', async (req, res) => {
+    const dbPool = app.locals.dbPool;
+    try {
+        // 1. Get Ratings (Global per vendor)
+        const ratingQuery = `
+            SELECT 
+                vendor_name, 
+                AVG(rating) as avg_rating, 
+                COUNT(*) as rating_count 
+            FROM vendor_ratings 
+            GROUP BY vendor_name
+        `;
+        const [ratingRows] = await dbPool.execute(ratingQuery);
+        const ratingMap = {};
+        ratingRows.forEach(r => {
+            ratingMap[r.vendor_name] = {
+                avg: parseFloat(r.avg_rating),
+                count: r.rating_count
+            };
+        });
+
+        // 2. Get Orders grouped by Category and Vendor
+        // Join materials_used -> Material -> MaterialCategory
+        const orderQuery = `
+            SELECT 
+                mu.vendor,
+                COALESCE(mc.category_name, 'Other') as category_name,
+                COUNT(*) as order_count
+            FROM materials_used mu
+            LEFT JOIN Material m ON mu.material_name = m.Item_Description
+            LEFT JOIN MaterialCategory mc ON m.FK_category_id = mc.category_id
+            WHERE mu.vendor IS NOT NULL AND mu.vendor != ''
+            GROUP BY mu.vendor, mc.category_name
+        `;
+        const [orderRows] = await dbPool.execute(orderQuery);
+
+        // 3. Process and Group Data
+        const categoryGroups = {};
+
+        orderRows.forEach(row => {
+            const cat = row.category_name;
+            const vendor = row.vendor;
+            const rData = ratingMap[vendor] || { avg: 0, count: 0 };
+
+            if (!categoryGroups[cat]) {
+                categoryGroups[cat] = [];
+            }
+
+            categoryGroups[cat].push({
+                vendor_name: vendor,
+                order_count: row.order_count,
+                avg_rating: rData.avg.toFixed(1),
+                rating_count: rData.count
+            });
+        });
+
+        // 4. Sort and Limit (Top 3 per category)
+        const result = [];
+        for (const [cat, vendors] of Object.entries(categoryGroups)) {
+            // Sort by Rating (desc), then Order Count (desc)
+            vendors.sort((a, b) => {
+                if (b.avg_rating !== a.avg_rating) return b.avg_rating - a.avg_rating;
+                return b.order_count - a.order_count;
+            });
+
+            result.push({
+                category: cat,
+                vendors: vendors.slice(0, 3) // Top 3
+            });
+        }
+
+        // Sort categories alphabetically or by some priority if needed
+        result.sort((a, b) => a.category.localeCompare(b.category));
+
+        res.json({ success: true, data: result });
+
+    } catch (error) {
+        console.error('Get Vendor Performance error:', error);
+        res.status(500).json({ success: false, message: 'Server error retrieving performance data.' });
+    }
 });
