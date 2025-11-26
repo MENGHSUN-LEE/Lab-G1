@@ -14,7 +14,19 @@ export const detailTemplate = `
     <button class="tab-btn" data-tab="create">Add Item</button>
     <button class="tab-btn" data-tab="edit">Edit Item</button>
     <button class="tab-btn" data-tab="materials">Materials Management</button>
-</div>
+    <button class="tab-btn" data-tab="overview">Material Overview</button>
+    <button class="tab-btn" data-tab="vendor">Vendor Management</button>
+    </div>
+
+    <div id="tab-overview" class="tab-panel">
+        <h3>Material Overview </h3>
+        <p class="muted"></p>
+    </div>
+
+    <div id="tab-vendor" class="tab-panel">
+        <h3>Vendor Management </h3>
+        <p class="muted"></p>
+    </div>
 
 <div id="tab-progress" class="tab-panel active">
     <div class="stack" style="width: 250px; margin-bottom: 20px;">

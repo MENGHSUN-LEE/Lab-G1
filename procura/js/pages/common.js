@@ -3,6 +3,7 @@
 import { WORK_STATUS, MAT_STATUS } from '../constants.js'; 
 import { state } from '../app.js';
 import { renderMaterialsTable, syncCreateSelectors, syncEditSelectors } from './detail/index.js';
+import { renderMaterialOverview, renderVendorManagement } from './detail/index.js';
 
 /** 根據工項狀態值返回 CSS 類別 */
 export function getWorkStatusClass(status){
@@ -38,6 +39,8 @@ export function setActiveTab(key){
   if(key==="materials") renderMaterialsTable();
   if(key==="create")   syncCreateSelectors();
   if(key==="edit")     syncEditSelectors();
+  if(key==="overview") renderMaterialOverview(state.currentProject);
+  if(key==="vendor") renderVendorManagement(state.currentProject);
   // 'progress' tab 只需要在頁面載入時 (renderDetail) 渲染，切換 tab 時通常不需重複渲染
 }
 
