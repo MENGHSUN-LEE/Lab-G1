@@ -2,6 +2,7 @@
 import { state, pages, headerEl } from './app.js';
 import { doSearch, renderSearchResults } from './pages/search.js';
 import { renderDetail } from './pages/detail/index.js';
+import { renderAccountDetail } from './pages/account.js';
 
 /**
  * 顯示指定的頁面，並隱藏其他頁面
@@ -26,6 +27,13 @@ export function router() {
   } else if (hash.startsWith("#search")) {
     showPage("search");
     doSearch();
+  } else if (hash.startsWith("#account")) {
+    showPage("account");
+    if (state.user?.id) {
+      renderAccountDetail(state.user.id);
+    } else {
+      location.hash = "#login";
+    }
   } else if (hash.startsWith("#detail")) {
     const id = new URLSearchParams(hash.split("?")[1]).get("id");
     fetch(`/api/projects/${id}`)
