@@ -83,13 +83,9 @@ export function bindAccountEvents() {
 
             const company = document.getElementById("accCompany").value;
             const phone = document.getElementById("accPhone").value;
-<<<<<<< HEAD
             const email = document.getElementById("accEmail").value;
-            const plan = document.getElementById("accPlan").value;
-=======
-            const email = document.getElementById("accEmail").value;       // 🚨 新增 Email 獲取
-            const plan = document.getElementById("accPlan").value;           // 🚨 從 <select> 獲取值
->>>>>>> e13092465820141d5e070c6c1def70a0a396d0be
+            const plan = document.getElementById("accPlan").value; 
+
 
             // 簡單的驗證
             if (!company || !phone || !email || !plan) {
