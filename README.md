@@ -27,6 +27,7 @@ graph TD
     style U fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
     style V fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
     style W fill:#90EE90,stroke:#333,stroke-width:2px,color:#000
+    style X fill:#F08080,stroke:#333,stroke-width:2px,color:#000
     
     A["Login Page<br>入口/登入頁面<br>負責人: Lee Meng Hsun"] --> B("Registration Page<br>註冊頁面<br>負責人: Lee Meng Hsun")
     A --> C("Project Dashboard<br>專案管理首頁<br>負責人: Lee Meng Hsun")
@@ -36,6 +37,7 @@ graph TD
     C --> F("Edit Work Item<br>工項編輯<br>負責人: Lee Meng Hsun")
     C --> G("Material Overview<br>材料總覽<br>負責人: Zi Yi Yang")
     C --> H("Vendor Management<br>供應商管理頁面<br>負責人: Zi Yi Yang ")
+    B --> X("Edit Account<br>編輯帳號<br>負責人: Lee Meng Hsun")
     
     %% Material Overview branches
     G --> I("Material Arrival Log<br>材料進貨時間紀錄<br>負責人: Steven Gaillard")

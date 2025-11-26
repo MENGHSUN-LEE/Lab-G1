@@ -31,35 +31,35 @@ export function renderSearchResults(items) { // 確保有 export
 }
 
 /** 執行搜尋邏輯 */
-export async function doSearch(){
+export async function doSearch() {
   const searchInput = document.getElementById("q");
-  const term = (searchInput.value||"").trim();
+  const term = (searchInput.value || "").trim();
 
   // 檢查用戶是否已登入並取得 ID
   if (!state.user.id) {
-      alert("請先登入以載入專案。");
-      renderSearchResults([]);
-      return;
+    alert("請先登入以載入專案。");
+    renderSearchResults([]);
+    return;
   }
-  
+
   // 構造 API URL (帶上 user_id 和搜尋詞)
   const apiUrl = `/api/projects?user_id=${state.user.id}` + (term ? `&q=${encodeURIComponent(term)}` : '');
 
   try {
-      const response = await fetch(apiUrl);
-      const result = await response.json();
+    const response = await fetch(apiUrl);
+    const result = await response.json();
 
-      if (result.success) {
-          // 使用從 DB 返回的 projects 列表進行渲染
-          renderSearchResults(result.projects);
-      } else {
-          alert(`載入專案失敗: ${result.message}`);
-          renderSearchResults([]);
-      }
-  } catch (error) {
-      console.error('Fetch Projects failed:', error);
-      alert('無法連線到伺服器，無法載入專案列表。');
+    if (result.success) {
+      // 使用從 DB 返回的 projects 列表進行渲染
+      renderSearchResults(result.projects);
+    } else {
+      alert(`載入專案失敗: ${result.message}`);
       renderSearchResults([]);
+    }
+  } catch (error) {
+    console.error('Fetch Projects failed:', error);
+    alert('無法連線到伺服器，無法載入專案列表。');
+    renderSearchResults([]);
   }
 }
 
@@ -72,9 +72,9 @@ export function bindSearchEvents() {
   const newProjectName = document.getElementById("newProjectName");
   const newProjectTags = document.getElementById("newProjectTags");
   const newProjectOwner = document.getElementById("newProjectOwner");
-  const createProjectSection = document.getElementById("createProjectSection"); 
+  const createProjectSection = document.getElementById("createProjectSection");
   const toggleCreateFormBtn = document.getElementById("toggleCreateFormBtn");
-  
+
   // 綁定搜尋事件
   if (searchBtn) searchBtn.onclick = () => doSearch();
   if (searchInput) searchInput.addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
@@ -105,42 +105,42 @@ export function bindSearchEvents() {
 
       const tagsArray = tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
 
-      const projectData = {
-        user_id: state.user.id,
-        user_plan: state.user.plan,
-        name,
-        tags: tagsArray,
-        owner
-      };
+      const projectData = {
+        user_id: state.user.id,
+        user_plan: state.user.plan,
+        name,
+        tags: tagsArray,
+        owner
+      };
 
-      try {
-        const response = await fetch('/api/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(projectData)
-        });
+      try {
+        const response = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(projectData)
+        });
 
-        const result = await response.json();
+        const result = await response.json();
 
-        if (result.success) {
-          alert(`專案 "${result.name}" 創建成功！`);
-          // 清空表單
-          newProjectName.value = '';
-          newProjectTags.value = '';
-          newProjectOwner.value = '';
+        if (result.success) {
+          alert(`專案 "${result.name}" 創建成功！`);
+          // 清空表單
+          newProjectName.value = '';
+          newProjectTags.value = '';
+          newProjectOwner.value = '';
 
-          // 隱藏表單並恢復按鈕文字
-          if (createProjectSection) createProjectSection.classList.add("hidden");
-          if (toggleCreateFormBtn) toggleCreateFormBtn.innerHTML = '<span class="material-symbols-outlined">add</span> Add';
+          // 隱藏表單並恢復按鈕文字
+          if (createProjectSection) createProjectSection.classList.add("hidden");
+          if (toggleCreateFormBtn) toggleCreateFormBtn.innerHTML = '<span class="material-symbols-outlined">add</span> Add';
 
-          location.hash = '#search';
-        } else {
-          alert(`創建失敗: ${result.message}`);
-        }
-      } catch (error) {
-        console.error('Create Project request failed:', error);
-        alert('網路錯誤或伺服器無法連線。');
-      }
-    };
-  } 
+          location.hash = '#search';
+        } else {
+          alert(`創建失敗: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('Create Project request failed:', error);
+        alert('網路錯誤或伺服器無法連線。');
+      }
+    };
+  }
 }

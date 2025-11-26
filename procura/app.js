@@ -549,6 +549,95 @@ app.put('/api/materials-used/:id/status', async (req, res) => {
     }
 });
 
+app.get('/api/users/:id', async (req, res) => {
+    const userId = req.params.id;
+    const dbPool = app.locals.dbPool;
+    
+    try {
+        const [rows] = await dbPool.execute(
+            'SELECT company_name, email, phone, subscription_plan FROM users WHERE id = ?', 
+            [userId]
+        );
+        
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        res.json({ success: true, user: rows[0] });
+    } catch (error) {
+        console.error('Get User Data error:', error);
+        res.status(500).json({ success: false, message: 'Server error retrieving user data.' });
+    }
+});
+
+app.put('/api/users/:id/password', async (req, res) => {
+    const userId = req.params.id;
+    const { oldPassword, newPassword } = req.body;
+    const dbPool = app.locals.dbPool;
+
+    try {
+        // 1. 驗證舊密碼
+        const [rows] = await dbPool.execute('SELECT password_hash FROM users WHERE id = ?', [userId]);
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'User not found.' });
+        
+        const user = rows[0];
+        const match = await bcrypt.compare(oldPassword, user.password_hash);
+        
+        if (!match) {
+            return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
+        }
+
+        // 2. 雜湊新密碼
+        const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+        // 3. 更新資料庫
+        const [result] = await dbPool.execute('UPDATE users SET password_hash = ? WHERE id = ?', [newPasswordHash, userId]);
+
+        if (result.affectedRows === 1) {
+            res.json({ success: true, message: 'Password updated successfully.' });
+        } else {
+            res.status(500).json({ success: false, message: 'Failed to update password.' });
+        }
+
+    } catch (error) {
+        console.error('Password Update error:', error);
+        res.status(500).json({ success: false, message: 'Server error during password update.' });
+    }
+});
+
+app.put('/api/users/:id/profile', async (req, res) => {
+    const userId = req.params.id;
+    // 🚨 接收 email
+    const { company_name, phone, email, subscription_plan } = req.body; 
+    const dbPool = app.locals.dbPool;
+
+    if (!company_name || !phone || !email || !subscription_plan) {
+        return res.status(400).json({ success: false, message: '所有欄位是必需的。' });
+    }
+    
+    try {
+        const query = `
+            UPDATE users
+            SET company_name = ?, phone = ?, email = ?, subscription_plan = ? 
+            WHERE id = ?;
+        `;
+
+        const [result] = await dbPool.execute(query, [company_name, phone, email, subscription_plan, userId]);
+
+        if (result.affectedRows === 1) {
+            res.json({ success: true, message: '帳號資訊更新成功。' });
+        } else {
+            res.status(404).json({ success: false, message: '找不到該用戶紀錄或資料未更改。' });
+        }
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ success: false, message: '此電子郵件已被其他帳號使用。' });
+        }
+        console.error('Update User Profile error:', error);
+        res.status(500).json({ success: false, message: '伺服器錯誤：無法更新帳號資訊。' });
+    }
+});
+
 // 啟動伺服器
 app.listen(PORT, () => {
   console.log(`[Express] Server running on port ${PORT}`);
