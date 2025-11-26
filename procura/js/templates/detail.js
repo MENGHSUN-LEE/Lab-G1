@@ -24,8 +24,63 @@ export const detailTemplate = `
     </div>
 
     <div id="tab-vendor" class="tab-panel">
-        <h3>Vendor Management </h3>
-        <p class="muted"></p>
+        <h3>Vendor Management</h3>
+        
+        <!-- 1. Vendor Performance Dashboard -->
+        <div class="card" style="margin-bottom: 20px; background: #f8f9fa;">
+            <h4>🏆 Vendor Performance Dashboard</h4>
+            <div id="vendor-dashboard" class="grid cols-3" style="gap: 15px; margin-top: 15px;">
+                <!-- Dashboard cards will be injected here -->
+                <p class="muted">Loading performance data...</p>
+            </div>
+        </div>
+
+        <hr />
+
+        <!-- 2. Vendor Rating Section -->
+        <div class="grid cols-2" style="gap: 30px; align-items: start;">
+            
+            <!-- Left: Add Rating Form -->
+            <div class="stack">
+                <h4>Rate a Vendor</h4>
+                <div class="stack">
+                    <label>Select Vendor</label>
+                    <select id="rate-vendor-select">
+                        <option value="">-- Select Vendor --</option>
+                    </select>
+                </div>
+                <div class="stack">
+                    <label>Rating</label>
+                    <div class="rating-stars" id="rate-stars" style="font-size: 1.5em; color: #ccc; cursor: pointer;">
+                        <span data-val="1">★</span>
+                        <span data-val="2">★</span>
+                        <span data-val="3">★</span>
+                        <span data-val="4">★</span>
+                        <span data-val="5">★</span>
+                    </div>
+                    <input type="hidden" id="rate-value" value="0" />
+                </div>
+                <div class="stack">
+                    <label>Comments</label>
+                    <textarea id="rate-comment" rows="3" placeholder="Share your experience..."></textarea>
+                </div>
+                <button id="submitRatingBtn" class="btn-primary">Submit Rating</button>
+            </div>
+
+            <!-- Right: Rating History -->
+            <div class="stack">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h4>Rating History</h4>
+                    <select id="history-vendor-filter" style="width: auto; padding: 2px 5px;">
+                        <option value="">All Vendors</option>
+                    </select>
+                </div>
+                <div id="rating-history-list" class="stack" style="max-height: 400px; overflow-y: auto;">
+                    <!-- History items will be injected here -->
+                    <p class="muted">Select a vendor to view history.</p>
+                </div>
+            </div>
+        </div>
     </div>
 
 <div id="tab-progress" class="tab-panel active">
