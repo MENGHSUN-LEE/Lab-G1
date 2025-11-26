@@ -461,6 +461,15 @@ CREATE TABLE materials_used (
     FOREIGN KEY (work_item_id) REFERENCES work_items(id) ON DELETE CASCADE
 );
 
+CREATE TABLE vendor_ratings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    vendor_name VARCHAR(255) NOT NULL,
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    project_id INT,
+    rated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 --------Step2 建立的虛擬機--------
 
 -- 2.1 建立帳號密碼連接assignment-mysql的table --
