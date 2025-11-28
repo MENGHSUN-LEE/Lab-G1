@@ -1055,3 +1055,294 @@ app.get('/api/project/:projectId/cost-analysis', async (req, res) => {
     res.status(500).json({ success: false, message: '伺服器錯誤' });
   }
 });
+
+// ==================== AI ANALYTICS APIs ====================
+// Add these to your server.js
+
+// 1. Material Usage History for Demand Forecasting
+app.get('/api/project/:projectId/material-usage-history', async (req, res) => {
+  const { projectId } = req.params;
+  
+  try {
+    const [history] = await pool.query(`
+      SELECT 
+        mu.material_name,
+        mu.quantity,
+        mu.unit,
+        wi.work_date as date,
+        mu.created_at
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ?
+      ORDER BY wi.work_date DESC
+    `, [projectId]);
+    
+    res.json({ success: true, history });
+  } catch (error) {
+    console.error('Error fetching material usage history:', error);
+    res.status(500).json({ success: false, message: '伺服器錯誤' });
+  }
+});
+
+// 2. Vendor Performance Analysis
+app.get('/api/project/:projectId/vendor-performance-analysis', async (req, res) => {
+  const { projectId } = req.params;
+  
+  try {
+    const [vendors] = await pool.query(`
+      SELECT 
+        mu.vendor as name,
+        COUNT(DISTINCT mu.id) as total_deliveries,
+        SUM(CASE WHEN al.delivery_status = 'delivered' 
+            AND al.actual_date <= al.expected_date THEN 1 ELSE 0 END) as on_time_deliveries,
+        AVG(COALESCE(qs.score, 7)) as avg_quality_score,
+        COUNT(DISTINCT dr.id) as defect_count
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      LEFT JOIN material_arrival_logs al ON mu.id = al.material_id
+      LEFT JOIN material_quality_scores qs ON mu.id = qs.material_id
+      LEFT JOIN material_defect_reports dr ON mu.id = dr.material_id
+      WHERE wi.project_id = ?
+      GROUP BY mu.vendor
+      HAVING total_deliveries > 0
+    `, [projectId]);
+    
+    res.json({ success: true, vendors });
+  } catch (error) {
+    console.error('Error analyzing vendor performance:', error);
+    res.status(500).json({ success: false, message: '伺服器錯誤' });
+  }
+});
+
+// 3. Anomaly Detection Data
+app.get('/api/project/:projectId/anomaly-detection', async (req, res) => {
+  const { projectId } = req.params;
+  
+  try {
+    // Get price data for anomaly detection
+    const [prices] = await pool.query(`
+      SELECT 
+        mu.material_name,
+        mu.unit_price as price,
+        mu.vendor,
+        wi.work_date
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ? AND mu.unit_price > 0
+      ORDER BY wi.work_date DESC
+    `, [projectId]);
+    
+    // Get quality scores for trend analysis
+    const [qualityScores] = await pool.query(`
+      SELECT 
+        mu.material_name,
+        qs.score,
+        qs.inspection_date
+      FROM material_quality_scores qs
+      JOIN materials_used mu ON qs.material_id = mu.id
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ?
+      ORDER BY qs.inspection_date DESC
+    `, [projectId]);
+    
+    res.json({ 
+      success: true, 
+      metrics: { 
+        prices, 
+        qualityScores 
+      } 
+    });
+  } catch (error) {
+    console.error('Error detecting anomalies:', error);
+    res.status(500).json({ success: false, message: '伺服器錯誤' });
+  }
+});
+
+// 4. Project Risk Assessment
+app.get('/api/project/:projectId/risk-assessment', async (req, res) => {
+  const { projectId } = req.params;
+  
+  try {
+    // Get work items status
+    const [workItems] = await pool.query(`
+      SELECT 
+        COUNT(*) as total_work_items,
+        SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as delayed_work_items
+      FROM work_items
+      WHERE project_id = ?
+    `, [projectId]);
+    
+    // Get materials delivery status
+    const [materials] = await pool.query(`
+      SELECT 
+        COUNT(DISTINCT mu.id) as total_materials,
+        SUM(CASE WHEN al.delivery_status = 'delayed' 
+            OR (al.delivery_status != 'delivered' AND al.expected_date < CURDATE()) 
+            THEN 1 ELSE 0 END) as delayed_materials
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      LEFT JOIN material_arrival_logs al ON mu.id = al.material_id
+      WHERE wi.project_id = ?
+    `, [projectId]);
+    
+    res.json({
+      success: true,
+      metrics: {
+        total_work_items: workItems[0].total_work_items || 0,
+        delayed_work_items: workItems[0].delayed_work_items || 0,
+        total_materials: materials[0].total_materials || 0,
+        delayed_materials: materials[0].delayed_materials || 0
+      }
+    });
+  } catch (error) {
+    console.error('Error assessing project risk:', error);
+    res.status(500).json({ success: false, message: '伺服器錯誤' });
+  }
+});
+
+// 5. AI-Powered Insights Endpoint (using Claude API)
+app.post('/api/project/:projectId/ai-insights', async (req, res) => {
+  const { projectId } = req.params;
+  const { query } = req.body;
+  
+  try {
+    // Fetch relevant project data
+    const [projectData] = await pool.query(`
+      SELECT 
+        p.project_name,
+        COUNT(DISTINCT wi.id) as total_work_items,
+        COUNT(DISTINCT mu.id) as total_materials,
+        SUM(mu.quantity * mu.unit_price) as total_cost
+      FROM projects p
+      LEFT JOIN work_items wi ON p.id = wi.project_id
+      LEFT JOIN materials_used mu ON wi.id = mu.work_item_id
+      WHERE p.id = ?
+      GROUP BY p.id
+    `, [projectId]);
+    
+    if (projectData.length === 0) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+    
+    const project = projectData[0];
+    
+    // Call Claude API for analysis
+    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1500,
+        messages: [{
+          role: "user",
+          content: `You are a construction project analyst. Here's the project data:
+
+Project: ${project.project_name}
+Total Work Items: ${project.total_work_items}
+Total Materials: ${project.total_materials}
+Total Cost: $${project.total_cost}
+
+User Question: "${query}"
+
+Provide a detailed, actionable analysis based on this data. Include specific recommendations where appropriate.`
+        }]
+      })
+    });
+    
+    const aiData = await aiResponse.json();
+    const insights = aiData.content[0].text;
+    
+    res.json({ 
+      success: true, 
+      insights,
+      projectContext: project
+    });
+    
+  } catch (error) {
+    console.error('Error generating AI insights:', error);
+    res.status(500).json({ success: false, message: '伺服器錯誤' });
+  }
+});
+
+// 6. Material Substitution Recommendations
+app.get('/api/materials/:materialId/substitutes', async (req, res) => {
+  const { materialId } = req.params;
+  
+  try {
+    // Get current material details
+    const [material] = await pool.query(`
+      SELECT * FROM materials_used WHERE id = ?
+    `, [materialId]);
+    
+    if (material.length === 0) {
+      return res.status(404).json({ success: false, message: 'Material not found' });
+    }
+    
+    // Find similar materials from Material table (mock implementation)
+    const [substitutes] = await pool.query(`
+      SELECT * FROM Material 
+      WHERE Item_Description LIKE ?
+      LIMIT 5
+    `, [`%${material[0].material_name.split(' ')[0]}%`]);
+    
+    res.json({ 
+      success: true, 
+      originalMaterial: material[0],
+      substitutes 
+    });
+    
+  } catch (error) {
+    console.error('Error finding substitutes:', error);
+    res.status(500).json({ success: false, message: '伺服器錯誤' });
+  }
+});
+
+// 7. Carbon Footprint Calculator (Placeholder - requires carbon data)
+app.get('/api/project/:projectId/carbon-footprint', async (req, res) => {
+  const { projectId } = req.params;
+  
+  try {
+    // Mock carbon calculation based on material quantities
+    const [materials] = await pool.query(`
+      SELECT 
+        mu.material_name,
+        SUM(mu.quantity) as total_quantity,
+        mu.unit
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ?
+      GROUP BY mu.material_name, mu.unit
+    `, [projectId]);
+    
+    // Mock carbon factors (kg CO2 per unit)
+    const carbonFactors = {
+      'cement': 0.9,
+      'steel': 2.0,
+      'concrete': 0.15,
+      'wood': 0.05,
+      'default': 0.1
+    };
+    
+    const footprint = materials.map(m => {
+      const factor = carbonFactors[m.material_name.toLowerCase()] || carbonFactors.default;
+      return {
+        material: m.material_name,
+        quantity: m.total_quantity,
+        unit: m.unit,
+        co2_kg: (m.total_quantity * factor).toFixed(2)
+      };
+    });
+    
+    const totalCO2 = footprint.reduce((sum, m) => sum + parseFloat(m.co2_kg), 0);
+    
+    res.json({
+      success: true,
+      totalCO2: totalCO2.toFixed(2),
+      breakdown: footprint
+    });
+    
+  } catch (error) {
+    console.error('Error calculating carbon footprint:', error);
+    res.status(500).json({ success: false, message: '伺服器錯誤' });
+  }
+});

@@ -91,6 +91,11 @@ function loadFeature(featureName) {
             contentArea.innerHTML = costAnalysisTemplate;
             initCostAnalysis(projectId);
             break;
+
+        case 'ai-analytics':
+            contentArea.innerHTML = aiAnalyticsTemplate;
+            initAIAnalytics(projectId);
+            break;
         
         default:
             contentArea.innerHTML = '<p class="muted">Feature not found</p>';
