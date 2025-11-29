@@ -15,32 +15,47 @@ export async function initCostAnalysis(projectId) {
     // Setup event listeners
     setupCostListeners();
     
-    console.log('✅ Cost Analysis initialized');
+    console.log('✅ Cost Analysis initialized for project:', projectId);
 }
 
 /** Load cost analysis data */
 async function loadCostAnalysis() {
     const tbody = document.querySelector('#cost-analysis-table tbody');
-    if (!tbody) return;
+    if (!tbody) {
+        console.error('Cost analysis table body not found');
+        return;
+    }
     
     tbody.innerHTML = '<tr><td colspan="7" class="muted">Loading cost analysis...</td></tr>';
     
     try {
+        console.log('Fetching cost analysis for project:', currentProjectId);
         const response = await fetch(`/api/project/${currentProjectId}/cost-analysis`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
+        console.log('Cost analysis data received:', data);
         
         if (data.success && data.costs) {
             costData = data.costs;
             renderCostAnalysisTable(data.costs);
-            updateCostSummary(data.costs);
+            updateCostSummary(data.costs, data.totalProjectCost);
             populateVendorFilter(data.costs);
+            
+            if (data.costs.length === 0) {
+                showToast('No materials with prices found in this project', 'info');
+            }
         } else {
             tbody.innerHTML = '<tr><td colspan="7" class="muted">No cost data available</td></tr>';
-            updateCostSummary([]);
+            updateCostSummary([], 0);
         }
     } catch (error) {
         console.error('Error loading cost analysis:', error);
-        tbody.innerHTML = '<tr><td colspan="7" style="color: red;">Error loading cost data</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="7" style="color: red;">Error: ${error.message}</td></tr>`;
+        showToast('Failed to load cost analysis', 'error');
     }
 }
 
@@ -50,7 +65,7 @@ function renderCostAnalysisTable(costs) {
     if (!tbody) return;
     
     if (costs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="muted">No cost data</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="muted">No materials with unit prices found. Add unit prices to materials to see cost analysis.</td></tr>';
         return;
     }
     
@@ -85,29 +100,35 @@ function renderCostAnalysisTable(costs) {
 }
 
 /** Update cost summary cards */
-function updateCostSummary(costs) {
+function updateCostSummary(costs, totalProjectCost) {
     const totalEl = document.getElementById('cost-total');
     const averageEl = document.getElementById('cost-average');
     const lowestEl = document.getElementById('cost-lowest');
     const highestEl = document.getElementById('cost-highest');
     
-    if (!totalEl || !averageEl || !lowestEl || !highestEl) return;
-    
-    if (costs.length === 0) {
-        totalEl.textContent = '$0';
-        averageEl.textContent = '$0';
-        lowestEl.textContent = '$0';
-        highestEl.textContent = '$0';
+    if (!totalEl || !averageEl || !lowestEl || !highestEl) {
+        console.warn('Some cost summary elements not found');
         return;
     }
     
-    // Calculate totals
-    const total = costs.reduce((sum, item) => sum + parseFloat(item.total_cost || 0), 0);
+    if (costs.length === 0) {
+        totalEl.textContent = '$0.00';
+        averageEl.textContent = '$0.00';
+        lowestEl.textContent = '$0.00';
+        highestEl.textContent = '$0.00';
+        return;
+    }
+    
+    // Use provided total or calculate
+    const total = totalProjectCost ? parseFloat(totalProjectCost) : 
+        costs.reduce((sum, item) => sum + parseFloat(item.total_cost || 0), 0);
+    
     const average = total / costs.length;
     
     // Find lowest and highest cost items
     const sortedCosts = costs
         .map(item => parseFloat(item.total_cost || 0))
+        .filter(cost => cost > 0)
         .sort((a, b) => a - b);
     
     const lowest = sortedCosts[0] || 0;
@@ -176,16 +197,19 @@ function applyCostFiltersAndSort() {
         case 'unit_asc':
             filtered.sort((a, b) => parseFloat(a.avg_price || 0) - parseFloat(b.avg_price || 0));
             break;
+        default:
+            // Keep original order
+            break;
     }
     
     // Re-render table
     renderCostAnalysisTable(filtered);
 }
 
-/** Export cost analysis (future feature) */
+/** Export cost analysis */
 export function exportCostAnalysis() {
     if (costData.length === 0) {
-        alert('No data to export');
+        showToast('No data to export', 'warning');
         return;
     }
     

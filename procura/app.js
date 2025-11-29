@@ -15,8 +15,6 @@ app.use(express.json());
 // 2. 處理 URL-encoded 格式的請求體 (常見於表單)
 app.use(express.urlencoded({ extended: true }));
 
-app.use(express.static(path.join(__dirname)));
-
 // --- 資料庫連線初始化 ---
 async function initializeDB() {
     try {
@@ -36,7 +34,54 @@ async function initializeDB() {
         // process.exit(1); 
     }
 }
+
 initializeDB();
+
+// --- 一次性修復：更新現有材料價格 ---
+async function updateExistingMaterialPrices() {
+    try {
+        const dbPool = app.locals.dbPool;
+        if (!dbPool) {
+            console.log('[Price Update] Database pool not ready, skipping...');
+            return;
+        }
+
+        console.log('[Price Update] Updating existing material prices from Material table...');
+        
+        const [result] = await dbPool.query(`
+            UPDATE materials_used mu
+            JOIN Material m ON LOWER(TRIM(mu.material_name)) = LOWER(TRIM(m.Item_Description))
+            SET mu.unit_price = m.PriceAvg
+            WHERE m.PriceAvg IS NOT NULL AND mu.unit_price = 0
+        `);
+        
+        console.log(`[Price Update] Updated ${result.affectedRows} materials with prices.`);
+        
+        // Show updated materials
+        const [updated] = await dbPool.query(`
+            SELECT id, material_name, unit_price 
+            FROM materials_used 
+            WHERE unit_price > 0
+        `);
+        
+        if (updated.length > 0) {
+            console.log('[Price Update] Materials with prices:');
+            updated.forEach(m => {
+                console.log(`  - ID ${m.id}: ${m.material_name} = $${m.unit_price}`);
+            });
+        }
+        
+    } catch (error) {
+        console.error('[Price Update] Error updating prices:', error.message);
+    }
+}
+
+// 在資料庫初始化後延遲執行價格更新
+setTimeout(() => {
+    if (app.locals.dbPool) {
+        updateExistingMaterialPrices();
+    }
+}, 2000); // 等待 2 秒確保資料庫連線完成
 
 // --- API 路由：帳號相關 ---
 
@@ -174,6 +219,44 @@ app.post('/api/projects', async (req, res) => {
         console.error('Project creation error:', error);
         res.status(500).json({ success: false, message: '伺服器錯誤：無法創建專案。' });
     }
+});
+// 19. GET COST ANALYSIS - FIXED VERSION
+app.get('/api/project/:projectId/cost-analysis', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
+  
+  try {
+    const [costs] = await dbPool.query(`
+      SELECT 
+        mu.material_name,
+        mu.vendor,
+        SUM(mu.qty) as total_quantity,
+        mu.unit,
+        AVG(COALESCE(mu.unit_price, 0)) as avg_price,
+        SUM(mu.qty * COALESCE(mu.unit_price, 0)) as total_cost
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ?
+      GROUP BY mu.material_name, mu.vendor, mu.unit
+      ORDER BY total_cost DESC
+    `, [projectId]);
+    
+    const totalProjectCost = costs.reduce((sum, item) => 
+      sum + parseFloat(item.total_cost || 0), 0
+    );
+    
+    res.json({ 
+      success: true, 
+      costs: costs,
+      totalProjectCost: totalProjectCost.toFixed(2)
+    });
+  } catch (error) {
+    console.error('Get cost analysis error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '伺服器錯誤: ' + error.message 
+    });
+  }
 });
 
 // --- 靜態檔案服務 (Static File Serving) ---
@@ -454,21 +537,27 @@ app.get('/api/material-details', async (req, res) => {
 });
 
 app.post('/api/materials-used', async (req, res) => {
-    // 預期前端傳來 work_item_id, material_name, vendor, qty, unit
     const { work_item_id, material_name, vendor, qty, unit } = req.body;
     const dbPool = app.locals.dbPool;
-    const default_status = 2; // 未叫貨 (Pending Order)
+    const default_status = 2;
 
-    // 必填欄位檢查
     if (!work_item_id || !material_name || qty === undefined || qty === null || isNaN(parseFloat(qty))) {
         return res.status(400).json({ success: false, message: '工項 ID、建材名稱和數量是必需的。' });
     }
 
     try {
+        // 🔥 NEW: Fetch the price from Material table
+        const [materialData] = await dbPool.execute(
+            'SELECT PriceAvg FROM Material WHERE Item_Description = ? LIMIT 1',
+            [material_name]
+        );
+        
+        const unit_price = materialData.length > 0 ? materialData[0].PriceAvg : 0;
+
         const query = `
             INSERT INTO materials_used 
-            (work_item_id, material_name, vendor, qty, unit, material_status)
-            VALUES (?, ?, ?, ?, ?, ?);
+            (work_item_id, material_name, vendor, qty, unit, material_status, unit_price)
+            VALUES (?, ?, ?, ?, ?, ?, ?);
         `;
 
         const [result] = await dbPool.execute(query, [
@@ -477,7 +566,8 @@ app.post('/api/materials-used', async (req, res) => {
             vendor || null,
             qty,
             unit || null,
-            default_status
+            default_status,
+            unit_price  // 🔥 ADD THIS
         ]);
 
         if (result.affectedRows === 1) {
@@ -1201,38 +1291,7 @@ app.post('/api/materials/:materialUsedId/inventory-update', async (req, res) => 
     res.status(500).json({ success: false, message: '伺服器錯誤: ' + error.message });
   }
 });
-// 19. GET COST ANALYSIS
-app.get('/api/project/:projectId/cost-analysis', async (req, res) => {
-  const { projectId } = req.params;
-  const dbPool = app.locals.dbPool; // ✅ Get pool from app.locals
-  
-  try {
-    const [costs] = await dbPool.query(`
-      SELECT 
-        mu.material_name,
-        mu.vendor,
-        mu.qty,
-        mu.unit,
-        mu.unit_price,
-        (mu.qty * COALESCE(mu.unit_price, 0)) as total_cost
-      FROM materials_used mu
-      JOIN work_items wi ON mu.work_item_id = wi.id
-      WHERE wi.project_id = ?
-      ORDER BY total_cost DESC
-    `, [projectId]);
-    
-    const totalProjectCost = costs.reduce((sum, item) => sum + parseFloat(item.total_cost || 0), 0);
-    
-    res.json({ 
-      success: true, 
-      costs,
-      totalProjectCost: totalProjectCost.toFixed(2)
-    });
-  } catch (error) {
-    console.error('Get cost analysis error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤: ' + error.message });
-  }
-});
+
 
 // AI ANALYTICS APIs - ALL FIXED
 
