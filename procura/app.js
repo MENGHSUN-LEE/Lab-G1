@@ -1576,3 +1576,330 @@ app.get('/api/project/:projectId/carbon-footprint', async (req, res) => {
     res.status(500).json({ success: false, message: '伺服器錯誤' });
   }
 });
+
+// ==================== QUALITY SCORE & INSPECTION APIs (Steven's Features) ====================
+// Add these to your app.js file
+
+// 1. GET INSPECTION CHECKLIST
+app.get('/api/inspection-checklist', async (req, res) => {
+  const dbPool = app.locals.dbPool;
+  
+  try {
+    const [checklist] = await dbPool.query(`
+      SELECT * FROM inspection_checklist_items 
+      ORDER BY category, item_order
+    `);
+    
+    res.json({ success: true, checklist });
+  } catch (error) {
+    console.error('Get checklist error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '伺服器錯誤: ' + error.message 
+    });
+  }
+});
+
+// 2. ADD QUALITY SCORE
+app.post('/api/materials/:materialId/quality-score', async (req, res) => {
+  const { materialId } = req.params;
+  const { score, inspector_name, inspection_date, notes } = req.body;
+  const dbPool = app.locals.dbPool;
+  
+  console.log('Adding quality score for material_id:', materialId);
+  console.log('Request body:', req.body);
+  
+  if (!score || !inspector_name || !inspection_date) {
+    return res.status(400).json({ 
+      success: false, 
+      message: '分數、檢驗員和日期是必需的' 
+    });
+  }
+  
+  if (score < 0 || score > 10) {
+    return res.status(400).json({ 
+      success: false, 
+      message: '分數必須在 0 到 10 之間' 
+    });
+  }
+  
+  try {
+    // Check if material exists
+    const [material] = await dbPool.query(
+      'SELECT id, material_name FROM materials_used WHERE id = ?', 
+      [materialId]
+    );
+    
+    if (material.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: `找不到 ID=${materialId} 的建材` 
+      });
+    }
+    
+    const [result] = await dbPool.query(`
+      INSERT INTO material_quality_scores 
+      (material_id, score, inspector_name, inspection_date, notes) 
+      VALUES (?, ?, ?, ?, ?)
+    `, [materialId, score, inspector_name, inspection_date, notes || '']);
+    
+    console.log('Quality score added successfully, ID:', result.insertId);
+    
+    res.json({ 
+      success: true, 
+      scoreId: result.insertId, 
+      message: '品質分數新增成功' 
+    });
+  } catch (error) {
+    console.error('Add quality score error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '伺服器錯誤: ' + error.message 
+    });
+  }
+});
+
+// 3. GET QUALITY HISTORY FOR A MATERIAL
+app.get('/api/materials/:materialId/quality-history', async (req, res) => {
+  const { materialId } = req.params;
+  const dbPool = app.locals.dbPool;
+  
+  try {
+    const [history] = await dbPool.query(`
+      SELECT * FROM material_quality_scores 
+      WHERE material_id = ? 
+      ORDER BY inspection_date DESC
+    `, [materialId]);
+    
+    res.json({ success: true, history });
+  } catch (error) {
+    console.error('Get quality history error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '伺服器錯誤: ' + error.message 
+    });
+  }
+});
+
+// 4. SUBMIT INSPECTION CHECKLIST
+app.post('/api/materials/:materialId/inspection', async (req, res) => {
+  const { materialId } = req.params;
+  const { inspector_name, inspection_date, checklist_results, overall_pass } = req.body;
+  const dbPool = app.locals.dbPool;
+  
+  if (!inspector_name || !inspection_date || !checklist_results) {
+    return res.status(400).json({ 
+      success: false, 
+      message: '檢驗員、日期和檢查結果是必需的' 
+    });
+  }
+  
+  try {
+    // Check if material exists
+    const [material] = await dbPool.query(
+      'SELECT id FROM materials_used WHERE id = ?', 
+      [materialId]
+    );
+    
+    if (material.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: '找不到該建材' 
+      });
+    }
+    
+    const [result] = await dbPool.query(`
+      INSERT INTO material_inspections 
+      (material_id, inspector_name, inspection_date, checklist_results, overall_pass) 
+      VALUES (?, ?, ?, ?, ?)
+    `, [
+      materialId, 
+      inspector_name, 
+      inspection_date, 
+      JSON.stringify(checklist_results), 
+      overall_pass ? 1 : 0
+    ]);
+    
+    res.json({ 
+      success: true, 
+      inspectionId: result.insertId,
+      message: '檢驗結果提交成功'
+    });
+  } catch (error) {
+    console.error('Add inspection error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '伺服器錯誤: ' + error.message 
+    });
+  }
+});
+
+// 5. GET ALL DEFECT REPORTS FOR A PROJECT
+app.get('/api/project/:projectId/defect-reports', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
+  
+  try {
+    const [reports] = await dbPool.query(`
+      SELECT 
+        dr.*,
+        mu.material_name,
+        mu.vendor
+      FROM material_defect_reports dr
+      JOIN materials_used mu ON dr.material_id = mu.id
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ?
+      ORDER BY dr.report_date DESC
+    `, [projectId]);
+    
+    res.json({ success: true, reports });
+  } catch (error) {
+    console.error('Get defect reports error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '伺服器錯誤: ' + error.message 
+    });
+  }
+});
+
+// 6. SUBMIT DEFECT REPORT
+app.post('/api/materials/:materialId/defect-report', async (req, res) => {
+  const { materialId } = req.params;
+  const { defect_type, severity, description, reported_by, report_date } = req.body;
+  const dbPool = app.locals.dbPool;
+  
+  if (!defect_type || !severity || !description || !reported_by || !report_date) {
+    return res.status(400).json({ 
+      success: false, 
+      message: '所有欄位都是必需的' 
+    });
+  }
+  
+  try {
+    // Check if material exists
+    const [material] = await dbPool.query(
+      'SELECT id FROM materials_used WHERE id = ?', 
+      [materialId]
+    );
+    
+    if (material.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: '找不到該建材' 
+      });
+    }
+    
+    const [result] = await dbPool.query(`
+      INSERT INTO material_defect_reports 
+      (material_id, defect_type, severity, description, reported_by, report_date, status) 
+      VALUES (?, ?, ?, ?, ?, ?, 'open')
+    `, [materialId, defect_type, severity, description, reported_by, report_date]);
+    
+    res.json({ 
+      success: true, 
+      reportId: result.insertId,
+      message: '瑕疵報告提交成功'
+    });
+  } catch (error) {
+    console.error('Add defect report error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '伺服器錯誤: ' + error.message 
+    });
+  }
+});
+
+// 7. ADD MATERIAL TEST RESULT
+app.post('/api/materials/:materialId/test-results', async (req, res) => {
+  const { materialId } = req.params;
+  const { test_type, test_date, result_value, pass_fail, tester_name, notes } = req.body;
+  const dbPool = app.locals.dbPool;
+  
+  if (!test_type || !test_date || !pass_fail || !tester_name) {
+    return res.status(400).json({ 
+      success: false, 
+      message: '測試類型、日期、結果和測試員是必需的' 
+    });
+  }
+  
+  try {
+    const [result] = await dbPool.query(`
+      INSERT INTO material_test_results 
+      (material_id, test_type, test_date, result_value, pass_fail, tester_name, notes) 
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [materialId, test_type, test_date, result_value || '', pass_fail, tester_name, notes || '']);
+    
+    res.json({ 
+      success: true, 
+      testId: result.insertId,
+      message: '測試結果新增成功'
+    });
+  } catch (error) {
+    console.error('Add test result error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '伺服器錯誤: ' + error.message 
+    });
+  }
+});
+
+// 8. GET TEST RESULTS FOR A MATERIAL
+app.get('/api/materials/:materialId/test-results', async (req, res) => {
+  const { materialId } = req.params;
+  const dbPool = app.locals.dbPool;
+  
+  try {
+    const [results] = await dbPool.query(`
+      SELECT * FROM material_test_results 
+      WHERE material_id = ? 
+      ORDER BY test_date DESC
+    `, [materialId]);
+    
+    res.json({ success: true, results });
+  } catch (error) {
+    console.error('Get test results error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '伺服器錯誤: ' + error.message 
+    });
+  }
+});
+
+// 9. GET ALL MATERIALS WITH QUALITY METRICS (for Quality Overview)
+app.get('/api/project/:projectId/materials-quality-overview', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
+  
+  try {
+    const [materials] = await dbPool.query(`
+      SELECT 
+        mu.id as material_id,
+        mu.material_name,
+        mu.vendor,
+        mu.qty,
+        mu.unit,
+        wi.name as work_item_name,
+        wi.work_date,
+        AVG(qs.score) as avg_quality_score,
+        COUNT(DISTINCT qs.id) as quality_score_count,
+        COUNT(DISTINCT dr.id) as defect_count,
+        COUNT(DISTINCT tr.id) as test_count
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      LEFT JOIN material_quality_scores qs ON mu.id = qs.material_id
+      LEFT JOIN material_defect_reports dr ON mu.id = dr.material_id AND dr.status IN ('open', 'investigating')
+      LEFT JOIN material_test_results tr ON mu.id = tr.material_id
+      WHERE wi.project_id = ?
+      GROUP BY mu.id, mu.material_name, mu.vendor, mu.qty, mu.unit, wi.name, wi.work_date
+      ORDER BY wi.work_date DESC, mu.material_name
+    `, [projectId]);
+    
+    res.json({ success: true, materials });
+  } catch (error) {
+    console.error('Get materials quality overview error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '伺服器錯誤: ' + error.message 
+    });
+  }
+});
