@@ -731,11 +731,7 @@ app.put('/api/users/:id/profile', async (req, res) => {
     }
 });
 
-// 啟動伺服器
-app.listen(PORT, () => {
-    console.log(`[Express] Server running on port ${PORT}`);
-    console.log(`Access: http://localhost:${PORT}`);
-});
+
 
 // --- Vendor Management APIs ---
 
@@ -1902,4 +1898,312 @@ app.get('/api/project/:projectId/materials-quality-overview', async (req, res) =
       message: '伺服器錯誤: ' + error.message 
     });
   }
+});
+// ============ AI QUERY PROXY ENDPOINT (REAL AI VERSION) ============
+app.post('/api/ai/query', async (req, res) => {
+  const { query, context } = req.body;
+  
+  if (!query) {
+    return res.status(400).json({ success: false, message: 'Query is required' });
+  }
+  
+  try {
+    console.log('AI Query received:', query);
+    
+    // Build a detailed prompt from the context
+    const prompt = buildAIPrompt(query, context);
+    
+    // Call Claude API (requires API key)
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY || "YOUR_API_KEY_HERE",
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 2000,
+        messages: [{
+          role: "user",
+          content: prompt
+        }]
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`AI API error: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    const aiResponse = data.content[0].text;
+    
+    res.json({
+      success: true,
+      response: aiResponse
+    });
+    
+  } catch (error) {
+    console.error('AI query error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'AI query failed: ' + error.message 
+    });
+  }
+});
+
+// Helper function to build AI prompt from context
+function buildAIPrompt(query, context) {
+  const totalMaterials = context.total_materials || 0;
+  const vendors = context.vendors || [];
+  const materialsSummary = context.materials_summary || [];
+  
+  let prompt = `You are a construction project management AI assistant. Analyze the following project data and answer the user's question.
+
+USER QUESTION: "${query}"
+
+PROJECT DATA:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 OVERVIEW:
+- Total Materials Tracked: ${totalMaterials}
+- Active Vendors: ${vendors.length}
+
+`;
+
+  // Add vendor performance data
+  if (vendors.length > 0) {
+    prompt += `👥 VENDOR PERFORMANCE:\n`;
+    vendors.forEach((v, i) => {
+      const onTimeRate = (v.on_time_deliveries / v.total_deliveries * 100).toFixed(1);
+      prompt += `${i + 1}. ${v.name}
+   • Total Deliveries: ${v.total_deliveries}
+   • On-Time: ${v.on_time_deliveries} (${onTimeRate}%)
+   • Quality Score: ${parseFloat(v.avg_quality_score).toFixed(1)}/10
+   • Defects: ${v.defect_count}
+`;
+    });
+    prompt += '\n';
+  }
+
+  // Add material details
+  if (materialsSummary.length > 0) {
+    prompt += `📦 TOP MATERIALS:\n`;
+    materialsSummary.slice(0, 10).forEach((m, i) => {
+      const statusLabel = getStatusLabel(m.material_status);
+      prompt += `${i + 1}. ${m.material_name}
+   • Quantity: ${m.qty} ${m.unit || 'units'}
+   • Vendor: ${m.vendor || 'Not specified'}
+   • Price: $${(m.unit_price || 0).toFixed(2)} per unit
+   • Total Value: $${((m.qty * (m.unit_price || 0))).toFixed(2)}
+   • Status: ${statusLabel}
+`;
+    });
+    
+    // Add status summary
+    const arrived = materialsSummary.filter(m => m.material_status === 0).length;
+    const ordered = materialsSummary.filter(m => m.material_status === 2).length;
+    const delayed = materialsSummary.filter(m => m.material_status === 3).length;
+    
+    prompt += `\n📋 STATUS SUMMARY:
+- Arrived: ${arrived}
+- Ordered: ${ordered}
+- Delayed: ${delayed}
+`;
+
+    // Add cost summary
+    const totalCost = materialsSummary.reduce((sum, m) => 
+      sum + (m.qty * (m.unit_price || 0)), 0
+    );
+    
+    prompt += `\n💰 COST SUMMARY:
+- Total Material Cost: $${totalCost.toFixed(2)}
+- Materials with Pricing: ${materialsSummary.filter(m => m.unit_price > 0).length}/${totalMaterials}
+`;
+  }
+
+  prompt += `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INSTRUCTIONS:
+1. Analyze the data above carefully
+2. Answer the user's question with specific insights from the data
+3. Use actual numbers, vendor names, and material details
+4. Provide actionable recommendations when relevant
+5. Format your response clearly with sections and bullet points
+6. If the data shows risks or issues, highlight them prominently
+
+Keep your response focused and under 400 words.`;
+
+  return prompt;
+}
+
+// Helper function to convert status codes to labels
+function getStatusLabel(status) {
+  const labels = {
+    0: '✅ Arrived',
+    1: '📦 In Transit',
+    2: '🔄 Ordered',
+    3: '⚠️ Delayed'
+  };
+  return labels[status] || 'Unknown';
+}
+
+// Helper function to generate contextual mock responses
+function generateMockAIResponse(query, context) {
+  const lowerQuery = query.toLowerCase();
+  const totalMaterials = context.total_materials || 0;
+  const vendors = context.vendors || [];
+  const materialsSummary = context.materials_summary || [];
+  
+  if (lowerQuery.includes('vendor') || lowerQuery.includes('supplier') || lowerQuery.includes('on-time')) {
+    if (vendors.length === 0) {
+      return `No vendor data available yet. Start tracking material deliveries to get vendor performance insights.`;
+    }
+    
+    // Sort vendors by on-time delivery rate
+    const sortedVendors = vendors
+      .map(v => ({
+        ...v,
+        onTimeRate: (v.on_time_deliveries / v.total_deliveries * 100).toFixed(1)
+      }))
+      .sort((a, b) => b.onTimeRate - a.onTimeRate);
+    
+    const topVendors = sortedVendors.slice(0, 3);
+    
+    let response = `📊 **Vendor Performance Analysis** (${vendors.length} vendors tracked)\n\n`;
+    response += `**Top Performers:**\n`;
+    topVendors.forEach((v, i) => {
+      response += `${i + 1}. **${v.name}**\n`;
+      response += `   • On-time: ${v.onTimeRate}% (${v.on_time_deliveries}/${v.total_deliveries} deliveries)\n`;
+      response += `   • Quality: ${parseFloat(v.avg_quality_score).toFixed(1)}/10\n`;
+      response += `   • Defects: ${v.defect_count}\n\n`;
+    });
+    
+    response += `**Recommendations:**\n`;
+    if (topVendors[0].onTimeRate >= 90) {
+      response += `✅ ${topVendors[0].name} shows excellent reliability (${topVendors[0].onTimeRate}% on-time)\n`;
+    }
+    
+    const poorPerformers = sortedVendors.filter(v => parseFloat(v.onTimeRate) < 70);
+    if (poorPerformers.length > 0) {
+      response += `⚠️ ${poorPerformers.length} vendor(s) with <70% on-time rate need attention\n`;
+    }
+    
+    return response;
+  }
+  
+  if (lowerQuery.includes('material') || lowerQuery.includes('usage') || lowerQuery.includes('demand')) {
+    if (materialsSummary.length === 0) {
+      return `No material data available. Add materials to your project to get usage insights.`;
+    }
+    
+    let response = `📦 **Material Usage Analysis** (${totalMaterials} materials tracked)\n\n`;
+    response += `**Top Materials:**\n`;
+    
+    materialsSummary.slice(0, 5).forEach((m, i) => {
+      response += `${i + 1}. **${m.material_name}**\n`;
+      response += `   • Quantity: ${m.qty} ${m.unit || 'units'}\n`;
+      response += `   • Vendor: ${m.vendor || 'Not specified'}\n`;
+      response += `   • Status: ${getStatusLabel(m.material_status)}\n\n`;
+    });
+    
+    const ordered = materialsSummary.filter(m => m.material_status === 2).length;
+    const arrived = materialsSummary.filter(m => m.material_status === 0).length;
+    
+    response += `**Status Summary:**\n`;
+    response += `• ${arrived} materials arrived\n`;
+    response += `• ${ordered} materials ordered\n`;
+    
+    return response;
+  }
+  
+  if (lowerQuery.includes('cost') || lowerQuery.includes('budget') || lowerQuery.includes('price')) {
+    if (materialsSummary.length === 0) {
+      return `No cost data available. Add material prices to track project costs.`;
+    }
+    
+    const materialsWithPrice = materialsSummary.filter(m => m.unit_price > 0);
+    const totalCost = materialsWithPrice.reduce((sum, m) => 
+      sum + (m.qty * (m.unit_price || 0)), 0
+    );
+    
+    let response = `💰 **Cost Analysis**\n\n`;
+    response += `**Total Material Cost:** $${totalCost.toFixed(2)}\n`;
+    response += `**Materials Priced:** ${materialsWithPrice.length}/${totalMaterials}\n\n`;
+    
+    if (materialsWithPrice.length > 0) {
+      // Find most expensive
+      const byValue = [...materialsWithPrice]
+        .map(m => ({ ...m, value: m.qty * m.unit_price }))
+        .sort((a, b) => b.value - a.value);
+      
+      response += `**Highest Value Materials:**\n`;
+      byValue.slice(0, 3).forEach((m, i) => {
+        response += `${i + 1}. ${m.material_name}: $${m.value.toFixed(2)}\n`;
+      });
+    }
+    
+    response += `\n**Tip:** Track price trends across vendors to identify savings opportunities.`;
+    
+    return response;
+  }
+  
+  if (lowerQuery.includes('delay') || lowerQuery.includes('risk') || lowerQuery.includes('late')) {
+    const delayed = materialsSummary.filter(m => m.material_status === 3).length;
+    const ordered = materialsSummary.filter(m => m.material_status === 2).length;
+    
+    let response = `⚠️ **Project Risk Assessment**\n\n`;
+    
+    if (delayed > 0) {
+      response += `**🚨 Critical Issues:**\n`;
+      response += `• ${delayed} material(s) delayed\n`;
+      response += `• Risk Level: ${delayed > 5 ? 'HIGH' : 'MEDIUM'}\n\n`;
+      response += `**Immediate Actions:**\n`;
+      response += `1. Contact vendors for delayed items\n`;
+      response += `2. Identify alternative suppliers\n`;
+      response += `3. Adjust work schedule if needed\n`;
+    } else if (ordered > 0) {
+      response += `**⏳ Pending Deliveries:**\n`;
+      response += `• ${ordered} material(s) awaiting arrival\n`;
+      response += `• Monitor arrival dates closely\n`;
+    } else {
+      response += `**✅ All Clear:**\n`;
+      response += `• No major delays detected\n`;
+      response += `• Project timeline on track\n`;
+    }
+    
+    return response;
+  }
+  
+  // Default response with actual data
+  return `📊 **Project Overview**\n\n` +
+         `• **Total Materials:** ${totalMaterials}\n` +
+         `• **Active Vendors:** ${vendors.length}\n\n` +
+         `**Available Insights:**\n` +
+         `• Vendor performance and reliability\n` +
+         `• Material usage and demand patterns\n` +
+         `• Cost analysis and budget tracking\n` +
+         `• Risk assessment and delays\n\n` +
+         `**Try asking:**\n` +
+         `"Which vendors have the best on-time delivery rates?"\n` +
+         `"Show me material usage trends"\n` +
+         `"What are my cost risks?"`;
+}
+
+// Helper function to convert status codes to labels
+function getStatusLabel(status) {
+  const labels = {
+    0: '✅ Arrived',
+    1: '📦 In Transit',
+    2: '🔄 Ordered',
+    3: '⚠️ Delayed'
+  };
+  return labels[status] || 'Unknown';
+}
+
+// 啟動伺服器
+app.listen(PORT, () => {
+    console.log(`[Express] Server running on port ${PORT}`);
+    console.log(`Access: http://localhost:${PORT}`);
 });

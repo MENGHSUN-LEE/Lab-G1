@@ -1,10 +1,13 @@
-// js/templates/material_overview.js
-
-/** Enhanced Material Overview HTML structure with all Steven's features */
 export const materialOverviewContent = `
     <div class="stack" style="gap: 25px;">
         <!-- Feature Navigation Cards -->
-        <div class="grid cols-4" style="gap: 15px;">            
+        <div class="grid cols-4" style="gap: 15px;">
+            <div class="card clickable" data-feature="arrival" style="padding: 20px; text-align: center; cursor: pointer; transition: transform 0.2s;">
+                <span class="material-symbols-outlined" style="font-size: 48px; color: #4CAF50;">local_shipping</span>
+                <h4 style="margin: 10px 0 5px;">Arrival Log</h4>
+                <p class="muted" style="font-size: 0.9em;">Track deliveries & schedules</p>
+            </div>
+            
             <div class="card clickable" data-feature="quality" style="padding: 20px; text-align: center; cursor: pointer; transition: transform 0.2s;">
                 <span class="material-symbols-outlined" style="font-size: 48px; color: #2196F3;">verified</span>
                 <h4 style="margin: 10px 0 5px;">Quality Score</h4>
@@ -22,11 +25,33 @@ export const materialOverviewContent = `
                 <h4 style="margin: 10px 0 5px;">Cost Analysis</h4>
                 <p class="muted" style="font-size: 0.9em;">Budget tracking</p>
             </div>
-
-            <div class="card clickable" data-feature="ai-analytics" style="padding: 20px; text-align: center; cursor: pointer; transition: transform 0.2s;">
-                <span class="material-symbols-outlined" style="font-size: 48px; color: #ce3333ff;">psychology</span>
-                <h4 style="margin: 10px 0 5px;">AI Analytics</h4>
-                <p class="muted" style="font-size: 0.9em;">Predictive insights & NLP</p>
+        </div>
+        
+        <!-- ✅ NEW: Second Row with AI Analytics -->
+        <div class="grid cols-4" style="gap: 15px;">
+            <div class="card clickable" data-feature="ai-analytics" style="padding: 20px; text-align: center; cursor: pointer; transition: transform 0.2s; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <span class="material-symbols-outlined" style="font-size: 48px; color: white;">psychology</span>
+                <h4 style="margin: 10px 0 5px; color: white;">AI Analytics</h4>
+                <p style="font-size: 0.9em; margin: 0; opacity: 0.9;">Predictive insights & NLP</p>
+            </div>
+            
+            <!-- Placeholder cards for future features -->
+            <div class="card" style="padding: 20px; text-align: center; opacity: 0.5;">
+                <span class="material-symbols-outlined" style="font-size: 48px; color: #666;">eco</span>
+                <h4 style="margin: 10px 0 5px; color: #666;">Carbon Footprint</h4>
+                <p class="muted" style="font-size: 0.9em;">Coming Soon</p>
+            </div>
+            
+            <div class="card" style="padding: 20px; text-align: center; opacity: 0.5;">
+                <span class="material-symbols-outlined" style="font-size: 48px; color: #666;">assessment</span>
+                <h4 style="margin: 10px 0 5px; color: #666;">Reports</h4>
+                <p class="muted" style="font-size: 0.9em;">Coming Soon</p>
+            </div>
+            
+            <div class="card" style="padding: 20px; text-align: center; opacity: 0.5;">
+                <span class="material-symbols-outlined" style="font-size: 48px; color: #666;">notifications</span>
+                <h4 style="margin: 10px 0 5px; color: #666;">Alerts</h4>
+                <p class="muted" style="font-size: 0.9em;">Coming Soon</p>
             </div>
         </div>
 
@@ -271,65 +296,6 @@ export const costAnalysisTemplate = `
     </div>
 `;
 
-// Add this to js/templates/material_overview.js
-
-/** AI Analytics Dashboard Template */
-export const aiAnalyticsTemplate = `
-    <div class="stack" style="gap: 25px;">
-        
-        <!-- AI Query Interface Card -->
-        <div class="card" style="padding: 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-            <h3 style="margin: 0 0 15px; color: white;">🤖 Ask AI About Your Project</h3>
-            <p style="margin: 0 0 20px; opacity: 0.9;">Natural language queries powered by Claude AI</p>
-            
-            <div style="display: flex; gap: 10px;">
-                <input 
-                    type="text" 
-                    id="ai-query-input" 
-                    placeholder="e.g., Which vendors have the best quality scores? What materials are delayed?"
-                    style="flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 1em;"
-                />
-                <button id="ai-query-btn" class="btn-primary" style="background: white; color: #667eea; padding: 12px 24px;">
-                    Ask AI
-                </button>
-            </div>
-            
-            <div id="ai-query-results" style="margin-top: 20px;"></div>
-            
-            <!-- Sample Questions -->
-            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.3);">
-                <p style="margin: 0 0 10px; opacity: 0.9; font-size: 0.9em;">💡 Try asking:</p>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                    <button class="sample-query-btn" data-query="Which vendors have the best on-time delivery rates?">
-                        Vendor Performance
-                    </button>
-                    <button class="sample-query-btn" data-query="Show me materials that are frequently delayed">
-                        Delayed Materials
-                    </button>
-                    <button class="sample-query-btn" data-query="What's the average material cost trend?">
-                        Cost Trends
-                    </button>
-                    <button class="sample-query-btn" data-query="Predict next month's cement requirements">
-                        Demand Forecast
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Material Demand Forecast Section -->
-        <div id="demand-forecast-section"></div>
-        
-        <!-- Vendor Performance Section -->
-        <div id="vendor-performance-section"></div>
-        
-        <!-- Anomaly Detection Section -->
-        <div id="anomaly-alerts-section"></div>
-        
-        <!-- Risk Assessment Section -->
-        <div id="risk-gauge-section"></div>
-        
-    </div>
-`;
 
 // Sample query button styles
 const sampleQueryStyles = `
@@ -349,3 +315,73 @@ const sampleQueryStyles = `
         transform: translateY(-2px);
     }
 `;
+
+// js/templates/material_overview.js
+// ADD THIS to your existing material_overview.js exports
+
+/** AI Analytics Dashboard Template */
+export const aiAnalyticsTemplate = `
+    <div class="stack" style="gap: 25px;">
+        
+        <!-- AI Query Interface Card -->
+        <div class="card" style="padding: 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <h3 style="margin: 0 0 15px; color: white;">🤖 Ask AI About Your Project</h3>
+            <p style="margin: 0 0 20px; opacity: 0.9;">Click any question below to get instant AI insights</p>
+            
+            <!-- Sample Questions - Click Only -->
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+                <button class="sample-query-btn" data-query="Which vendors have the best on-time delivery rates?">
+                    📊 Vendor Performance
+                </button>
+                <button class="sample-query-btn" data-query="Show me material usage trends">
+                    📦 Material Usage
+                </button>
+                <button class="sample-query-btn" data-query="What are my cost risks?">
+                    💰 Cost Analysis
+                </button>
+                <button class="sample-query-btn" data-query="Predict project delays">
+                    ⚠️ Risk Assessment
+                </button>
+            </div>
+            
+            <div id="ai-query-results" style="margin-top: 20px;"></div>
+        </div>
+        
+        <!-- Material Demand Forecast Section -->
+        <div id="demand-forecast-section"></div>
+        
+        <!-- Vendor Performance Section -->
+        <div id="vendor-performance-section"></div>
+        
+        <!-- Anomaly Detection Section -->
+        <div id="anomaly-alerts-section"></div>
+        
+        <!-- Risk Assessment Section -->
+        <div id="risk-gauge-section"></div>
+        
+    </div>
+`;
+
+// Add styles for sample query buttons
+const aiStyles = document.createElement('style');
+aiStyles.textContent = `
+    .sample-query-btn {
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.4);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85em;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .sample-query-btn:hover {
+        background: rgba(255,255,255,0.3);
+        transform: translateY(-2px);
+    }
+`;
+if (!document.getElementById('ai-analytics-styles')) {
+    aiStyles.id = 'ai-analytics-styles';
+    document.head.appendChild(aiStyles);
+}

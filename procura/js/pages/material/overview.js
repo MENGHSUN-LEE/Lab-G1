@@ -1,4 +1,5 @@
 // js/pages/material/overview.js
+// COMPLETE FIXED VERSION
 
 import { state } from '../../app.js';
 import { 
@@ -6,12 +7,14 @@ import {
     arrivalLogTemplate,
     qualityScoreTemplate,
     inventoryTrackingTemplate,
-    costAnalysisTemplate
+    costAnalysisTemplate,
+    aiAnalyticsTemplate  // ✅ ADD THIS
 } from '../../templates/material_overview.js';
 import { initArrivalLog } from './arrival_log.js';
 import { initQualityScore } from './quality_score.js';
 import { initInventoryTracking } from './inventory_tracking.js';
 import { initCostAnalysis } from './cost_analysis.js';
+import { initAIAnalytics } from './ai_analytics.js';  // ✅ ADD THIS
 
 /** Initialize Material Overview tab */
 export function initMaterialOverview() {
@@ -91,10 +94,11 @@ function loadFeature(featureName) {
             contentArea.innerHTML = costAnalysisTemplate;
             initCostAnalysis(projectId);
             break;
-
-        case 'ai-analytics':
+        
+        case 'ai-analytics':  // ✅ ADD THIS CASE
             contentArea.innerHTML = aiAnalyticsTemplate;
             initAIAnalytics(projectId);
+            setupSampleQueryButtons();  // ✅ Setup sample query buttons
             break;
         
         default:
@@ -102,10 +106,25 @@ function loadFeature(featureName) {
     }
 }
 
+/** ✅ NEW: Setup sample query buttons */
+function setupSampleQueryButtons() {
+    const sampleBtns = document.querySelectorAll('.sample-query-btn');
+    const queryInput = document.getElementById('ai-query-input');
+    const queryBtn = document.getElementById('ai-query-btn');
+    
+    sampleBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const query = btn.dataset.query;
+            if (queryInput) {
+                queryInput.value = query;
+                queryBtn?.click();  // Auto-trigger the query
+            }
+        });
+    });
+}
+
 /** Refresh current feature (call after data updates) */
 export function refreshCurrentFeature() {
-    // You can track which feature is currently active
-    // and call the appropriate init function again
     const activeFeature = document.querySelector('.card.clickable[style*="scale(0.95)"]');
     if (activeFeature) {
         const feature = activeFeature.dataset.feature;
@@ -122,7 +141,7 @@ export function showToast(message, type = 'success') {
         position: fixed;
         bottom: 30px;
         right: 30px;
-        background: ${type === 'success' ? '#4CAF50' : '#f44336'};
+        background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
         color: white;
         padding: 15px 25px;
         border-radius: 8px;
@@ -139,35 +158,38 @@ export function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// Add CSS animations
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(400px); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(400px); opacity: 0; }
-    }
-    .spinner {
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #3498db;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        animation: spin 1s linear infinite;
-        margin: 0 auto;
-    }
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    .subtab-panel {
-        display: none;
-    }
-    .subtab-panel.active {
-        display: block;
-    }
-`;
-document.head.appendChild(style);
+// Add CSS animations (only once)
+if (!document.getElementById('overview-animations')) {
+    const style = document.createElement('style');
+    style.id = 'overview-animations';
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(400px); opacity: 0; }
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .subtab-panel {
+            display: none;
+        }
+        .subtab-panel.active {
+            display: block;
+        }
+    `;
+    document.head.appendChild(style);
+}

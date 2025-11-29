@@ -223,6 +223,10 @@ function renderVendorPerformanceMatrix(vendors) {
                     const scoreColor = score >= 80 ? '#4CAF50' : score >= 60 ? '#FF9800' : '#f44336';
                     const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
                     
+                    // ✅ FIX: Add null check for avg_quality_score
+                    const qualityScore = vendor.avg_quality_score != null ? parseFloat(vendor.avg_quality_score).toFixed(1) : 'N/A';
+                    const onTimePercent = (vendor.on_time_deliveries / vendor.total_deliveries * 100).toFixed(0);
+                    
                     return `
                         <div class="vendor-score-card" style="display: flex; align-items: center; gap: 20px; padding: 15px; margin-bottom: 10px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid ${scoreColor};">
                             <div style="font-size: 2em; min-width: 50px; text-align: center;">
@@ -231,8 +235,8 @@ function renderVendorPerformanceMatrix(vendors) {
                             <div style="flex: 1;">
                                 <h4 style="margin: 0 0 5px;">${vendor.name}</h4>
                                 <div style="display: flex; gap: 20px; font-size: 0.9em; color: #666;">
-                                    <span>⏱️ ${(vendor.on_time_deliveries / vendor.total_deliveries * 100).toFixed(0)}% On-Time</span>
-                                    <span>⭐ ${vendor.avg_quality_score.toFixed(1)}/10 Quality</span>
+                                    <span>⏱️ ${onTimePercent}% On-Time</span>
+                                    <span>⭐ ${qualityScore}/10 Quality</span>
                                     <span>🔧 ${vendor.defect_count} Defects</span>
                                 </div>
                             </div>
@@ -434,57 +438,82 @@ function renderRiskGauge(risk) {
 
 // ============ 5. AI QUERY INTERFACE ============
 
-/** Setup natural language query interface using Claude API */
+/** Setup natural language query interface - Click-only version */
 function setupAIQueryInterface() {
-    const queryInput = document.getElementById('ai-query-input');
-    const queryBtn = document.getElementById('ai-query-btn');
     const resultsDiv = document.getElementById('ai-query-results');
     
-    if (!queryBtn || !queryInput) return;
-    
-    queryBtn.addEventListener('click', async () => {
-        const query = queryInput.value.trim();
-        if (!query) {
-            alert('Please enter a question');
-            return;
-        }
-        
-        resultsDiv.innerHTML = '<p class="muted">🤖 AI is analyzing your question...</p>';
-        
-        try {
-            // Call Claude API to interpret and answer the query
-            const response = await fetch("https://api.anthropic.com/v1/messages", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    model: "claude-sonnet-4-20250514",
-                    max_tokens: 1000,
-                    messages: [{
-                        role: "user",
-                        content: `You are analyzing construction project data. Project ID: ${currentProjectId}
-                        
-User question: "${query}"
-
-Based on the material management data available, provide a helpful analysis and answer. If you need specific data, suggest which API endpoint to call.`
-                    }]
-                })
-            });
-            
-            const data = await response.json();
-            const answer = data.content[0].text;
-            
-            resultsDiv.innerHTML = `
-                <div class="ai-response" style="background: #e3f2fd; padding: 20px; border-radius: 8px; border-left: 4px solid #2196F3;">
-                    <strong>🤖 AI Response:</strong>
-                    <p style="margin-top: 10px; white-space: pre-wrap;">${answer}</p>
-                </div>
-            `;
-            
-        } catch (error) {
-            console.error('AI query error:', error);
-            resultsDiv.innerHTML = '<p style="color: red;">Error processing your question. Please try again.</p>';
-        }
+    // Add click handlers for sample query buttons
+    document.querySelectorAll('.sample-query-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const sampleQuery = btn.getAttribute('data-query');
+            handleAIQuery(sampleQuery);
+        });
     });
+    
+    // Show initial prompt
+    if (resultsDiv) {
+        resultsDiv.innerHTML = `
+            <div class="card" style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; text-align: center;">
+                <p style="margin: 0; color: white; font-size: 1.1em;">👆 Click any question above to see AI insights</p>
+            </div>
+        `;
+    }
+}
+
+/** Handle AI query - calls backend proxy */
+async function handleAIQuery(query) {
+    const resultsDiv = document.getElementById('ai-query-results');
+    
+    if (!query) {
+        resultsDiv.innerHTML = `
+            <div class="card" style="background: #fff3cd; padding: 15px; border-radius: 8px;">
+                <p style="margin: 0; color: #856404;">⚠️ Please enter a question</p>
+            </div>
+        `;
+        return;
+    }
+    
+    resultsDiv.innerHTML = '<p style="color: white;">🤔 AI is thinking...</p>';
+    
+    try {
+        // Gather project context
+        const materials = await fetch(`/api/project/${currentProjectId}/materials-overview`).then(r => r.json());
+        const vendors = await fetch(`/api/project/${currentProjectId}/vendor-performance-analysis`).then(r => r.json());
+        
+        const context = {
+            total_materials: materials.materials?.length || 0,
+            vendors: vendors.vendors || [],
+            materials_summary: materials.materials?.slice(0, 5) || [] // First 5 for context
+        };
+        
+        // Call YOUR backend proxy (not Anthropic directly)
+        const response = await fetch('/api/ai/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, context })
+        });
+        
+        if (!response.ok) {
+            throw new Error('AI query failed');
+        }
+        
+        const data = await response.json();
+        
+        resultsDiv.innerHTML = `
+            <div class="card" style="background: white; padding: 20px; border-radius: 8px; color: #333;">
+                <h4 style="margin: 0 0 10px; color: #667eea;">💡 AI Response</h4>
+                <p style="margin: 0; line-height: 1.6; white-space: pre-wrap;">${data.response}</p>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('AI query error:', error);
+        resultsDiv.innerHTML = `
+            <div class="card" style="background: #ffebee; padding: 20px; border-radius: 8px;">
+                <p style="margin: 0; color: #c62828;">❌ Error: ${error.message}</p>
+            </div>
+        `;
+    }
 }
 
 // Add CSS for animations

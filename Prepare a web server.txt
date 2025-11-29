@@ -706,11 +706,18 @@ npm install express
 npm install mysql2
 node app.js
 
--- 2.3 重新虛擬機的docker --
+-- 2.3 Set the Groq API key (get it from https://console.groq.com/) ==> required to buy an AI (additional)
+export GROQ_API_KEY="gsk_your_actual_key_here"
+echo $GROQ_API_KEY
+cd /app
+node app.js
+
+-- 2.4 重新虛擬機的docker --
 docker start procura-dev
 docker exec -it procura-dev bash
 cd /app
 node app.js
+
 
 ----------------------------------------------------------
 
