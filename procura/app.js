@@ -1,726 +1,834 @@
-// server.js - Complete Express Server
+// procura/app.js
+
 const express = require('express');
-const mysql = require('mysql2/promise');
 const path = require('path');
+const mysql = require('mysql2/promise'); // 引入 promise 版本
+const bcrypt = require('bcrypt'); // 用於加密密碼
+const config = require('./config'); // 引入您的配置檔
 
 const app = express();
-const PORT = 80;
+const PORT = process.env.PORT || 80;
 
-// Database configuration
-const dbConfig = {
-  host: 'assignment-mysql',
-  user: 'Procura',
-  password: '417',
-  database: 'assignment_db'
-};
-
-// Middleware
+// --- 中介軟體 (Middleware) ---
+// 1. 處理 JSON 格式的請求體 (POST/PUT 請求)
 app.use(express.json());
+// 2. 處理 URL-encoded 格式的請求體 (常見於表單)
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files (HTML, CSS, JS)
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname)));
 
-// Database connection pool
-const pool = mysql.createPool(dbConfig);
+// --- 資料庫連線初始化 ---
+async function initializeDB() {
+    try {
+        console.log('[MySQL] Connecting to database...');
+        // 建立資料庫連線池 (Connection Pool)
+        const pool = mysql.createPool(config.db);
+        app.locals.dbPool = pool;
+        console.log('[MySQL] Connection Pool created successfully.');
 
-// ==================== API Routes ====================
+        // 檢查連線
+        const [rows] = await pool.query('SELECT 1 + 1 AS solution');
+        console.log('[MySQL] Connection verified. Solution:', rows[0].solution);
 
-// Test endpoint
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'API is working!' });
-});
-
-// User Authentication - Login
-app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body;
-  
-  console.log('=== LOGIN REQUEST ===');
-  console.log('Email:', email);
-  console.log('Password:', password ? '***' : 'missing');
-  
-  try {
-    const [rows] = await pool.query(
-      'SELECT * FROM users WHERE email = ?',
-      [email]
-    );
-    
-    if (rows.length === 0) {
-      console.log('❌ User not found:', email);
-      return res.status(401).json({ success: false, message: '找不到該使用者' });
+    } catch (error) {
+        console.error('[MySQL] Database connection failed:', error.message);
+        // 在生產環境中，這裡通常會終止應用程式或進行重試
+        // process.exit(1); 
     }
-    
-    const user = rows[0];
-    
-    // Simple password check (comparing plaintext)
-    if (password === user.password_hash) {
-      console.log('✅ Login successful:', email);
-      res.json({
-        success: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          company_name: user.company_name,
-          subscription_plan: user.subscription_plan
-        }
-      });
-    } else {
-      console.log('❌ Invalid password for:', email);
-      res.status(401).json({ success: false, message: '密碼錯誤' });
-    }
-  } catch (error) {
-    console.error('❌ Login error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
-});
+}
+initializeDB();
 
-// User Registration - Signup
+// --- API 路由：帳號相關 ---
+
+// 1. 註冊 (Sign Up) 路由
 app.post('/api/signup', async (req, res) => {
-  // Log the ENTIRE request body to see what we're receiving
-  console.log('=== SIGNUP REQUEST ===');
-  console.log('Full request body:', JSON.stringify(req.body, null, 2));
-  console.log('Body keys:', Object.keys(req.body));
-  
-  const { company_name, email, phone, password, subscription_plan } = req.body;
-  
-  console.log('Extracted values:', { 
-    company_name, 
-    email, 
-    phone, 
-    password: password ? '***' : 'MISSING',
-    subscription_plan 
-  });
-  console.log('=====================');
-  
-  // Validation - Check what's actually missing
-  if (!email) {
-    console.log('❌ Email is missing');
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Email is required.' 
-    });
-  }
-  
-  if (!password) {
-    console.log('❌ Password is missing');
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Password is required.' 
-    });
-  }
-  
-  if (!company_name) {
-    console.log('❌ Company name is missing');
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Company name is required.' 
-    });
-  }
-  
-  if (!phone) {
-    console.log('❌ Phone is missing');
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Phone number is required.' 
-    });
-  }
-  
-  try {
-    // Check if user already exists
-    const [existing] = await pool.query(
-      'SELECT * FROM users WHERE email = ?',
-      [email]
-    );
-    
-    if (existing.length > 0) {
-      console.log('❌ Email already exists:', email);
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Email 已被註冊' 
-      });
+    const { suCompany, suEmail, suPhone, suPassword, suPlan } = req.body;
+
+    // 簡單的輸入驗證
+    if (!suEmail || !suPassword) {
+        return res.status(400).json({ success: false, message: 'Email and password are required.' });
     }
-    
-    // Insert new user
-    console.log('✅ Inserting new user:', { company_name, email, phone, subscription_plan });
-    const [result] = await pool.query(
-      'INSERT INTO users (company_name, email, phone, password_hash, subscription_plan) VALUES (?, ?, ?, ?, ?)',
-      [company_name, email, phone, password, subscription_plan || 'trial']
-    );
-    
-    console.log('✅ Signup successful! User ID:', result.insertId);
-    
-    res.json({
-      success: true,
-      message: 'Account created successfully',
-      user: {
-        id: result.insertId,
-        email,
-        company_name,
-        subscription_plan: subscription_plan || 'trial'
-      }
-    });
-  } catch (error) {
-    console.error('❌ Signup database error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: '伺服器錯誤: ' + error.message 
-    });
-  }
-});
 
-// Get all projects for a user
-app.get('/api/projects/:userId', async (req, res) => {
-  const { userId } = req.params;
-  
-  try {
-    const [projects] = await pool.query(
-      'SELECT * FROM projects WHERE user_id = ? ORDER BY created_at DESC',
-      [userId]
-    );
-    
-    res.json({ success: true, projects });
-  } catch (error) {
-    console.error('Get projects error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
-});
+    try {
+        const dbPool = app.locals.dbPool;
+        // 1. 密碼加密 (saltRounds = 10 是標準推薦值)
+        const passwordHash = await bcrypt.hash(suPassword, 10);
 
-// Search projects
-app.get('/api/projects/search/:userId', async (req, res) => {
-  const { userId } = req.params;
-  const { query } = req.query;
-  
-  console.log('Search request:', { userId, query });
-  
-  try {
-    let sql = 'SELECT * FROM projects WHERE user_id = ?';
-    const params = [userId];
-    
-    if (query) {
-      sql += ' AND (project_name LIKE ? OR tags LIKE ? OR owner LIKE ?)';
-      const searchTerm = `%${query}%`;
-      params.push(searchTerm, searchTerm, searchTerm);
+        // 2. 執行插入操作
+        const query = `
+            INSERT INTO users 
+            (company_name, email, phone, password_hash, subscription_plan) 
+            VALUES (?, ?, ?, ?, ?);
+        `;
+        const [result] = await dbPool.execute(query, [
+            suCompany,
+            suEmail,
+            suPhone,
+            passwordHash,
+            suPlan
+        ]);
+
+        if (result.affectedRows === 1) {
+            res.json({ success: true, message: 'Account created successfully. Please log in.' });
+        } else {
+            res.status(500).json({ success: false, message: 'Failed to create account.' });
+        }
+
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ success: false, message: 'The email is already registered.' });
+        }
+        console.error('Signup error:', error);
+        res.status(500).json({ success: false, message: 'Server error during sign up.' });
     }
-    
-    sql += ' ORDER BY created_at DESC';
-    
-    const [projects] = await pool.query(sql, params);
-    
-    console.log(`Found ${projects.length} projects`);
-    
-    res.json({ success: true, projects });
-  } catch (error) {
-    console.error('Search projects error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
 });
+// 2. 登入 (Log In) 路由
+app.post('/api/login', async (req, res) => {
+    const { loginEmail, loginPassword } = req.body;
 
-// Get project details with work items and materials
-app.get('/api/project/:projectId', async (req, res) => {
-  const { projectId } = req.params;
-  
-  console.log('Get project details:', projectId);
-  
-  try {
-    // Get project info
-    const [project] = await pool.query(
-      'SELECT * FROM projects WHERE id = ?',
-      [projectId]
-    );
-    
-    if (project.length === 0) {
-      return res.status(404).json({ success: false, message: '找不到專案' });
+    if (!loginEmail || !loginPassword) {
+        return res.status(400).json({ success: false, message: 'Email and password are required.' });
     }
-    
-    // Get work items
-    const [workItems] = await pool.query(
-      'SELECT * FROM work_items WHERE project_id = ? ORDER BY work_date, start_time',
-      [projectId]
-    );
-    
-    // Get materials for each work item
-    for (let item of workItems) {
-      const [materials] = await pool.query(
-        'SELECT * FROM materials_used WHERE work_item_id = ?',
-        [item.id]
-      );
-      item.materials = materials;
+
+    try {
+        const dbPool = app.locals.dbPool;
+        // 1. 查詢用戶 (新增查詢 subscription_plan)
+        const [rows] = await dbPool.execute('SELECT id, password_hash, subscription_plan FROM users WHERE email = ?', [loginEmail]);
+
+        if (rows.length === 0) {
+            return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+        }
+
+        const user = rows[0];
+        // 2. 比較密碼
+        const match = await bcrypt.compare(loginPassword, user.password_hash);
+
+        if (match) {
+            // 登入成功：返回用戶 ID 和訂閱方案
+            res.json({
+                success: true,
+                message: 'Login successful.',
+                user_id: user.id,
+                subscription_plan: user.subscription_plan
+            });
+        } else {
+            res.status(401).json({ success: false, message: 'Invalid email or password.' });
+        }
+
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ success: false, message: 'Server error during login.' });
     }
-    
-    res.json({
-      success: true,
-      project: project[0],
-      workItems
-    });
-  } catch (error) {
-    console.error('Get project details error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
 });
-
-// Get materials list for a project
-app.get('/api/project/:projectId/materials', async (req, res) => {
-  const { projectId } = req.params;
-  
-  try {
-    const [materials] = await pool.query(`
-      SELECT 
-        mu.*,
-        wi.name as work_item_name,
-        wi.work_date
-      FROM materials_used mu
-      JOIN work_items wi ON mu.work_item_id = wi.id
-      WHERE wi.project_id = ?
-      ORDER BY wi.work_date, mu.material_name
-    `, [projectId]);
-    
-    res.json({ success: true, materials });
-  } catch (error) {
-    console.error('Get materials error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
-});
-
-// Create new project
+// 3. 創建專案 (Create Project) 路由
 app.post('/api/projects', async (req, res) => {
-  const { user_id, project_name, tags, owner } = req.body;
-  
-  try {
-    const [result] = await pool.query(
-      'INSERT INTO projects (user_id, project_name, tags, owner) VALUES (?, ?, ?, ?)',
-      [user_id, project_name, tags, owner]
-    );
-    
-    res.json({
-      success: true,
-      project: {
-        id: result.insertId,
-        user_id,
-        project_name,
-        tags,
-        owner
-      }
-    });
-  } catch (error) {
-    console.error('Create project error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
+    // 預期前端傳來 user_id 和 user_plan，以及專案資料
+    const { user_id, user_plan, name, tags, owner } = req.body;
+    const dbPool = app.locals.dbPool;
+
+    if (!user_id || !name || !tags || !owner) {
+        return res.status(400).json({ success: false, message: '專案名稱、標籤、擁有者和用戶資訊是必需的。' });
+    }
+
+    try {
+        // --- 檢查免費帳號限制 (第二點要求) ---
+        if (user_plan === 'trial') {
+            const [countRows] = await dbPool.execute(
+                'SELECT COUNT(*) as project_count FROM projects WHERE user_id = ?',
+                [user_id]
+            );
+
+            if (countRows[0].project_count >= 1) {
+                return res.status(403).json({
+                    success: false,
+                    message: '免費 (trial) 帳號僅限創建一個專案。請升級您的方案。'
+                });
+            }
+        }
+
+        // --- 執行專案創建 ---
+        // 將前端傳來的 tags 陣列轉換為逗號分隔的字串
+        const tagsString = Array.isArray(tags) ? tags.join(',') : tags;
+
+        const insertQuery = `
+            INSERT INTO projects (user_id, project_name, tags, owner)
+            VALUES (?, ?, ?, ?)
+        `;
+        const [result] = await dbPool.execute(insertQuery, [
+            user_id, name, tagsString, owner
+        ]);
+
+        if (result.affectedRows === 1) {
+            res.json({
+                success: true,
+                message: '專案創建成功。',
+                project_id: result.insertId,
+                name: name,
+                owner: owner
+            });
+        } else {
+            res.status(500).json({ success: false, message: '專案創建失敗。' });
+        }
+
+    } catch (error) {
+        console.error('Project creation error:', error);
+        res.status(500).json({ success: false, message: '伺服器錯誤：無法創建專案。' });
+    }
 });
 
-// Update material status
-app.put('/api/materials/:materialId', async (req, res) => {
-  const { materialId } = req.params;
-  const { material_status } = req.body;
-  
-  try {
-    await pool.query(
-      'UPDATE materials_used SET material_status = ? WHERE id = ?',
-      [material_status, materialId]
-    );
-    
-    res.json({ success: true, message: '材料狀態已更新' });
-  } catch (error) {
-    console.error('Update material error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
+// --- 靜態檔案服務 (Static File Serving) ---
+app.use(express.static(path.join(__dirname)));
+
+// 確保在瀏覽器直接存取根目錄 '/' 時，會回傳 procura.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'procura.html'));
 });
 
-// Update work item status
-app.put('/api/workitems/:workItemId', async (req, res) => {
-  const { workItemId } = req.params;
-  const { status } = req.body;
-  
-  try {
-    await pool.query(
-      'UPDATE work_items SET status = ? WHERE id = ?',
-      [status, workItemId]
-    );
-    
-    res.json({ success: true, message: '工項狀態已更新' });
-  } catch (error) {
-    console.error('Update work item error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
+app.get('/api/projects', async (req, res) => {
+    const { user_id, q } = req.query;
+    const dbPool = app.locals.dbPool;
+
+    if (!user_id) {
+        return res.status(400).json({ success: false, message: 'User ID is required.' });
+    }
+
+    let query = 'SELECT id, project_name, tags, owner FROM projects WHERE user_id = ?';
+    let params = [user_id];
+
+    if (q) {
+        const searchTerm = `%${q}%`;
+        query += ' AND (project_name LIKE ? OR tags LIKE ? OR owner LIKE ?)';
+        params.push(searchTerm, searchTerm, searchTerm);
+    }
+
+    try {
+        const [projects] = await dbPool.execute(query, params);
+
+        const formattedProjects = projects.map(p => ({
+            ...p,
+            tags: p.tags ? p.tags.split(',').map(tag => tag.trim()) : []
+        }));
+
+        res.json({
+            success: true,
+            projects: formattedProjects
+        });
+
+    } catch (error) {
+        console.error('Get Projects error:', error);
+        res.status(500).json({ success: false, message: 'Server error retrieving projects.' });
+    }
 });
 
-// Get all companies (for vendor management)
-app.get('/api/companies', async (req, res) => {
-  try {
-    const [companies] = await pool.query(
-      'SELECT * FROM Company ORDER BY name LIMIT 100'
-    );
-    
-    res.json({ success: true, companies });
-  } catch (error) {
-    console.error('Get companies error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
+app.get('/api/projects/:id', async (req, res) => {
+    const projectId = req.params.id;
+    const dbPool = app.locals.dbPool;
+
+    // 結合查詢：從 projects 開始，LEFT JOIN work_items，再 LEFT JOIN materials_used
+    const query = `
+        SELECT
+            p.id AS project_id, p.project_name, p.tags, p.owner,
+            w.id AS work_id, w.work_date, w.name AS work_name, w.start_time, w.status AS work_status,
+            m.id AS material_id, m.material_name, m.vendor, m.qty, m.unit, m.material_status
+        FROM projects p
+        LEFT JOIN work_items w ON p.id = w.project_id
+        LEFT JOIN materials_used m ON w.id = m.work_item_id
+        WHERE p.id = ?
+        ORDER BY w.work_date, w.start_time;
+    `;
+
+    try {
+        const [rows] = await dbPool.execute(query, [projectId]);
+
+        if (rows.length === 0 || rows[0].project_id === null) {
+            return res.status(404).json({ success: false, message: '專案未找到。' });
+        }
+
+        const projectRow = rows[0];
+
+        // --- 1. 處理基本專案資訊 ---
+        const project = {
+            id: projectRow.project_id,
+            name: projectRow.project_name,
+            owner: projectRow.owner,
+            // 將 tags 字串轉回陣列
+            tags: projectRow.tags ? projectRow.tags.split(',').map(tag => tag.trim()) : [],
+            overview: '專案詳細概述 (可從 projects 表新增欄位)', // 暫時保留 placeholder
+            progress: [],
+        };
+
+        // --- 2. 轉換為巢狀 Progress 結構 ---
+        const progressMap = new Map(); // 用來儲存 { '2025-09-20': { date: ..., items: [...] } }
+        const workItemMap = new Map(); // 用來儲存 { work_id: work_item_object }
+
+        rows.forEach(row => {
+            // 如果沒有 work_id，表示專案存在但沒有工項，跳過後續處理
+            if (!row.work_id) return;
+
+            // 處理 Progress Date Node (進度日期節點)
+            // Fix: Use string key to avoid duplicates caused by Date object references
+            const dateKey = row.work_date instanceof Date ? row.work_date.toISOString().split('T')[0] : row.work_date;
+
+            if (!progressMap.has(dateKey)) {
+                progressMap.set(dateKey, {
+                    date: row.work_date,
+                    items: [],
+                });
+            }
+            const dateNode = progressMap.get(dateKey);
+
+            // 處理 Work Item (工項)
+            if (!workItemMap.has(row.work_id)) {
+                const workItem = {
+                    id: row.work_id,
+                    name: row.work_name,
+                    start: row.start_time,
+                    status: row.work_status,
+                    materials: [],
+                };
+                workItemMap.set(row.work_id, workItem);
+                dateNode.items.push(workItem); // 將工項加入日期節點
+            }
+            const workItem = workItemMap.get(row.work_id);
+
+            // 處理 Materials Used (建材使用)
+            if (row.material_id) {
+                workItem.materials.push({
+                    id: row.material_id,
+                    name: row.material_name,
+                    vendor: row.vendor,
+                    qty: parseFloat(row.qty),
+                    unit: row.unit,
+                    mstatus: row.material_status,
+                });
+            }
+        });
+
+        // 將 Map 轉換為陣列並賦值給 project.progress
+        project.progress = Array.from(progressMap.values());
+
+        res.json({ success: true, project: project });
+
+    } catch (error) {
+        console.error('Get Project Detail error:', error);
+        res.status(500).json({ success: false, message: '伺服器錯誤：無法獲取專案細節。' });
+    }
 });
 
-// Get all materials from Material table
+app.post('/api/work-items', async (req, res) => {
+    // 預期前端傳來 project ID (從 state.currentProject) 和工項資料
+    const { projectId, date, name, startTime } = req.body;
+    const dbPool = app.locals.dbPool;
+
+    // 必填欄位檢查
+    if (!projectId || !date || !name || !startTime) {
+        return res.status(400).json({ success: false, message: '缺少專案ID、日期、工項名稱或開始時間。' });
+    }
+
+    try {
+        // 狀態 status 預設為 1 (正常)
+        const query = `
+            INSERT INTO work_items (project_id, work_date, name, start_time, status)
+            VALUES (?, ?, ?, ?, 1); 
+        `;
+
+        const [result] = await dbPool.execute(query, [projectId, date, name, startTime]);
+
+        if (result.affectedRows === 1) {
+            res.json({
+                success: true,
+                message: '工項新增成功。',
+                work_item_id: result.insertId
+            });
+        } else {
+            res.status(500).json({ success: false, message: '新增工項失敗。' });
+        }
+
+    } catch (error) {
+        console.error('Create Work Item error:', error);
+        res.status(500).json({ success: false, message: '伺服器錯誤：無法新增工項。' });
+    }
+});
+
+app.get('/api/work-items/selectors', async (req, res) => {
+    const { project_id } = req.query;
+    const dbPool = app.locals.dbPool;
+
+    if (!project_id) {
+        return res.status(400).json({ success: false, message: 'Project ID is required.' });
+    }
+
+    try {
+        const query = `
+            SELECT id, work_date, name
+            FROM work_items
+            WHERE project_id = ?
+            ORDER BY work_date, start_time;
+        `;
+        const [rows] = await dbPool.execute(query, [project_id]);
+
+        // 將扁平結果按日期分組 (前端邏輯所需)
+        const groupedData = {};
+        rows.forEach(row => {
+            // 格式化日期為 YYYY-MM-DD 字串
+            const date = row.work_date.toISOString().split('T')[0];
+            if (!groupedData[date]) {
+                groupedData[date] = [];
+            }
+            groupedData[date].push({ id: row.id, name: row.name });
+        });
+
+        res.json({ success: true, data: groupedData });
+
+    } catch (error) {
+        console.error('Work Item Selectors error:', error);
+        res.status(500).json({ success: false, message: 'Server error retrieving work item selectors.' });
+    }
+});
+
 app.get('/api/materials', async (req, res) => {
-  try {
-    const [materials] = await pool.query(
-      'SELECT * FROM Material ORDER BY Item_Description LIMIT 100'
-    );
+    const { category_id } = req.query;
+    const dbPool = app.locals.dbPool;
+
+    if (!category_id) {
+        return res.status(400).json({ success: false, message: 'Category ID is required.' });
+    }
+
+    try {
+        const query = `
+            SELECT material_id AS id, Item_Description 
+            FROM Material 
+            WHERE FK_category_id = ?  
+            ORDER BY Item_Description
+        `;
+        const [materials] = await dbPool.execute(query, [category_id]);
+
+        res.json({ success: true, materials: materials });
+
+    } catch (error) {
+        console.error('Material Options Fetch Error:', error);
+        res.status(500).json({ success: false, message: 'Server error retrieving material list.' });
+    }
+});
+
+app.get('/api/material-details', async (req, res) => {
+    const { material_id } = req.query;
+    const dbPool = app.locals.dbPool;
+
+    if (!material_id) {
+        return res.status(400).json({ success: false, message: 'Material ID is required.' });
+    }
+
+    try {
+        // 1. 查詢單位名稱 (Material JOIN UnitOfMeasure)
+        const unitQuery = `
+            SELECT T2.unit_name
+            FROM Material T1
+            JOIN UnitOfMeasure T2 ON T1.FK_unit_id = T2.unit_id
+            WHERE T1.material_id = ?
+        `;
+        const [unitRows] = await dbPool.execute(unitQuery, [material_id]);
+
+        // 2. 查詢所有供應商 (Transaction JOIN Company)
+        const vendorQuery = `
+            SELECT DISTINCT T3.name
+            FROM Transaction T2 
+            JOIN Company T3 ON T2.FK_company_id = T3.company_id
+            WHERE T2.FK_material_id = ? 
+        `;
+        const [vendorRows] = await dbPool.execute(vendorQuery, [material_id]);
+
+        const unitName = unitRows.length > 0 ? unitRows[0].unit_name : '';
+        const vendors = vendorRows.map(row => row.name);
+
+        res.json({
+            success: true,
+            unit_name: unitName,
+            vendors: vendors // 供應商列表
+        });
+
+    } catch (error) {
+        console.error('Material Details error:', error);
+        res.status(500).json({ success: false, message: 'Server error retrieving material details.' });
+    }
+});
+
+app.post('/api/materials-used', async (req, res) => {
+    // 預期前端傳來 work_item_id, material_name, vendor, qty, unit
+    const { work_item_id, material_name, vendor, qty, unit } = req.body;
+    const dbPool = app.locals.dbPool;
+    const default_status = 2; // 未叫貨 (Pending Order)
+
+    // 必填欄位檢查
+    if (!work_item_id || !material_name || qty === undefined || qty === null || isNaN(parseFloat(qty))) {
+        return res.status(400).json({ success: false, message: '工項 ID、建材名稱和數量是必需的。' });
+    }
+
+    try {
+        const query = `
+            INSERT INTO materials_used 
+            (work_item_id, material_name, vendor, qty, unit, material_status)
+            VALUES (?, ?, ?, ?, ?, ?);
+        `;
+
+        const [result] = await dbPool.execute(query, [
+            work_item_id,
+            material_name,
+            vendor || null,
+            qty,
+            unit || null,
+            default_status
+        ]);
+
+        if (result.affectedRows === 1) {
+            res.json({
+                success: true,
+                message: '建材紀錄新增成功。',
+                material_used_id: result.insertId
+            });
+        } else {
+            res.status(500).json({ success: false, message: '新增建材紀錄失敗。' });
+        }
+
+    } catch (error) {
+        console.error('Create Material Used error:', error);
+        res.status(500).json({ success: false, message: '伺服器錯誤：無法新增建材紀錄。' });
+    }
+});
+
+app.put('/api/work-items/:id/status', async (req, res) => {
+    const workItemId = req.params.id;
+    const { status } = req.body; // 預期接收新的狀態值 (0, 1, or 2)
+    const dbPool = app.locals.dbPool;
+
+    if (status === undefined) {
+        return res.status(400).json({ success: false, message: '新的狀態值是必需的。' });
+    }
+
+    try {
+        const query = `
+            UPDATE work_items
+            SET status = ?
+            WHERE id = ?;
+        `;
+        const [result] = await dbPool.execute(query, [status, workItemId]);
+
+        if (result.affectedRows === 1) {
+            res.json({ success: true, message: '工項狀態更新成功。' });
+        } else {
+            res.status(404).json({ success: false, message: '找不到該工項或狀態未更改。' });
+        }
+    } catch (error) {
+        console.error('Update Work Item Status error:', error);
+        res.status(500).json({ success: false, message: '伺服器錯誤：無法更新工項狀態。' });
+    }
+});
+
+app.put('/api/materials-used/:id/status', async (req, res) => {
+    const materialUsedId = req.params.id;
+    const { status } = req.body; // 預期接收新的狀態值 (0, 1, 2, or 3)
+    const dbPool = app.locals.dbPool;
+
+    if (status === undefined) {
+        return res.status(400).json({ success: false, message: '新的建材狀態值是必需的。' });
+    }
+
+    try {
+        const query = `
+            UPDATE materials_used
+            SET material_status = ?
+            WHERE id = ?;
+        `;
+        const [result] = await dbPool.execute(query, [status, materialUsedId]);
+
+        if (result.affectedRows === 1) {
+            res.json({ success: true, message: '建材狀態更新成功。' });
+        } else {
+            res.status(404).json({ success: false, message: '找不到該建材紀錄或狀態未更改。' });
+        }
+    } catch (error) {
+        console.error('Update Material Status error:', error);
+        res.status(500).json({ success: false, message: '伺服器錯誤：無法更新建材狀態。' });
+    }
+});
+
+app.get('/api/users/:id', async (req, res) => {
+    const userId = req.params.id;
+    const dbPool = app.locals.dbPool;
     
-    res.json({ success: true, materials });
-  } catch (error) {
-    console.error('Get materials error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
+    try {
+        const [rows] = await dbPool.execute(
+            'SELECT company_name, email, phone, subscription_plan FROM users WHERE id = ?', 
+            [userId]
+        );
+        
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        res.json({ success: true, user: rows[0] });
+    } catch (error) {
+        console.error('Get User Data error:', error);
+        res.status(500).json({ success: false, message: 'Server error retrieving user data.' });
+    }
 });
 
-// ==================== Start Server ====================
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('');
-  console.log('╔════════════════════════════════════════╗');
-  console.log('║   ✅ Procura Server Running            ║');
-  console.log('╠════════════════════════════════════════╣');
-  console.log(`║   🌐 URL: http://localhost:8080       ║`);
-  console.log(`║   📊 Database: ${dbConfig.database.padEnd(24)} ║`);
-  console.log('╚════════════════════════════════════════╝');
-  console.log('');
+app.put('/api/users/:id/password', async (req, res) => {
+    const userId = req.params.id;
+    const { oldPassword, newPassword } = req.body;
+    const dbPool = app.locals.dbPool;
+
+    try {
+        // 1. 驗證舊密碼
+        const [rows] = await dbPool.execute('SELECT password_hash FROM users WHERE id = ?', [userId]);
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'User not found.' });
+        
+        const user = rows[0];
+        const match = await bcrypt.compare(oldPassword, user.password_hash);
+        
+        if (!match) {
+            return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
+        }
+
+        // 2. 雜湊新密碼
+        const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+        // 3. 更新資料庫
+        const [result] = await dbPool.execute('UPDATE users SET password_hash = ? WHERE id = ?', [newPasswordHash, userId]);
+
+        if (result.affectedRows === 1) {
+            res.json({ success: true, message: 'Password updated successfully.' });
+        } else {
+            res.status(500).json({ success: false, message: 'Failed to update password.' });
+        }
+
+    } catch (error) {
+        console.error('Password Update error:', error);
+        res.status(500).json({ success: false, message: 'Server error during password update.' });
+    }
 });
 
-// Handle graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n🛑 Shutting down server...');
-  await pool.end();
-  process.exit(0);
-});
+app.put('/api/users/:id/profile', async (req, res) => {
+    const userId = req.params.id;
+    // 🚨 接收 email
+    const { company_name, phone, email, subscription_plan } = req.body; 
+    const dbPool = app.locals.dbPool;
 
-// ==================== Material Management APIs (Steven's Features) ====================
-// Add these endpoints to your server.js file after the existing routes
-
-// 1. ARRIVAL LOG & DELIVERY SCHEDULE
-// Get all arrival logs for a project's materials
-app.get('/api/project/:projectId/arrival-logs', async (req, res) => {
-  const { projectId } = req.params;
-  
-  try {
-    const [logs] = await pool.query(`
-      SELECT 
-        al.*,
-        mu.material_name,
-        mu.vendor,
-        wi.name as work_item_name
-      FROM material_arrival_logs al
-      JOIN materials_used mu ON al.material_id = mu.id
-      JOIN work_items wi ON mu.work_item_id = wi.id
-      WHERE wi.project_id = ?
-      ORDER BY al.expected_date DESC
-    `, [projectId]);
+    if (!company_name || !phone || !email || !subscription_plan) {
+        return res.status(400).json({ success: false, message: '所有欄位是必需的。' });
+    }
     
-    res.json({ success: true, logs });
-  } catch (error) {
-    console.error('Get arrival logs error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
+    try {
+        const query = `
+            UPDATE users
+            SET company_name = ?, phone = ?, email = ?, subscription_plan = ? 
+            WHERE id = ?;
+        `;
+
+        const [result] = await dbPool.execute(query, [company_name, phone, email, subscription_plan, userId]);
+
+        if (result.affectedRows === 1) {
+            res.json({ success: true, message: '帳號資訊更新成功。' });
+        } else {
+            res.status(404).json({ success: false, message: '找不到該用戶紀錄或資料未更改。' });
+        }
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ success: false, message: '此電子郵件已被其他帳號使用。' });
+        }
+        console.error('Update User Profile error:', error);
+        res.status(500).json({ success: false, message: '伺服器錯誤：無法更新帳號資訊。' });
+    }
 });
 
-// Add or update arrival log
-app.post('/api/materials/:materialId/arrival-log', async (req, res) => {
-  const { materialId } = req.params;
-  const { expected_date, actual_date, delivery_status, notes } = req.body;
-  
-  try {
-    const [result] = await pool.query(`
-      INSERT INTO material_arrival_logs 
-      (material_id, expected_date, actual_date, delivery_status, notes) 
-      VALUES (?, ?, ?, ?, ?)
-    `, [materialId, expected_date, actual_date, delivery_status || 'pending', notes]);
-    
-    res.json({ success: true, logId: result.insertId });
-  } catch (error) {
-    console.error('Add arrival log error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
+// 啟動伺服器
+app.listen(PORT, () => {
+    console.log(`[Express] Server running on port ${PORT}`);
+    console.log(`Access: http://localhost:${PORT}`);
 });
 
-// Get delayed shipments for a project
-app.get('/api/project/:projectId/delayed-shipments', async (req, res) => {
-  const { projectId } = req.params;
-  
-  try {
-    const [delayed] = await pool.query(`
-      SELECT 
-        al.*,
-        mu.material_name,
-        mu.vendor,
-        wi.name as work_item_name,
-        DATEDIFF(CURDATE(), al.expected_date) as days_delayed
-      FROM material_arrival_logs al
-      JOIN materials_used mu ON al.material_id = mu.id
-      JOIN work_items wi ON mu.work_item_id = wi.id
-      WHERE wi.project_id = ? 
-        AND al.delivery_status != 'delivered'
-        AND al.expected_date < CURDATE()
-      ORDER BY days_delayed DESC
-    `, [projectId]);
-    
-    res.json({ success: true, delayed });
-  } catch (error) {
-    console.error('Get delayed shipments error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
+// --- Vendor Management APIs ---
+
+// 0. 初始化 Vendor Ratings Table
+async function initVendorRatingsTable() {
+    const dbPool = app.locals.dbPool;
+    try {
+        const query = `
+            CREATE TABLE IF NOT EXISTS vendor_ratings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                vendor_name VARCHAR(255) NOT NULL,
+                rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+                comment TEXT,
+                project_id INT,
+                rated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `;
+        await dbPool.execute(query);
+        console.log('[MySQL] vendor_ratings table checked/created.');
+    } catch (error) {
+        console.error('[MySQL] Failed to init vendor_ratings table:', error);
+    }
+}
+// 在 DB 連線後呼叫
+setTimeout(() => {
+    if (app.locals.dbPool) initVendorRatingsTable();
+}, 1000);
+
+
+// 1. Get Unique Vendors (from materials_used & Company)
+app.get('/api/vendors', async (req, res) => {
+    const dbPool = app.locals.dbPool;
+    try {
+        // User Requirement: 
+        // 1. Show supplier data (from Company table).
+        // 2. Ensure vendors with "Arrived" status (from materials_used) are included.
+
+        const query = `
+            SELECT name AS vendor FROM Company
+            UNION
+            SELECT DISTINCT vendor FROM materials_used WHERE vendor IS NOT NULL AND vendor != ''
+            ORDER BY vendor;
+        `;
+        const [rows] = await dbPool.execute(query);
+        const vendors = rows.map(r => r.vendor);
+        res.json({ success: true, vendors });
+    } catch (error) {
+        console.error('Get Vendors error:', error);
+        res.status(500).json({ success: false, message: 'Server error retrieving vendors.' });
+    }
 });
 
-// 2. QUALITY SCORE & INSPECTION
-// Add quality score for a material
-app.post('/api/materials/:materialId/quality-score', async (req, res) => {
-  const { materialId } = req.params;
-  const { score, inspector_name, inspection_date, notes } = req.body;
-  
-  try {
-    const [result] = await pool.query(`
-      INSERT INTO material_quality_scores 
-      (material_id, score, inspector_name, inspection_date, notes) 
-      VALUES (?, ?, ?, ?, ?)
-    `, [materialId, score, inspector_name, inspection_date, notes]);
-    
-    res.json({ success: true, scoreId: result.insertId });
-  } catch (error) {
-    console.error('Add quality score error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
+// 2. Add Vendor Rating
+app.post('/api/vendor-ratings', async (req, res) => {
+    const { vendor_name, rating, comment, project_id } = req.body;
+    const dbPool = app.locals.dbPool;
+
+    if (!vendor_name || !rating) {
+        return res.status(400).json({ success: false, message: 'Vendor name and rating are required.' });
+    }
+
+    try {
+        const query = `
+            INSERT INTO vendor_ratings (vendor_name, rating, comment, project_id)
+            VALUES (?, ?, ?, ?)
+        `;
+        const [result] = await dbPool.execute(query, [vendor_name, rating, comment || '', project_id || null]);
+
+        if (result.affectedRows === 1) {
+            res.json({ success: true, message: 'Rating added successfully.' });
+        } else {
+            res.status(500).json({ success: false, message: 'Failed to add rating.' });
+        }
+    } catch (error) {
+        console.error('Add Vendor Rating error:', error);
+        res.status(500).json({ success: false, message: 'Server error adding rating.' });
+    }
 });
 
-// Get quality history for a material
-app.get('/api/materials/:materialId/quality-history', async (req, res) => {
-  const { materialId } = req.params;
-  
-  try {
-    const [history] = await pool.query(`
-      SELECT * FROM material_quality_scores 
-      WHERE material_id = ? 
-      ORDER BY inspection_date DESC
-    `, [materialId]);
-    
-    res.json({ success: true, history });
-  } catch (error) {
-    console.error('Get quality history error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
+// 3. Get Vendor Ratings
+app.get('/api/vendor-ratings', async (req, res) => {
+    const { vendor_name } = req.query;
+    const dbPool = app.locals.dbPool;
+
+    if (!vendor_name) {
+        return res.status(400).json({ success: false, message: 'Vendor name is required.' });
+    }
+
+    try {
+        const query = `
+            SELECT * FROM vendor_ratings 
+            WHERE vendor_name = ? 
+            ORDER BY rated_at DESC
+        `;
+        const [rows] = await dbPool.execute(query, [vendor_name]);
+        res.json({ success: true, ratings: rows });
+    } catch (error) {
+        console.error('Get Vendor Ratings error:', error);
+        res.status(500).json({ success: false, message: 'Server error retrieving ratings.' });
+    }
 });
 
-// Get inspection checklist template
-app.get('/api/inspection-checklist', async (req, res) => {
-  try {
-    const [checklist] = await pool.query(`
-      SELECT * FROM inspection_checklist_items ORDER BY category, item_order
-    `);
-    
-    res.json({ success: true, checklist });
-  } catch (error) {
-    console.error('Get checklist error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
-});
+// 4. Get Vendor Performance Stats (Grouped by Category)
+app.get('/api/vendor-performance', async (req, res) => {
+    const dbPool = app.locals.dbPool;
+    try {
+        // 1. Get Ratings (Global per vendor)
+        const ratingQuery = `
+            SELECT 
+                vendor_name, 
+                AVG(rating) as avg_rating, 
+                COUNT(*) as rating_count 
+            FROM vendor_ratings 
+            GROUP BY vendor_name
+        `;
+        const [ratingRows] = await dbPool.execute(ratingQuery);
+        const ratingMap = {};
+        ratingRows.forEach(r => {
+            ratingMap[r.vendor_name] = {
+                avg: parseFloat(r.avg_rating),
+                count: r.rating_count
+            };
+        });
 
-// Submit inspection checklist result
-app.post('/api/materials/:materialId/inspection', async (req, res) => {
-  const { materialId } = req.params;
-  const { inspector_name, inspection_date, checklist_results, overall_pass } = req.body;
-  
-  try {
-    const [result] = await pool.query(`
-      INSERT INTO material_inspections 
-      (material_id, inspector_name, inspection_date, checklist_results, overall_pass) 
-      VALUES (?, ?, ?, ?, ?)
-    `, [materialId, inspector_name, inspection_date, JSON.stringify(checklist_results), overall_pass]);
-    
-    res.json({ success: true, inspectionId: result.insertId });
-  } catch (error) {
-    console.error('Add inspection error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
-});
+        // 2. Get Orders grouped by Category and Vendor
+        // Join materials_used -> Material -> MaterialCategory
+        const orderQuery = `
+            SELECT 
+                mu.vendor,
+                COALESCE(mc.category_name, 'Other') as category_name,
+                COUNT(*) as order_count
+            FROM materials_used mu
+            LEFT JOIN Material m ON mu.material_name = m.Item_Description
+            LEFT JOIN MaterialCategory mc ON m.FK_category_id = mc.category_id
+            WHERE mu.vendor IS NOT NULL AND mu.vendor != ''
+            GROUP BY mu.vendor, mc.category_name
+        `;
+        const [orderRows] = await dbPool.execute(orderQuery);
 
-// 3. DEFECT REPORT SYSTEM
-// Submit defect report
-app.post('/api/materials/:materialId/defect-report', async (req, res) => {
-  const { materialId } = req.params;
-  const { defect_type, severity, description, reported_by, report_date } = req.body;
-  
-  try {
-    const [result] = await pool.query(`
-      INSERT INTO material_defect_reports 
-      (material_id, defect_type, severity, description, reported_by, report_date, status) 
-      VALUES (?, ?, ?, ?, ?, ?, 'open')
-    `, [materialId, defect_type, severity, description, reported_by, report_date]);
-    
-    res.json({ success: true, reportId: result.insertId });
-  } catch (error) {
-    console.error('Add defect report error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
-});
+        // 3. Process and Group Data
+        const categoryGroups = {};
 
-// Get all defect reports for a project
-app.get('/api/project/:projectId/defect-reports', async (req, res) => {
-  const { projectId } = req.params;
-  
-  try {
-    const [reports] = await pool.query(`
-      SELECT 
-        dr.*,
-        mu.material_name,
-        mu.vendor
-      FROM material_defect_reports dr
-      JOIN materials_used mu ON dr.material_id = mu.id
-      JOIN work_items wi ON mu.work_item_id = wi.id
-      WHERE wi.project_id = ?
-      ORDER BY dr.report_date DESC
-    `, [projectId]);
-    
-    res.json({ success: true, reports });
-  } catch (error) {
-    console.error('Get defect reports error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
-});
+        orderRows.forEach(row => {
+            const cat = row.category_name;
+            const vendor = row.vendor;
+            const rData = ratingMap[vendor] || { avg: 0, count: 0 };
 
-// 4. MATERIAL TESTING RESULTS
-// Add test result
-app.post('/api/materials/:materialId/test-results', async (req, res) => {
-  const { materialId } = req.params;
-  const { test_type, test_date, result_value, pass_fail, tester_name, notes } = req.body;
-  
-  try {
-    const [result] = await pool.query(`
-      INSERT INTO material_test_results 
-      (material_id, test_type, test_date, result_value, pass_fail, tester_name, notes) 
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [materialId, test_type, test_date, result_value, pass_fail, tester_name, notes]);
-    
-    res.json({ success: true, testId: result.insertId });
-  } catch (error) {
-    console.error('Add test result error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
-});
+            if (!categoryGroups[cat]) {
+                categoryGroups[cat] = [];
+            }
 
-// Get test results for a material
-app.get('/api/materials/:materialId/test-results', async (req, res) => {
-  const { materialId } = req.params;
-  
-  try {
-    const [results] = await pool.query(`
-      SELECT * FROM material_test_results 
-      WHERE material_id = ? 
-      ORDER BY test_date DESC
-    `, [materialId]);
-    
-    res.json({ success: true, results });
-  } catch (error) {
-    console.error('Get test results error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
-});
+            categoryGroups[cat].push({
+                vendor_name: vendor,
+                order_count: row.order_count,
+                avg_rating: rData.avg.toFixed(1),
+                rating_count: rData.count
+            });
+        });
 
-// 5. INVENTORY TRACKING
-// Get inventory levels for a project
-app.get('/api/project/:projectId/inventory', async (req, res) => {
-  const { projectId } = req.params;
-  
-  try {
-    const [inventory] = await pool.query(`
-      SELECT 
-        mu.material_name,
-        mu.vendor,
-        SUM(mu.quantity) as total_ordered,
-        COALESCE(SUM(mi.quantity_received), 0) as total_received,
-        (SUM(mu.quantity) - COALESCE(SUM(mi.quantity_received), 0)) as remaining,
-        mu.unit
-      FROM materials_used mu
-      JOIN work_items wi ON mu.work_item_id = wi.id
-      LEFT JOIN material_inventory mi ON mu.id = mi.material_id
-      WHERE wi.project_id = ?
-      GROUP BY mu.material_name, mu.vendor, mu.unit
-    `, [projectId]);
-    
-    res.json({ success: true, inventory });
-  } catch (error) {
-    console.error('Get inventory error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
-});
+        // 4. Sort and Limit (Top 3 per category)
+        const result = [];
+        for (const [cat, vendors] of Object.entries(categoryGroups)) {
+            // Sort by Rating (desc), then Order Count (desc)
+            vendors.sort((a, b) => {
+                if (b.avg_rating !== a.avg_rating) return b.avg_rating - a.avg_rating;
+                return b.order_count - a.order_count;
+            });
 
-// Update inventory (when materials arrive)
-app.post('/api/materials/:materialId/inventory-update', async (req, res) => {
-  const { materialId } = req.params;
-  const { quantity_received, received_date, notes } = req.body;
-  
-  try {
-    const [result] = await pool.query(`
-      INSERT INTO material_inventory 
-      (material_id, quantity_received, received_date, notes) 
-      VALUES (?, ?, ?, ?)
-    `, [materialId, quantity_received, received_date, notes]);
-    
-    res.json({ success: true, inventoryId: result.insertId });
-  } catch (error) {
-    console.error('Update inventory error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
-});
+            result.push({
+                category: cat,
+                vendors: vendors.slice(0, 3) // Top 3
+            });
+        }
 
-// Get reorder alerts (low stock items)
-app.get('/api/project/:projectId/reorder-alerts', async (req, res) => {
-  const { projectId } = req.params;
-  
-  try {
-    const [alerts] = await pool.query(`
-      SELECT 
-        mu.material_name,
-        mu.vendor,
-        SUM(mu.quantity) as total_needed,
-        COALESCE(SUM(mi.quantity_received), 0) as total_received,
-        (SUM(mu.quantity) - COALESCE(SUM(mi.quantity_received), 0)) as shortage,
-        mu.unit
-      FROM materials_used mu
-      JOIN work_items wi ON mu.work_item_id = wi.id
-      LEFT JOIN material_inventory mi ON mu.id = mi.material_id
-      WHERE wi.project_id = ?
-      GROUP BY mu.material_name, mu.vendor, mu.unit
-      HAVING shortage > 0
-      ORDER BY shortage DESC
-    `, [projectId]);
-    
-    res.json({ success: true, alerts });
-  } catch (error) {
-    console.error('Get reorder alerts error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
-});
+        // Sort categories alphabetically or by some priority if needed
+        result.sort((a, b) => a.category.localeCompare(b.category));
 
-// 6. COST ANALYSIS
-// Get cost analysis for a project
-app.get('/api/project/:projectId/cost-analysis', async (req, res) => {
-  const { projectId } = req.params;
-  
-  try {
-    const [costs] = await pool.query(`
-      SELECT 
-        mu.material_name,
-        mu.vendor,
-        SUM(mu.quantity) as total_quantity,
-        mu.unit,
-        AVG(mu.unit_price) as avg_price,
-        SUM(mu.quantity * mu.unit_price) as total_cost
-      FROM materials_used mu
-      JOIN work_items wi ON mu.work_item_id = wi.id
-      WHERE wi.project_id = ?
-      GROUP BY mu.material_name, mu.vendor, mu.unit
-      ORDER BY total_cost DESC
-    `, [projectId]);
-    
-    res.json({ success: true, costs });
-  } catch (error) {
-    console.error('Get cost analysis error:', error);
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
+        res.json({ success: true, data: result });
+
+    } catch (error) {
+        console.error('Get Vendor Performance error:', error);
+        res.status(500).json({ success: false, message: 'Server error retrieving performance data.' });
+    }
 });
 
 // ==================== Material Management APIs (Steven's Features) ====================
