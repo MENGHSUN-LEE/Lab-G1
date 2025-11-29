@@ -8,7 +8,6 @@ let currentProjectId = null;
 export async function initInventoryTracking(projectId) {
     currentProjectId = projectId;
     
-    // Load inventory data and reorder alerts
     await Promise.all([
         loadInventoryData(),
         loadReorderAlerts()
@@ -55,7 +54,6 @@ function renderInventoryTable(inventory) {
         const totalReceived = parseFloat(item.total_received) || 0;
         const remaining = parseFloat(item.remaining) || 0;
         
-        // Calculate stock status
         let stockStatus = '';
         let stockColor = '';
         
@@ -73,6 +71,9 @@ function renderInventoryTable(inventory) {
             stockColor = '#FF9800';
         }
         
+        // Calculate percentage
+        const percentReceived = totalOrdered > 0 ? (totalReceived / totalOrdered * 100) : 0;
+        
         return `
             <tr>
                 <td><strong>${item.material_name}</strong></td>
@@ -85,9 +86,12 @@ function renderInventoryTable(inventory) {
                     <span style="padding: 4px 8px; border-radius: 4px; background: ${stockColor}; color: white; font-size: 0.85em;">
                         ${stockStatus}
                     </span>
+                    <div style="margin-top: 4px; font-size: 0.85em; color: #666;">
+                        ${percentReceived.toFixed(0)}% received
+                    </div>
                 </td>
                 <td>
-                    <button class="btn-sm" onclick="window.updateInventory('${item.material_name}', '${item.vendor}')">
+                    <button class="btn-sm" onclick="window.updateInventory(${item.material_used_id}, '${item.material_name}', ${totalOrdered}, ${totalReceived}, '${item.unit || ''}')">
                         Update
                     </button>
                 </td>
@@ -174,8 +178,10 @@ async function loadReorderAlerts() {
     }
 }
 
-/** Update inventory (called from table button) */
-window.updateInventory = function(materialName, vendor) {
+/** Update inventory - ENHANCED: Shows context and updates status automatically */
+window.updateInventory = function(materialId, materialName, totalOrdered, totalReceived, unit) {
+    const remaining = totalOrdered - totalReceived;
+    
     const dialog = document.createElement('div');
     dialog.className = 'modal-overlay';
     dialog.innerHTML = `
@@ -185,26 +191,31 @@ window.updateInventory = function(materialName, vendor) {
                 <button class="btn-close" onclick="this.closest('.modal-overlay').remove()">×</button>
             </div>
             <div class="modal-body">
-                <div class="stack">
-                    <p><strong>Material:</strong> ${materialName}</p>
-                    <p><strong>Vendor:</strong> ${vendor || 'Unknown'}</p>
+                <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin-bottom: 15px;">
+                    <strong>${materialName}</strong>
+                    <div style="margin-top: 8px; font-size: 0.9em;">
+                        <div>Ordered: ${totalOrdered.toFixed(2)} ${unit}</div>
+                        <div>Received: ${totalReceived.toFixed(2)} ${unit}</div>
+                        <div><strong>Remaining: ${remaining.toFixed(2)} ${unit}</strong></div>
+                    </div>
                 </div>
-                <div class="stack">
-                    <label>Material ID</label>
-                    <input type="number" id="update-material-id" placeholder="Enter material ID" required />
-                    <small class="muted">Find material ID in Materials Management tab</small>
+                
+                <div class="form-group">
+                    <label>Quantity Received *</label>
+                    <input type="number" id="update-quantity" class="form-control" 
+                           min="0" max="${remaining}" step="0.01" 
+                           placeholder="Enter quantity received" required />
+                    <small style="color: #666;">Maximum: ${remaining.toFixed(2)} ${unit}</small>
                 </div>
-                <div class="stack">
-                    <label>Quantity Received</label>
-                    <input type="number" id="update-quantity" min="0" step="0.01" placeholder="0" required />
+                <div class="form-group">
+                    <label>Received Date *</label>
+                    <input type="date" id="update-received-date" class="form-control" 
+                           value="${new Date().toISOString().split('T')[0]}" required />
                 </div>
-                <div class="stack">
-                    <label>Received Date</label>
-                    <input type="date" id="update-received-date" required />
-                </div>
-                <div class="stack">
+                <div class="form-group">
                     <label>Notes</label>
-                    <textarea id="update-notes" rows="3" placeholder="Delivery notes..."></textarea>
+                    <textarea id="update-notes" class="form-control" rows="3" 
+                              placeholder="Delivery notes, condition, etc..."></textarea>
                 </div>
             </div>
             <div class="modal-footer">
@@ -216,24 +227,33 @@ window.updateInventory = function(materialName, vendor) {
     
     document.body.appendChild(dialog);
     
-    // Save button handler
     document.getElementById('save-inventory-update-btn').addEventListener('click', async () => {
-        const materialId = document.getElementById('update-material-id').value;
         const quantity = document.getElementById('update-quantity').value;
         const receivedDate = document.getElementById('update-received-date').value;
         const notes = document.getElementById('update-notes').value;
         
-        if (!materialId || !quantity || !receivedDate) {
+        if (!quantity || !receivedDate) {
             alert('Please fill in all required fields');
             return;
         }
+        
+        const qtyNum = parseFloat(quantity);
+        if (qtyNum > remaining) {
+            alert(`Quantity cannot exceed remaining amount (${remaining.toFixed(2)} ${unit})`);
+            return;
+        }
+        
+        // Disable button to prevent double-submit
+        const saveBtn = document.getElementById('save-inventory-update-btn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
         
         try {
             const response = await fetch(`/api/materials/${materialId}/inventory-update`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    quantity_received: parseFloat(quantity),
+                    quantity_received: qtyNum,
                     received_date: receivedDate,
                     notes: notes
                 })
@@ -242,23 +262,40 @@ window.updateInventory = function(materialName, vendor) {
             const result = await response.json();
             
             if (result.success) {
-                showToast('Inventory updated successfully!', 'success');
+                // Show detailed success message
+                const newRemaining = result.status?.remaining || 0;
+                const isFullyReceived = result.status?.is_fully_received || false;
+                
+                let successMsg = 'Inventory updated successfully!';
+                if (isFullyReceived) {
+                    successMsg += ' Material is now fully received and status updated to "Arrived".';
+                } else {
+                    successMsg += ` ${newRemaining.toFixed(2)} ${unit} remaining.`;
+                }
+                
+                showToast(successMsg, 'success');
                 dialog.remove();
                 
-                // Reload data
-                await loadInventoryData();
-                await loadReorderAlerts();
+                // Reload data to reflect changes
+                await Promise.all([
+                    loadInventoryData(),
+                    loadReorderAlerts()
+                ]);
             } else {
                 alert('Error: ' + result.message);
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save Update';
             }
         } catch (error) {
             console.error('Error updating inventory:', error);
-            alert('Network error');
+            alert('Network error. Please try again.');
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Update';
         }
     });
 };
 
-/** Place reorder (called from alert button) */
+/** Place reorder */
 window.placeReorder = function(materialName, vendor, quantity) {
     const confirmed = confirm(
         `Place reorder for:\n\n` +
@@ -269,10 +306,94 @@ window.placeReorder = function(materialName, vendor, quantity) {
     );
     
     if (confirmed) {
-        // In production, this would create an order request
         showToast(`Reorder request sent to ${vendor}`, 'success');
-        
-        // You could integrate with vendor management here
-        // or create a pending order in the database
     }
 };
+
+// Add required styles for modal (only once)
+if (!document.getElementById('inventory-modal-styles')) {
+    const style = document.createElement('style');
+    style.id = 'inventory-modal-styles';
+    style.textContent = `
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .modal-dialog {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-height: 90vh;
+            overflow-y: auto;
+            width: 100%;
+            margin: 20px;
+        }
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 {
+            margin: 0;
+        }
+        .modal-body {
+            padding: 20px;
+        }
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #ddd;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .btn-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        .btn-close:hover {
+            color: #000;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.85em;
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    `;
+    document.head.appendChild(style);
+}

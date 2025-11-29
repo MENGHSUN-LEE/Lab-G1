@@ -4,13 +4,7 @@
 export const materialOverviewContent = `
     <div class="stack" style="gap: 25px;">
         <!-- Feature Navigation Cards -->
-        <div class="grid cols-4" style="gap: 15px;">
-            <div class="card clickable" data-feature="arrival" style="padding: 20px; text-align: center; cursor: pointer; transition: transform 0.2s;">
-                <span class="material-symbols-outlined" style="font-size: 48px; color: #4CAF50;">local_shipping</span>
-                <h4 style="margin: 10px 0 5px;">Arrival Log</h4>
-                <p class="muted" style="font-size: 0.9em;">Track deliveries & schedules</p>
-            </div>
-            
+        <div class="grid cols-4" style="gap: 15px;">            
             <div class="card clickable" data-feature="quality" style="padding: 20px; text-align: center; cursor: pointer; transition: transform 0.2s;">
                 <span class="material-symbols-outlined" style="font-size: 48px; color: #2196F3;">verified</span>
                 <h4 style="margin: 10px 0 5px;">Quality Score</h4>

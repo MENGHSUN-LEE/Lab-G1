@@ -8,15 +8,12 @@ let currentProjectId = null;
 export async function initArrivalLog(projectId) {
     currentProjectId = projectId;
     
-    // Load arrival logs and delayed shipments
     await Promise.all([
         loadArrivalLogs(),
         loadDelayedShipments()
     ]);
     
-    // Setup event listeners
     setupArrivalLogListeners();
-    
     console.log('✅ Arrival Log initialized');
 }
 
@@ -55,13 +52,11 @@ function renderArrivalLogsTable(logs) {
         const actualDate = log.actual_date ? new Date(log.actual_date) : null;
         const today = new Date();
         
-        // Calculate days delayed
         let daysDelayed = 0;
         if (log.delivery_status !== 'delivered') {
             daysDelayed = Math.floor((today - expectedDate) / (1000 * 60 * 60 * 24));
         }
         
-        // Status badge styling
         const statusColors = {
             'pending': 'background: #fff3cd; color: #856404;',
             'in_transit': 'background: #cfe2ff; color: #084298;',
@@ -123,13 +118,11 @@ async function loadDelayedShipments() {
 
 /** Setup event listeners */
 function setupArrivalLogListeners() {
-    // Add Delivery button
     const addBtn = document.getElementById('add-arrival-btn');
     if (addBtn) {
         addBtn.addEventListener('click', showAddArrivalDialog);
     }
     
-    // Filter listeners
     const statusFilter = document.getElementById('arrival-status-filter');
     const dateFrom = document.getElementById('arrival-date-from');
     const dateTo = document.getElementById('arrival-date-to');
@@ -139,8 +132,30 @@ function setupArrivalLogListeners() {
     });
 }
 
-/** Show dialog to add new arrival log */
-function showAddArrivalDialog() {
+/** Show dialog to add new arrival log - FIXED with material dropdown */
+async function showAddArrivalDialog() {
+    // First, fetch available materials
+    let materialsHTML = '<option value="">Loading materials...</option>';
+    
+    try {
+        const response = await fetch(`/api/project/${currentProjectId}/materials-for-delivery`);
+        const data = await response.json();
+        
+        if (data.success && data.materials) {
+            if (data.materials.length === 0) {
+                materialsHTML = '<option value="">No materials found in this project</option>';
+            } else {
+                materialsHTML = '<option value="">-- Select Material --</option>' +
+                    data.materials.map(m => 
+                        `<option value="${m.id}">${m.label}</option>`
+                    ).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading materials:', error);
+        materialsHTML = '<option value="">Error loading materials</option>';
+    }
+    
     const dialog = document.createElement('div');
     dialog.className = 'modal-overlay';
     dialog.innerHTML = `
@@ -150,29 +165,31 @@ function showAddArrivalDialog() {
                 <button class="btn-close" onclick="this.closest('.modal-overlay').remove()">×</button>
             </div>
             <div class="modal-body">
-                <div class="stack">
-                    <label>Material ID</label>
-                    <input type="number" id="new-arrival-material-id" placeholder="Enter material ID" required />
+                <div class="form-group">
+                    <label>Material *</label>
+                    <select id="new-arrival-material-id" class="form-control" required>
+                        ${materialsHTML}
+                    </select>
                 </div>
-                <div class="stack">
-                    <label>Expected Delivery Date</label>
-                    <input type="date" id="new-arrival-expected-date" required />
+                <div class="form-group">
+                    <label>Expected Delivery Date *</label>
+                    <input type="date" id="new-arrival-expected-date" class="form-control" required />
                 </div>
-                <div class="stack">
+                <div class="form-group">
                     <label>Delivery Status</label>
-                    <select id="new-arrival-status">
+                    <select id="new-arrival-status" class="form-control">
                         <option value="pending">Pending</option>
                         <option value="in_transit">In Transit</option>
                         <option value="delivered">Delivered</option>
                     </select>
                 </div>
-                <div class="stack">
+                <div class="form-group">
                     <label>Actual Delivery Date (Optional)</label>
-                    <input type="date" id="new-arrival-actual-date" />
+                    <input type="date" id="new-arrival-actual-date" class="form-control" />
                 </div>
-                <div class="stack">
+                <div class="form-group">
                     <label>Notes</label>
-                    <textarea id="new-arrival-notes" rows="3" placeholder="Additional notes..."></textarea>
+                    <textarea id="new-arrival-notes" class="form-control" rows="3" placeholder="Additional notes..."></textarea>
                 </div>
             </div>
             <div class="modal-footer">
@@ -184,7 +201,6 @@ function showAddArrivalDialog() {
     
     document.body.appendChild(dialog);
     
-    // Save button handler
     document.getElementById('save-arrival-btn').addEventListener('click', async () => {
         const materialId = document.getElementById('new-arrival-material-id').value;
         const expectedDate = document.getElementById('new-arrival-expected-date').value;
@@ -193,7 +209,7 @@ function showAddArrivalDialog() {
         const notes = document.getElementById('new-arrival-notes').value;
         
         if (!materialId || !expectedDate) {
-            alert('Please fill in required fields');
+            alert('Please select a material and enter expected delivery date');
             return;
         }
         
@@ -236,19 +252,17 @@ function applyArrivalFilters() {
     
     rows.forEach(row => {
         const cells = row.querySelectorAll('td');
-        if (cells.length < 5) return; // Skip empty rows
+        if (cells.length < 5) return;
         
         const status = cells[4].textContent.trim().toLowerCase();
         const expectedDate = cells[2].textContent.trim();
         
         let show = true;
         
-        // Status filter
         if (statusFilter && !status.includes(statusFilter)) {
             show = false;
         }
         
-        // Date range filter
         if (dateFrom && expectedDate < dateFrom) {
             show = false;
         }
@@ -260,64 +274,90 @@ function applyArrivalFilters() {
     });
 }
 
-/** Update existing arrival log (called from table button) */
+/** Update existing arrival log */
 window.updateArrivalLog = function(logId) {
-    // Implementation for updating existing log
     showToast('Update feature - coming soon!', 'info');
 };
 
-// Add modal styles
-const style = document.createElement('style');
-style.textContent = `
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0,0,0,0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-    }
-    .modal-dialog {
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        max-height: 90vh;
-        overflow-y: auto;
-    }
-    .modal-header {
-        padding: 20px;
-        border-bottom: 1px solid #ddd;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .modal-body {
-        padding: 20px;
-    }
-    .modal-footer {
-        padding: 15px 20px;
-        border-top: 1px solid #ddd;
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-    }
-    .btn-close {
-        background: none;
-        border: none;
-        font-size: 24px;
-        cursor: pointer;
-        color: #666;
-    }
-    .btn-close:hover {
-        color: #000;
-    }
-    .btn-sm {
-        padding: 4px 8px;
-        font-size: 0.85em;
-    }
-`;
-document.head.appendChild(style);
+// Add required styles for modal (only once)
+if (!document.getElementById('arrival-modal-styles')) {
+    const style = document.createElement('style');
+    style.id = 'arrival-modal-styles';
+    style.textContent = `
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .modal-dialog {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-height: 90vh;
+            overflow-y: auto;
+            width: 100%;
+            margin: 20px;
+        }
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 {
+            margin: 0;
+        }
+        .modal-body {
+            padding: 20px;
+        }
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #ddd;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .btn-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        .btn-close:hover {
+            color: #000;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.85em;
+        }
+    `;
+    document.head.appendChild(style);
+}
