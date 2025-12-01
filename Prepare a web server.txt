@@ -689,6 +689,57 @@ CREATE TABLE IF NOT EXISTS material_test_results (
     INDEX idx_test_date (test_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 1201 update
+
+-- 1. Add 'unit_price' column to materials_used (Required for Price Analysis)
+-- If this column already exists, this command might fail or warn, which is fine.
+ALTER TABLE materials_used 
+ADD COLUMN unit_price DECIMAL(10,2) DEFAULT 0.00;
+
+-- 2. Create 'material_arrival_logs' (Required for Delivery Punctuality)
+CREATE TABLE IF NOT EXISTS material_arrival_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    expected_date DATE NOT NULL,
+    actual_date DATE NULL,
+    delivery_status ENUM('pending', 'in_transit', 'delivered', 'delayed') DEFAULT 'pending',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE
+);
+
+-- 3. Create 'vendor_ratings' (Required for Vendor Rating History)
+CREATE TABLE IF NOT EXISTS vendor_ratings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    vendor_name VARCHAR(255) NOT NULL,
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    project_id INT,
+    rated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. Create 'material_quality_scores' (Required for Quality Control)
+CREATE TABLE IF NOT EXISTS material_quality_scores (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    score DECIMAL(3,1) NOT NULL CHECK (score >= 0 AND score <= 10),
+    inspector_name VARCHAR(100) NOT NULL,
+    inspection_date DATE NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE
+);
+
+-- 5. Create 'material_inventory' (Required for Inventory Tracking)
+CREATE TABLE IF NOT EXISTS material_inventory (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    quantity_received DECIMAL(10,2) NOT NULL,
+    received_date DATE NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE
+);
 --------Step2 建立的虛擬機--------
 
 -- 2.1 建立帳號密碼連接assignment-mysql的table --

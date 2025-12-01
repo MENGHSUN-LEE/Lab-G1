@@ -6,7 +6,7 @@ import { renderMaterialsTable } from './materials.js';
 import { setActiveTab } from '../common.js';
 import { MATERIAL_CATEGORIES, WORK_STATUS, MAT_STATUS } from '../../constants.js';
 
-let workItemsGroupedByDate = {}; 
+let workItemsGroupedByDate = {};
 let materialMasterList = [];
 
 /** 取得新增頁面所有相關 DOM 元素 */
@@ -67,19 +67,19 @@ export async function syncCreateSelectors() {
         } else {
             console.error('Failed to load work item selectors:', result.message);
         }
-    
+
     } catch (error) {
         console.error('Work Item Selector Fetch Error:', error);
     }
 
     if (matCategorySel) {
-        let options = '<option value="0">-- 請選擇類別 --</option>'; 
-        options += MATERIAL_CATEGORIES.map(c => 
+        let options = '<option value="0">-- 請選擇類別 --</option>';
+        options += MATERIAL_CATEGORIES.map(c =>
             `<option value="${c.id}">${c.name}</option>`
         ).join("");
-        
+
         matCategorySel.innerHTML = options;
-        syncMaterialOptions(matCategorySel.value); 
+        syncMaterialOptions(matCategorySel.value);
     }
 }
 
@@ -98,11 +98,11 @@ async function syncMaterialOptions(categoryId) {
         const result = await response.json();
 
         if (result.success && matDatalist) {
-        materialMasterList = result.materials; 
-        const options = result.materials.map(m => 
-            `<option value="${m.Item_Description}"></option>`
-        ).join('');
-        matDatalist.innerHTML = options;   
+            materialMasterList = result.materials;
+            const options = result.materials.map(m =>
+                `<option value="${m.Item_Description}"></option>`
+            ).join('');
+            matDatalist.innerHTML = options;
         } else {
             matDatalist.innerHTML = `<option value="載入錯誤: ${result.message}"></option>`;
         }
@@ -113,7 +113,7 @@ async function syncMaterialOptions(categoryId) {
 }
 
 /** 綁定新增功能事件 */
-export function bindCreateEvents(){
+export function bindCreateEvents() {
     const elements = getCreateElements();
     const { matDateSel, matWorkSel, matCategorySel, matName, matQty, matVendor, matUnit, matVendorDatalist, createDate, createWorkName, createStartTime, } = elements;
 
@@ -122,7 +122,7 @@ export function bindCreateEvents(){
             const selectedDescription = matName.value;
             // 從緩存中查找用戶選擇的 material_id
             const selectedMaterial = materialMasterList.find(m => m.Item_Description === selectedDescription);
-            
+
             // 如果找不到匹配的建材，清空所有聯動欄位
             if (!selectedMaterial) {
                 matUnit.value = '';
@@ -142,7 +142,7 @@ export function bindCreateEvents(){
 
                     // 2. 填充 "供應商" datalist
                     if (matVendorDatalist && result.vendors?.length > 0) {
-                        const vendorOptions = result.vendors.map(v => 
+                        const vendorOptions = result.vendors.map(v =>
                             `<option value="${v}"></option>`
                         ).join('');
                         matVendorDatalist.innerHTML = vendorOptions;
@@ -163,10 +163,10 @@ export function bindCreateEvents(){
     }
 
     if (matCategorySel) {
-      matCategorySel.onchange = () => {
-          syncMaterialOptions(matCategorySel.value);
-      };
-      syncMaterialOptions(matCategorySel.value);
+        matCategorySel.onchange = () => {
+            syncMaterialOptions(matCategorySel.value);
+        };
+        syncMaterialOptions(matCategorySel.value);
     }
 
     if (addWorkBtn) {
@@ -215,57 +215,57 @@ export function bindCreateEvents(){
     }
 
     if (addMaterialBtn) {
-      addMaterialBtn.onclick = async ()=>{
-          const proj = state.currentProject;
-          const d = matDateSel?.value;
-          const workId = matWorkSel?.value;
-          
-          const name = (matName?.value||"").trim();
-          const vendor = (matVendor?.value||"").trim();
-          const qty = Number(matQty?.value||0);
-          const unit = (matUnit?.value||"").trim();
-          
-          if(!workId || !name || qty <= 0){ 
-              alert("請選擇日期/工項，並填寫有效的建材名稱與數量。"); 
-              return; 
-          }
-          if(!proj?.id) { alert("專案 ID 遺失，請重新載入專案。"); return; }
-          
-          const materialData = {
-              work_item_id: parseInt(workId, 10),
-              material_name: name,
-              vendor: vendor,
-              qty: qty,
-              unit: unit
-          };
+        addMaterialBtn.onclick = async () => {
+            const proj = state.currentProject;
+            const d = matDateSel?.value;
+            const workId = matWorkSel?.value;
 
-          try {
-              const response = await fetch('/api/materials-used', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(materialData)
-              });
+            const name = (matName?.value || "").trim();
+            const vendor = (matVendor?.value || "").trim();
+            const qty = Number(matQty?.value || 0);
+            const unit = (matUnit?.value || "").trim();
 
-              const result = await response.json();
+            if (!workId || !name || qty <= 0) {
+                alert("請選擇日期/工項，並填寫有效的建材名稱與數量。");
+                return;
+            }
+            if (!proj?.id) { alert("專案 ID 遺失，請重新載入專案。"); return; }
 
-              if (result.success) {
-                  alert(`建材 "${name}" 新增成功!`);
-                  
-                  if(matName) matName.value=""; 
-                  if(matVendor) matVendor.value=""; 
-                  if(matQty) matQty.value="0"; 
-                  if(matUnit) matUnit.value="";
-                  
-                  location.hash = `#detail?id=${proj.id}`;
-                  
-              } else {
-                  alert(`新增建材失敗: ${result.message}`);
-              }
+            const materialData = {
+                work_item_id: parseInt(workId, 10),
+                material_name: name,
+                vendor: vendor,
+                qty: qty,
+                unit: unit
+            };
 
-          } catch (error) {
-              console.error('Add Material Fetch Error:', error);
-              alert('網路錯誤或伺服器無法連線。');
-          }
-      };
+            try {
+                const response = await fetch('/api/materials-used', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(materialData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`建材 "${name}" 新增成功!`);
+
+                    if (matName) matName.value = "";
+                    if (matVendor) matVendor.value = "";
+                    if (matQty) matQty.value = "0";
+                    if (matUnit) matUnit.value = "";
+
+                    location.hash = `#detail?id=${proj.id}`;
+
+                } else {
+                    alert(`新增建材失敗: ${result.message}`);
+                }
+
+            } catch (error) {
+                console.error('Add Material Fetch Error:', error);
+                alert('網路錯誤或伺服器無法連線。');
+            }
+        };
     }
 }
