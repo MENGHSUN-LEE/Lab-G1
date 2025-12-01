@@ -199,7 +199,7 @@ export function bindEditEvents() {
 
                     // --- Check if Status is Arrived (0) and Trigger Rating ---
                     if (newMStatus === 0 && mat.vendor) {
-                        showRatingModal(mat.vendor, mat.name, proj.id);
+                        showRatingModal(mat.vendor, mat.name, proj.id, mat.id, d);
                     }
 
                 } else {
@@ -238,6 +238,11 @@ function injectModalAssets() {
         .modal-stars span { transition: color 0.2s; }
         .modal-stars span.active { color: #FFD700; }
         .modal-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+        .delivery-status-options { display: flex; justify-content: center; gap: 20px; margin-bottom: 15px; }
+        .delivery-status-options label { cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .price-comparison-box { background: #f0f7ff; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #cce5ff; }
+        .price-comparison-box h5 { margin: 0 0 5px 0; color: #004085; }
+        .price-comparison-box p { margin: 0; font-size: 0.9em; color: #004085; }
     `;
     document.head.appendChild(style);
 
@@ -247,6 +252,19 @@ function injectModalAssets() {
                 <h3 id="rm-vendor">Rate Vendor</h3>
                 <p id="rm-material" class="muted" style="margin-bottom: 15px;"></p>
                 
+                <div id="rm-price-comparison" class="price-comparison-box" style="display:none;">
+                    <h5>💰 Price Comparison</h5>
+                    <p id="rm-price-text">Loading...</p>
+                </div>
+
+                <div style="margin-bottom: 15px; text-align: left; background: #f9f9f9; padding: 10px; border-radius: 8px;">
+                    <label style="font-weight:bold; display:block; margin-bottom:8px;">Delivery Status:</label>
+                    <div class="delivery-status-options">
+                        <label><input type="radio" name="delivery_status" value="delivered" checked> On Time</label>
+                        <label><input type="radio" name="delivery_status" value="delayed"> Delayed</label>
+                    </div>
+                </div>
+
                 <div class="modal-stars" id="rm-stars">
                     <span data-val="1">★</span><span data-val="2">★</span><span data-val="3">★</span><span data-val="4">★</span><span data-val="5">★</span>
                 </div>
@@ -277,25 +295,68 @@ function injectModalAssets() {
     document.getElementById("rm-cancel").onclick = closeRatingModal;
 }
 
-function showRatingModal(vendor, material, projectId) {
+function showRatingModal(vendor, materialName, projectId, materialId, expectedDate) {
     injectModalAssets();
 
     const modal = document.getElementById("rating-modal");
     document.getElementById("rm-vendor").textContent = `Rate Vendor: ${vendor}`;
-    document.getElementById("rm-material").textContent = `Material: ${material}`;
+    document.getElementById("rm-material").textContent = `Material: ${materialName}`;
     document.getElementById("rm-rating-val").value = 0;
     document.getElementById("rm-comment").value = "";
     document.querySelectorAll("#rm-stars span").forEach(s => s.classList.remove('active'));
+
+    // Reset radio buttons
+    const radios = document.querySelectorAll('input[name="delivery_status"]');
+    if (radios.length) radios[0].checked = true;
+
+    // Reset and Fetch Price Comparison
+    const priceBox = document.getElementById("rm-price-comparison");
+    const priceText = document.getElementById("rm-price-text");
+    priceBox.style.display = "none";
+
+    if (materialId) {
+        fetch(`/api/materials-used/${materialId}/price-comparison`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    priceBox.style.display = "block";
+                    const pct = data.savings_pct;
+                    let msg = "";
+                    if (pct > 0) msg = `<span style="color:green; font-weight:bold;">${pct}% Cheaper</span> than Market Avg`;
+                    else if (pct < 0) msg = `<span style="color:red; font-weight:bold;">${Math.abs(pct)}% More Expensive</span> than Market Avg`;
+                    else msg = `<span style="color:#555; font-weight:bold;">Equal</span> to Market Avg`;
+
+                    priceText.innerHTML = msg;
+                }
+            })
+            .catch(err => console.error("Failed to load price comparison", err));
+    }
 
     // Re-bind submit to include closure variables
     const submitBtn = document.getElementById("rm-submit");
     submitBtn.onclick = async () => {
         const rating = parseInt(document.getElementById("rm-rating-val").value);
         const comment = document.getElementById("rm-comment").value;
+        const deliveryStatus = document.querySelector('input[name="delivery_status"]:checked').value;
 
         if (!rating) { alert("Please select a star rating."); return; }
 
         try {
+            // 1. Submit Arrival Log (for Delivery Punctuality)
+            if (materialId && expectedDate) {
+                await fetch(`/api/materials/${materialId}/arrival-log`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        expected_date: expectedDate,
+                        actual_date: new Date().toISOString().split('T')[0], // Today
+                        delivery_status: deliveryStatus,
+                        notes: comment
+                    })
+                });
+            }
+
+            // 2. Submit Vendor Rating
             const response = await fetch('/api/vendor-ratings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -308,7 +369,7 @@ function showRatingModal(vendor, material, projectId) {
             });
             const res = await response.json();
             if (res.success) {
-                alert("Rating submitted! Thank you.");
+                alert("Rating and delivery status submitted! Thank you.");
                 closeRatingModal();
             } else {
                 alert("Failed: " + res.message);
