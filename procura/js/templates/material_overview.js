@@ -34,25 +34,6 @@ export const materialOverviewContent = `
                 <h4 style="margin: 10px 0 5px; color: white;">AI Analytics</h4>
                 <p style="font-size: 0.9em; margin: 0; opacity: 0.9;">Predictive insights & NLP</p>
             </div>
-            
-            <!-- Placeholder cards for future features -->
-            <div class="card" style="padding: 20px; text-align: center; opacity: 0.5;">
-                <span class="material-symbols-outlined" style="font-size: 48px; color: #666;">eco</span>
-                <h4 style="margin: 10px 0 5px; color: #666;">Carbon Footprint</h4>
-                <p class="muted" style="font-size: 0.9em;">Coming Soon</p>
-            </div>
-            
-            <div class="card" style="padding: 20px; text-align: center; opacity: 0.5;">
-                <span class="material-symbols-outlined" style="font-size: 48px; color: #666;">assessment</span>
-                <h4 style="margin: 10px 0 5px; color: #666;">Reports</h4>
-                <p class="muted" style="font-size: 0.9em;">Coming Soon</p>
-            </div>
-            
-            <div class="card" style="padding: 20px; text-align: center; opacity: 0.5;">
-                <span class="material-symbols-outlined" style="font-size: 48px; color: #666;">notifications</span>
-                <h4 style="margin: 10px 0 5px; color: #666;">Alerts</h4>
-                <p class="muted" style="font-size: 0.9em;">Coming Soon</p>
-            </div>
         </div>
 
         <!-- Dynamic Content Area -->

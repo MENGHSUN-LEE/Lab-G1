@@ -9,8 +9,12 @@ import { syncEditSelectors, bindEditEvents } from './edit.js';
 import { bindMaterialOverviewEvents, renderMaterialOverview } from './material_overview.js';
 import { bindVendorManagementEvents, renderVendorManagement } from './vendor_management.js';
 
-// ✨ NEW: Import Steven's Material Overview feature
+// ✨ EXISTING: Import Steven's Material Overview feature
 import { initMaterialOverview } from '../material/overview.js';
+
+// ✅ NEW: Import Alerts & Reports modules
+import { AlertsManager } from './alerts.js';
+import { ReportsManager } from './reports.js';
 
 // --- 元素快取 (只保留共用元素) ---
 const detailTitle = document.getElementById("detailTitle");
@@ -38,13 +42,27 @@ export function renderDetail(p) {
   syncEditSelectors();
   renderMaterialsTable();
   
-  // ✨ NEW: Setup Material Overview tab lazy loading
+  // ✨ EXISTING: Setup Material Overview tab lazy loading
   setupMaterialOverviewTab();
   
-  console.log("✅ Detail page rendered with all features");
+  // ✅ NEW: Initialize Alerts & Reports System
+  initAlertsAndReports(p.id);
+  
+  console.log("✅ Detail page rendered with all features including Alerts & Reports");
 }
 
-// ✨ NEW: Setup Material Overview tab with lazy initialization
+// ✅ NEW: Initialize Alerts & Reports System
+async function initAlertsAndReports(projectId) {
+  try {
+    await AlertsManager.init(projectId);
+    await ReportsManager.init(projectId);
+    console.log("✅ Alerts & Reports initialized successfully");
+  } catch (error) {
+    console.error("❌ Error initializing Alerts & Reports:", error);
+  }
+}
+
+// ✨ EXISTING: Setup Material Overview tab with lazy initialization
 function setupMaterialOverviewTab() {
   const overviewTab = document.querySelector('.tab-btn[data-tab="overview"]');
   
@@ -79,17 +97,18 @@ export function bindDetailEvents() {
   bindMaterialOverviewEvents();
   bindVendorManagementEvents();
   
-  // ✨ NEW: Bind tab switching events with Material Overview support
+  // ✨ EXISTING: Bind tab switching events with Material Overview support
   bindTabSwitchingWithMaterialOverview();
+  
+  // ✅ NEW: Bind tab switching for Alerts & Reports
+  bindAlertsReportsTabEvents();
 }
 
-// ✨ NEW: Enhanced tab switching that supports Material Overview
+// ✨ EXISTING: Enhanced tab switching that supports Material Overview
 function bindTabSwitchingWithMaterialOverview() {
   const tabBtns = document.querySelectorAll('.tab-btn');
   
   tabBtns.forEach(btn => {
-    // Check if this button already has a click listener from setActiveTab
-    // We'll add an additional listener specifically for Material Overview
     btn.addEventListener('click', () => {
       const target = btn.dataset.tab;
       
@@ -103,8 +122,27 @@ function bindTabSwitchingWithMaterialOverview() {
   });
 }
 
-// ✨ OPTIONAL: Alternative function for auto-initializing Material Overview on page load
-// Use this if you want Material Overview to load immediately when detail page opens
+// ✅ NEW: Bind events for Alerts & Reports tabs
+function bindAlertsReportsTabEvents() {
+  const alertsTab = document.querySelector('.tab-btn[data-tab="alerts"]');
+  const reportsTab = document.querySelector('.tab-btn[data-tab="reports"]');
+  
+  if (alertsTab) {
+    alertsTab.addEventListener('click', () => {
+      console.log('🚨 Alerts tab clicked - refreshing alerts...');
+      AlertsManager.loadAlerts();
+    });
+  }
+  
+  if (reportsTab) {
+    reportsTab.addEventListener('click', () => {
+      console.log('📊 Reports tab clicked');
+      // Reports render on demand when user clicks generate button
+    });
+  }
+}
+
+// ✨ EXISTING: Alternative function for auto-initializing Material Overview on page load
 export function renderDetailWithAutoInit(p) {
   // Update state
   state.currentProject = p;
@@ -126,7 +164,7 @@ export function renderDetailWithAutoInit(p) {
   syncEditSelectors();
   renderMaterialsTable();
   
-  // ✨ Auto-initialize Material Overview on page load (not lazy)
+  // ✨ EXISTING: Auto-initialize Material Overview on page load (not lazy)
   console.log('🚀 Auto-initializing Material Overview...');
   initMaterialOverview();
   
@@ -136,10 +174,13 @@ export function renderDetailWithAutoInit(p) {
     overviewTab.dataset.initialized = 'true';
   }
   
-  console.log("✅ Detail page rendered with Material Overview auto-initialized");
+  // ✅ NEW: Initialize Alerts & Reports
+  initAlertsAndReports(p.id);
+  
+  console.log("✅ Detail page rendered with Material Overview auto-initialized and Alerts & Reports");
 }
 
-// ✨ NEW: Force refresh Material Overview (useful after data updates)
+// ✨ EXISTING: Force refresh Material Overview
 export function refreshMaterialOverview() {
   const overviewTab = document.querySelector('.tab-btn[data-tab="overview"]');
   
@@ -149,7 +190,14 @@ export function refreshMaterialOverview() {
   }
 }
 
-/** * 重新獲取專案細節數據，更新前端狀態，並重新渲染所有頁籤 
+// ✅ NEW: Force refresh Alerts (call this after updating materials/work items)
+export function refreshAlerts() {
+  console.log('🔄 Refreshing Alerts...');
+  AlertsManager.loadAlerts();
+}
+
+/** 
+ * ✨ EXISTING: 重新獲取專案細節數據，更新前端狀態，並重新渲染所有頁籤 
  * @param {string} projectId - 當前專案ID
  * @param {string} activeTab - 刷新完成後應切換到的目標頁籤
  */
@@ -163,15 +211,15 @@ async function refreshDetailData(projectId, activeTab = 'progress') {
             
             // 重新渲染/同步所有依賴於 state.currentProject 的頁面元素
             syncProgressDates();
-            // 不帶過濾參數重新渲染進度頁
             renderProgress('all'); 
             syncCreateSelectors();
             syncEditSelectors();
             renderMaterialsTable();
-            // renderMaterialOverview(result.project); // (如果已實作)
-            // renderVendorManagement(result.project); // (如果已實作)
             
-            setActiveTab(activeTab); // 確保停留在操作完成的頁籤
+            // ✅ NEW: Refresh Alerts after data update
+            AlertsManager.loadAlerts();
+            
+            setActiveTab(activeTab);
         } else {
             console.error("Failed to refresh detail data:", result.message);
             alert(`資料刷新失敗: ${result.message}`);
@@ -191,5 +239,7 @@ export {
   renderMaterialOverview,
   renderVendorManagement,
   initMaterialOverview,
-  refreshDetailData 
+  refreshDetailData,
+  AlertsManager,
+  ReportsManager
 };
