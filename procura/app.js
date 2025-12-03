@@ -8,7 +8,403 @@ const config = require('./config'); // 引入您的配置檔
 
 const app = express();
 const PORT = process.env.PORT || 80;
+const PDFDocument = require('pdfkit');
+const ExcelJS = require('exceljs');
+const fs = require('fs');
+const downloadsDir = path.join(__dirname, 'downloads');
 
+// Create downloads directory
+if (!fs.existsSync(downloadsDir)) {
+    fs.mkdirSync(downloadsDir, { recursive: true });
+    console.log('[Downloads] Created directory:', downloadsDir);
+} else {
+    console.log('[Downloads] Directory exists:', downloadsDir);
+}
+
+// Verify write permissions
+try {
+    fs.accessSync(downloadsDir, fs.constants.W_OK);
+    console.log('[Downloads] Write permissions verified ✓');
+} catch (err) {
+    console.error('[Downloads] WARNING: No write permissions!', err.message);
+}
+
+// --- Middleware ---
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ============ ADD THESE ENDPOINTS TO YOUR app.js ============
+
+// 1. EXPORT HEALTH REPORT AS PDF
+app.post('/api/project/:projectId/export-health-pdf', async (req, res) => {
+    const { projectId } = req.params;
+    const dbPool = app.locals.dbPool;
+    
+    try {
+        // Fetch data
+        const [projectInfo] = await dbPool.query('SELECT * FROM projects WHERE id = ?', [projectId]);
+        if (projectInfo.length === 0) {
+            return res.status(404).json({ success: false, message: 'Project not found' });
+        }
+        
+        const [workItems] = await dbPool.query(`
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as ahead,
+                SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as on_time,
+                SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as \`delayed\`
+            FROM work_items WHERE project_id = ?
+        `, [projectId]);
+        
+        const [materials] = await dbPool.query(`
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN material_status = 0 THEN 1 ELSE 0 END) as arrived,
+                SUM(CASE WHEN material_status = 2 THEN 1 ELSE 0 END) as \`ordered\`,
+                SUM(CASE WHEN material_status = 3 THEN 1 ELSE 0 END) as \`delayed\`,
+                SUM(qty * COALESCE(unit_price, 0)) as total_cost
+            FROM materials_used mu
+            JOIN work_items wi ON mu.work_item_id = wi.id
+            WHERE wi.project_id = ?
+        `, [projectId]);
+        
+        const [topMaterials] = await dbPool.query(`
+            SELECT 
+                material_name,
+                vendor,
+                SUM(qty) as total_qty,
+                unit,
+                SUM(qty * COALESCE(unit_price, 0)) as total_cost
+            FROM materials_used mu
+            JOIN work_items wi ON mu.work_item_id = wi.id
+            WHERE wi.project_id = ?
+            GROUP BY material_name, vendor, unit
+            ORDER BY total_cost DESC
+            LIMIT 10
+        `, [projectId]);
+        
+        // Generate PDF
+        const filename = `health-report-${projectId}-${Date.now()}.pdf`;
+        const filepath = path.join(downloadsDir, filename);
+        const doc = new PDFDocument({ margin: 50 });
+        const stream = fs.createWriteStream(filepath);
+        
+        doc.pipe(stream);
+        
+        // Header
+        doc.fontSize(24).text('Project Health Report', { align: 'center' });
+        doc.moveDown();
+        doc.fontSize(12).text(`Project: ${projectInfo[0].project_name}`, { align: 'center' });
+        doc.text(`Owner: ${projectInfo[0].owner}`, { align: 'center' });
+        doc.text(`Generated: ${new Date().toLocaleString()}`, { align: 'center' });
+        doc.moveDown(2);
+        
+        // Work Items Section
+        doc.fontSize(16).text('Work Items Status', { underline: true });
+        doc.moveDown(0.5);
+        doc.fontSize(11);
+        doc.text(`Total: ${workItems[0].total}`);
+        doc.text(`✓ Ahead: ${workItems[0].ahead}`);
+        doc.text(`✓ On Time: ${workItems[0].on_time}`);
+        doc.text(`⚠ Delayed: ${workItems[0].delayed}`);
+        doc.moveDown();
+        
+        // Materials Section
+        doc.fontSize(16).text('Materials Overview', { underline: true });
+        doc.moveDown(0.5);
+        doc.fontSize(11);
+        doc.text(`Total Materials: ${materials[0].total}`);
+        doc.text(`Arrived: ${materials[0].arrived}`);
+        doc.text(`Ordered: ${materials[0].ordered}`);
+        doc.text(`Delayed: ${materials[0].delayed}`);
+        doc.text(`Total Cost: $${parseFloat(materials[0].total_cost || 0).toFixed(2)}`);
+        doc.moveDown();
+        
+        // Top Materials Table
+        doc.addPage();
+        doc.fontSize(16).text('Top 10 Materials by Cost', { underline: true });
+        doc.moveDown();
+        
+        const tableTop = doc.y;
+        const colWidths = [200, 100, 80, 100];
+        const headers = ['Material', 'Vendor', 'Quantity', 'Total Cost'];
+        
+        // Table headers
+        doc.fontSize(10).font('Helvetica-Bold');
+        let x = 50;
+        headers.forEach((header, i) => {
+            doc.text(header, x, tableTop, { width: colWidths[i] });
+            x += colWidths[i];
+        });
+        
+        // Table rows
+        doc.font('Helvetica').fontSize(9);
+        let y = tableTop + 20;
+        topMaterials.forEach(mat => {
+            x = 50;
+            doc.text(mat.material_name.substring(0, 30), x, y, { width: colWidths[0] });
+            doc.text(mat.vendor || 'N/A', x + colWidths[0], y, { width: colWidths[1] });
+            doc.text(`${mat.total_qty} ${mat.unit || ''}`, x + colWidths[0] + colWidths[1], y, { width: colWidths[2] });
+            doc.text(`$${parseFloat(mat.total_cost || 0).toFixed(2)}`, x + colWidths[0] + colWidths[1] + colWidths[2], y, { width: colWidths[3] });
+            y += 20;
+            if (y > 700) {
+                doc.addPage();
+                y = 50;
+            }
+        });
+        
+        // Footer
+        doc.moveDown(2);
+        doc.fontSize(8).text('Generated by Procura Construction Management System', { align: 'center' });
+        
+        doc.end();
+        
+        stream.on('finish', () => {
+            res.json({
+                success: true,
+                filename,
+                download_url: `/downloads/${filename}`
+            });
+        });
+        
+        stream.on('error', (error) => {
+            console.error('PDF generation error:', error);
+            res.status(500).json({ success: false, message: 'Failed to generate PDF' });
+        });
+        
+    } catch (error) {
+        console.error('Export health PDF error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// 2. EXPORT HEALTH REPORT AS EXCEL
+app.post('/api/project/:projectId/export-health-excel', async (req, res) => {
+    const { projectId } = req.params;
+    const dbPool = app.locals.dbPool;
+    
+    try {
+        // Fetch data (same as PDF)
+        const [projectInfo] = await dbPool.query('SELECT * FROM projects WHERE id = ?', [projectId]);
+        if (projectInfo.length === 0) {
+            return res.status(404).json({ success: false, message: 'Project not found' });
+        }
+        
+        const [workItems] = await dbPool.query(`
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as ahead,
+                SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as on_time,
+                SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as \`delayed\`
+            FROM work_items WHERE project_id = ?
+        `, [projectId]);
+        
+        const [materials] = await dbPool.query(`
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN material_status = 0 THEN 1 ELSE 0 END) as arrived,
+                SUM(CASE WHEN material_status = 2 THEN 1 ELSE 0 END) as \`ordered\`,
+                SUM(CASE WHEN material_status = 3 THEN 1 ELSE 0 END) as \`delayed\`,
+                SUM(qty * COALESCE(unit_price, 0)) as total_cost
+            FROM materials_used mu
+            JOIN work_items wi ON mu.work_item_id = wi.id
+            WHERE wi.project_id = ?
+        `, [projectId]);
+        
+        const [topMaterials] = await dbPool.query(`
+            SELECT 
+                material_name,
+                vendor,
+                SUM(qty) as total_qty,
+                unit,
+                SUM(qty * COALESCE(unit_price, 0)) as total_cost
+            FROM materials_used mu
+            JOIN work_items wi ON mu.work_item_id = wi.id
+            WHERE wi.project_id = ?
+            GROUP BY material_name, vendor, unit
+            ORDER BY total_cost DESC
+            LIMIT 20
+        `, [projectId]);
+        
+        // Generate Excel
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Procura System';
+        workbook.created = new Date();
+        
+        // Sheet 1: Summary
+        const summarySheet = workbook.addWorksheet('Summary');
+        summarySheet.columns = [
+            { width: 30 },
+            { width: 20 }
+        ];
+        
+        summarySheet.addRow(['Project Health Report']);
+        summarySheet.getCell('A1').font = { size: 16, bold: true };
+        summarySheet.addRow([]);
+        summarySheet.addRow(['Project Name', projectInfo[0].project_name]);
+        summarySheet.addRow(['Owner', projectInfo[0].owner]);
+        summarySheet.addRow(['Generated', new Date().toLocaleString()]);
+        summarySheet.addRow([]);
+        
+        summarySheet.addRow(['Work Items']);
+        summarySheet.getCell('A7').font = { bold: true };
+        summarySheet.addRow(['Total', workItems[0].total]);
+        summarySheet.addRow(['Ahead', workItems[0].ahead]);
+        summarySheet.addRow(['On Time', workItems[0].on_time]);
+        summarySheet.addRow(['Delayed', workItems[0].delayed]);
+        summarySheet.addRow([]);
+        
+        summarySheet.addRow(['Materials']);
+        summarySheet.getCell('A13').font = { bold: true };
+        summarySheet.addRow(['Total', materials[0].total]);
+        summarySheet.addRow(['Arrived', materials[0].arrived]);
+        summarySheet.addRow(['Ordered', materials[0].ordered]);
+        summarySheet.addRow(['Delayed', materials[0].delayed]);
+        summarySheet.addRow(['Total Cost', `$${parseFloat(materials[0].total_cost || 0).toFixed(2)}`]);
+        
+        // Sheet 2: Top Materials
+        const materialsSheet = workbook.addWorksheet('Top Materials');
+        materialsSheet.columns = [
+            { header: 'Material Name', key: 'material_name', width: 40 },
+            { header: 'Vendor', key: 'vendor', width: 20 },
+            { header: 'Quantity', key: 'total_qty', width: 15 },
+            { header: 'Unit', key: 'unit', width: 10 },
+            { header: 'Total Cost', key: 'total_cost', width: 15 }
+        ];
+        
+        materialsSheet.getRow(1).font = { bold: true };
+        
+        topMaterials.forEach(mat => {
+            materialsSheet.addRow({
+                material_name: mat.material_name,
+                vendor: mat.vendor || 'N/A',
+                total_qty: mat.total_qty,
+                unit: mat.unit || '',
+                total_cost: `$${parseFloat(mat.total_cost || 0).toFixed(2)}`
+            });
+        });
+        
+        // Save file
+        const filename = `health-report-${projectId}-${Date.now()}.xlsx`;
+        const filepath = path.join(downloadsDir, filename);
+        await workbook.xlsx.writeFile(filepath);
+        
+        res.json({
+            success: true,
+            filename,
+            download_url: `/downloads/${filename}`
+        });
+        
+    } catch (error) {
+        console.error('Export health Excel error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// 3. EXPORT COST ANALYSIS AS EXCEL
+app.post('/api/project/:projectId/export-cost-excel', async (req, res) => {
+    const { projectId } = req.params;
+    const dbPool = app.locals.dbPool;
+    
+    try {
+        const [costs] = await dbPool.query(`
+            SELECT 
+                mu.material_name,
+                mu.vendor,
+                SUM(mu.qty) as total_quantity,
+                mu.unit,
+                AVG(COALESCE(mu.unit_price, 0)) as avg_price,
+                SUM(mu.qty * COALESCE(mu.unit_price, 0)) as total_cost
+            FROM materials_used mu
+            JOIN work_items wi ON mu.work_item_id = wi.id
+            WHERE wi.project_id = ?
+            GROUP BY mu.material_name, mu.vendor, mu.unit
+            ORDER BY total_cost DESC
+        `, [projectId]);
+        
+        const totalProjectCost = costs.reduce((sum, item) => 
+            sum + parseFloat(item.total_cost || 0), 0
+        );
+        
+        // Generate Excel
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Cost Analysis');
+        
+        sheet.columns = [
+            { header: 'Material', key: 'material_name', width: 40 },
+            { header: 'Vendor', key: 'vendor', width: 25 },
+            { header: 'Quantity', key: 'total_quantity', width: 12 },
+            { header: 'Unit', key: 'unit', width: 10 },
+            { header: 'Avg Price', key: 'avg_price', width: 15 },
+            { header: 'Total Cost', key: 'total_cost', width: 15 }
+        ];
+        
+        sheet.getRow(1).font = { bold: true };
+        
+        costs.forEach(cost => {
+            sheet.addRow({
+                material_name: cost.material_name,
+                vendor: cost.vendor || 'N/A',
+                total_quantity: cost.total_quantity,
+                unit: cost.unit || '',
+                avg_price: `$${parseFloat(cost.avg_price).toFixed(2)}`,
+                total_cost: `$${parseFloat(cost.total_cost).toFixed(2)}`
+            });
+        });
+        
+        sheet.addRow([]);
+        const totalRow = sheet.addRow(['', '', '', '', 'TOTAL:', `$${totalProjectCost.toFixed(2)}`]);
+        totalRow.font = { bold: true };
+        totalRow.getCell(6).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFF00' }
+        };
+        
+        const filename = `cost-analysis-${projectId}-${Date.now()}.xlsx`;
+        const filepath = path.join(downloadsDir, filename);
+        await workbook.xlsx.writeFile(filepath);
+        
+        res.json({
+            success: true,
+            filename,
+            download_url: `/downloads/${filename}`
+        });
+        
+    } catch (error) {
+        console.error('Export cost Excel error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// 4. FILE DOWNLOAD ENDPOINT
+app.get('/downloads/:filename', (req, res) => {
+    const { filename } = req.params;
+    const filepath = path.join(downloadsDir, filename);
+    
+    // Security: prevent directory traversal
+    if (filename.includes('..') || filename.includes('/')) {
+        return res.status(400).json({ success: false, message: 'Invalid filename' });
+    }
+    
+    if (!fs.existsSync(filepath)) {
+        return res.status(404).json({ success: false, message: 'File not found' });
+    }
+    
+    res.download(filepath, (err) => {
+        if (err) {
+            console.error('Download error:', err);
+        }
+        
+        // Delete file after download (1 minute delay)
+        setTimeout(() => {
+            if (fs.existsSync(filepath)) {
+                fs.unlinkSync(filepath);
+                console.log(`Deleted temporary file: ${filename}`);
+            }
+        }, 60000);
+    });
+});
 // --- 中介軟體 (Middleware) ---
 // 1. 處理 JSON 格式的請求體 (POST/PUT 請求)
 app.use(express.json());
@@ -2645,4 +3041,3 @@ app.listen(PORT, () => {
     console.log(`[Express] Server running on port ${PORT}`);
     console.log(`Access: http://localhost:${PORT}`);
 });
-

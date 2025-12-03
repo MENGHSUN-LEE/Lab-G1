@@ -533,19 +533,72 @@ export const ReportsManager = {
         `;
     },
 
+
     /**
-     * Export report (placeholder - actual implementation would generate files)
+     * Export report - ACTUAL IMPLEMENTATION
      */
-    exportReport(reportType, format) {
-        alert(`Export functionality: ${reportType} report as ${format}\n\nThis would generate a downloadable file in production.`);
+    async exportReport(reportType, format) {
+        const loadingMsg = document.createElement('div');
+        loadingMsg.className = 'export-loading';
+        loadingMsg.innerHTML = '⏳ Generating file... Please wait.';
+        document.body.appendChild(loadingMsg);
         
-        // In production, you'd call:
-        // fetch(`/api/project/${this.currentProjectId}/report/export`, {
-        //     method: 'POST',
-        //     headers: { 'Content-Type': 'application/json' },
-        //     body: JSON.stringify({ report_type: reportType, format: format })
-        // });
-    }
+        try {
+            let endpoint = '';
+            
+            // Determine endpoint based on report type and format
+            if (reportType === 'health' && format === 'pdf') {
+                endpoint = `/api/project/${this.currentProjectId}/export-health-pdf`;
+            } else if (reportType === 'health' && format === 'excel') {
+                endpoint = `/api/project/${this.currentProjectId}/export-health-excel`;
+            } else if (reportType === 'cost' && format === 'excel') {
+                endpoint = `/api/project/${this.currentProjectId}/export-cost-excel`;
+            } else {
+                throw new Error(`Export format not supported: ${reportType} as ${format}`);
+            }
+            
+            // Call backend to generate file
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.message);
+            }
+            
+            // Remove loading message
+            document.body.removeChild(loadingMsg);
+            
+            // Trigger download
+            window.location.href = data.download_url;
+            
+            // Show success message
+            const successMsg = document.createElement('div');
+            successMsg.className = 'export-success';
+            successMsg.innerHTML = `✅ File ready! Download started: ${data.filename}`;
+            document.body.appendChild(successMsg);
+            
+            setTimeout(() => {
+                document.body.removeChild(successMsg);
+            }, 3000);
+            
+        } catch (error) {
+            console.error('Export error:', error);
+            document.body.removeChild(loadingMsg);
+            
+            const errorMsg = document.createElement('div');
+            errorMsg.className = 'export-error';
+            errorMsg.innerHTML = `❌ Export failed: ${error.message}`;
+            document.body.appendChild(errorMsg);
+            
+            setTimeout(() => {
+                document.body.removeChild(errorMsg);
+            }, 5000);
+        }
+    },
 };
 
 // Make available globally for onclick handlers

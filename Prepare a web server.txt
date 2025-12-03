@@ -755,6 +755,7 @@ docker run -it --name procura-dev --network my-assignment-net -p 8080:80 -v C:\U
 cd /app
 npm install express
 npm install mysql2
+npm install pdfkit exceljs
 node app.js
 
 -- 2.3 Set the Groq API key (get it from https://console.groq.com/) ==> required to buy an AI (additional)
