@@ -100,7 +100,10 @@ export async function renderVendorManagement(project) {
     // 2. Fetch & Render Dashboard
     await loadDashboard();
 
-    // 3. Load initial history (All or first)
+    // 3. Fetch & Render Metrics (New)
+    await loadVendorMetrics();
+
+    // 4. Load initial history (All or first)
     const historyVendorSel = document.getElementById("history-vendor-filter");
     const initialVendor = historyVendorSel ? historyVendorSel.value : "";
     await loadRatingHistory(initialVendor);
@@ -211,5 +214,114 @@ async function loadRatingHistory(vendorName) {
     } catch (e) {
         console.error("Failed to load history", e);
         list.innerHTML = `<p class="muted">Error loading history.</p>`;
+    }
+}
+
+async function loadVendorMetrics() {
+    const container = document.getElementById("vendor-metrics-section");
+    if (!container) {
+        // Inject container if not exists (it should be in the HTML, but we can append it dynamically if needed)
+        // Assuming there's a place for it, or we append to the main container
+        const mainContainer = document.getElementById("vendor-dashboard").parentNode; // Parent of dashboard
+        const metricsDiv = document.createElement("div");
+        metricsDiv.id = "vendor-metrics-section";
+        metricsDiv.className = "stack";
+        metricsDiv.style.marginTop = "30px";
+        metricsDiv.innerHTML = `<h3>Vendor Performance Metrics</h3><div id="metrics-grid" class="grid cols-2"></div>`;
+
+        // Insert after dashboard
+        document.getElementById("vendor-dashboard").after(metricsDiv);
+    }
+
+    const grid = document.getElementById("metrics-grid");
+    if (!grid) return;
+
+    try {
+        const res = await fetch('/api/vendor-metrics');
+        const result = await res.json();
+
+        if (result.success && result.metrics.length > 0) {
+            // 1. Delivery Punctuality Card
+            const deliveryHTML = `
+                <div class="card" style="padding: 20px;">
+                    <h4 style="margin-bottom: 15px; color: #667eea;">🚚 Delivery Punctuality</h4>
+                    <table style="width:100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid #eee; text-align:left;">
+                                <th style="padding: 8px;">Vendor</th>
+                                <th style="padding: 8px;">On-Time %</th>
+                                <th style="padding: 8px;">Total Orders</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${result.metrics.map(m => {
+                const pct = m.delivery.pct;
+                const color = pct === "N/A" ? "#999" : (pct >= 90 ? "green" : (pct >= 70 ? "orange" : "red"));
+                return `
+                                    <tr style="border-bottom: 1px solid #f9f9f9;">
+                                        <td style="padding: 8px;">${m.vendor_name}</td>
+                                        <td style="padding: 8px; font-weight:bold; color: ${color};">
+                                            ${pct === "N/A" ? "N/A" : pct + "%"}
+                                        </td>
+                                        <td style="padding: 8px; color: #777;">${m.delivery.total}</td>
+                                    </tr>
+                                `;
+            }).join("")}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            // 2. Price Competitiveness Card
+            const priceHTML = `
+                <div class="card" style="padding: 20px;">
+                    <h4 style="margin-bottom: 15px; color: #667eea;">💰 Price Competitiveness</h4>
+                    <p class="muted" style="font-size: 0.9em; margin-bottom: 10px;">Compared to Market Average Price</p>
+                    <table style="width:100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid #eee; text-align:left;">
+                                <th style="padding: 8px;">Vendor</th>
+                                <th style="padding: 8px;">Savings %</th>
+                                <th style="padding: 8px;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${result.metrics.map(m => {
+                const val = m.price_competitiveness;
+                let status = "Neutral";
+                let color = "#777";
+
+                if (val !== "N/A") {
+                    const num = parseFloat(val);
+                    if (num > 0) { status = "Good"; color = "green"; }
+                    else if (num < 0) { status = "Expensive"; color = "red"; }
+                    else { status = "Neutral"; color = "gray"; }
+                }
+
+                return `
+                                    <tr style="border-bottom: 1px solid #f9f9f9;">
+                                        <td style="padding: 8px;">${m.vendor_name}</td>
+                                        <td style="padding: 8px; font-weight:bold; color: ${color};">
+                                            ${val === "N/A" ? "N/A" : (val > 0 ? "+" + val : val) + "%"}
+                                        </td>
+                                        <td style="padding: 8px;">
+                                            <span class="tag" style="background:${color}15; color:${color}; font-size:0.8em;">${status}</span>
+                                        </td>
+                                    </tr>
+                                `;
+            }).join("")}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            grid.innerHTML = deliveryHTML + priceHTML;
+
+        } else {
+            grid.innerHTML = `<p class="muted col-span-2" style="text-align:center;">No metric data available.</p>`;
+        }
+    } catch (e) {
+        console.error("Failed to load metrics", e);
+        grid.innerHTML = `<p class="muted">Error loading metrics.</p>`;
     }
 }

@@ -11,3 +11,26 @@ export const MATERIAL_CATEGORIES = [
     { id: 4, name: 'Technician' },
     { id: 5, name: 'Other' }
 ];
+
+/** Delivery Status Constants */
+export const DELIVERY_STATUS = {
+  'pending': 'Pending',
+  'in_transit': 'In Transit',
+  'delivered': 'Delivered',
+  'delayed': 'Delayed'
+};
+
+/** Defect Severity Levels */
+export const DEFECT_SEVERITY = {
+  'low': 'Low',
+  'medium': 'Medium',
+  'high': 'High',
+  'critical': 'Critical'
+};
+
+/** Quality Test Pass/Fail */
+export const TEST_RESULT = {
+  'pass': 'Pass',
+  'fail': 'Fail',
+  'conditional': 'Conditional'
+};

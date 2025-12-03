@@ -470,6 +470,276 @@ CREATE TABLE vendor_ratings (
     rated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Material Management Database Schema
+-- Run these CREATE TABLE statements in your MySQL database
+
+-- 1. Material Arrival Logs
+CREATE TABLE IF NOT EXISTS material_arrival_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    expected_date DATE NOT NULL,
+    actual_date DATE NULL,
+    delivery_status ENUM('pending', 'in_transit', 'delivered', 'delayed') DEFAULT 'pending',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE,
+    INDEX idx_expected_date (expected_date),
+    INDEX idx_delivery_status (delivery_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 2. Material Quality Scores
+CREATE TABLE IF NOT EXISTS material_quality_scores (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    score DECIMAL(3,1) NOT NULL CHECK (score >= 0 AND score <= 10),
+    inspector_name VARCHAR(100) NOT NULL,
+    inspection_date DATE NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE,
+    INDEX idx_material_score (material_id, inspection_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3. Inspection Checklist Template Items
+CREATE TABLE IF NOT EXISTS inspection_checklist_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    category VARCHAR(100) NOT NULL,
+    item_name VARCHAR(200) NOT NULL,
+    item_order INT DEFAULT 0,
+    is_critical BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Insert default checklist items
+INSERT INTO inspection_checklist_items (category, item_name, item_order, is_critical) VALUES
+('Physical Inspection', 'Check for visible damage or defects', 1, TRUE),
+('Physical Inspection', 'Verify packaging integrity', 2, TRUE),
+('Physical Inspection', 'Check color consistency', 3, FALSE),
+('Physical Inspection', 'Inspect surface finish quality', 4, FALSE),
+('Documentation', 'Verify material certificates', 1, TRUE),
+('Documentation', 'Check quantity matches order', 2, TRUE),
+('Documentation', 'Confirm supplier documentation', 3, TRUE),
+('Measurement', 'Verify dimensions/specifications', 1, TRUE),
+('Measurement', 'Check weight/volume accuracy', 2, FALSE),
+('Storage', 'Check storage requirements compliance', 1, FALSE),
+('Storage', 'Verify expiration dates (if applicable)', 2, TRUE);
+
+-- 4. Material Inspections (Completed Checklists)
+CREATE TABLE IF NOT EXISTS material_inspections (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    inspector_name VARCHAR(100) NOT NULL,
+    inspection_date DATE NOT NULL,
+    checklist_results JSON NOT NULL,  -- Store checklist item results as JSON
+    overall_pass BOOLEAN NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE,
+    INDEX idx_inspection_date (inspection_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 5. Material Defect Reports
+CREATE TABLE IF NOT EXISTS material_defect_reports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    defect_type VARCHAR(100) NOT NULL,
+    severity ENUM('low', 'medium', 'high', 'critical') NOT NULL,
+    description TEXT NOT NULL,
+    reported_by VARCHAR(100) NOT NULL,
+    report_date DATE NOT NULL,
+    status ENUM('open', 'investigating', 'resolved', 'closed') DEFAULT 'open',
+    resolution_notes TEXT,
+    resolved_date DATE NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE,
+    INDEX idx_status (status),
+    INDEX idx_severity (severity)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 6. Material Test Results
+CREATE TABLE IF NOT EXISTS material_test_results (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    test_type VARCHAR(100) NOT NULL,  -- e.g., 'strength', 'durability', 'chemical composition'
+    test_date DATE NOT NULL,
+    result_value VARCHAR(200),  -- Actual test measurement
+    pass_fail ENUM('pass', 'fail', 'conditional') NOT NULL,
+    tester_name VARCHAR(100) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE,
+    INDEX idx_test_type (test_type),
+    INDEX idx_test_date (test_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 7. Material Inventory Tracking
+CREATE TABLE IF NOT EXISTS material_inventory (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    quantity_received DECIMAL(10,2) NOT NULL,
+    received_date DATE NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE,
+    INDEX idx_received_date (received_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 8. Add unit_price column to materials_used
+ALTER TABLE materials_used 
+ADD COLUMN unit_price DECIMAL(10,2) DEFAULT 0.00 
+COMMENT 'Price per unit for cost analysis';
+
+-- If you get "Duplicate column name" error, run this instead:
+ALTER TABLE materials_used 
+MODIFY COLUMN unit_price DECIMAL(10,2) DEFAULT 0.00 
+COMMENT 'Price per unit for cost analysis';
+
+-- Quality Management Database Tables
+-- Run this in your MySQL database
+
+-- 1. Material Quality Scores
+CREATE TABLE IF NOT EXISTS material_quality_scores (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    score DECIMAL(3,1) NOT NULL CHECK (score >= 0 AND score <= 10),
+    inspector_name VARCHAR(100) NOT NULL,
+    inspection_date DATE NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE,
+    INDEX idx_material_score (material_id, inspection_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 2. Inspection Checklist Template Items
+CREATE TABLE IF NOT EXISTS inspection_checklist_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    category VARCHAR(100) NOT NULL,
+    item_name VARCHAR(200) NOT NULL,
+    item_order INT DEFAULT 0,
+    is_critical BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_category (category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Insert default checklist items (only if table is empty)
+INSERT INTO inspection_checklist_items (category, item_name, item_order, is_critical) 
+SELECT * FROM (
+    SELECT 'Physical Inspection' as category, 'Check for visible damage or defects' as item_name, 1 as item_order, TRUE as is_critical UNION ALL
+    SELECT 'Physical Inspection', 'Verify packaging integrity', 2, TRUE UNION ALL
+    SELECT 'Physical Inspection', 'Check color consistency', 3, FALSE UNION ALL
+    SELECT 'Physical Inspection', 'Inspect surface finish quality', 4, FALSE UNION ALL
+    SELECT 'Documentation', 'Verify material certificates', 1, TRUE UNION ALL
+    SELECT 'Documentation', 'Check quantity matches order', 2, TRUE UNION ALL
+    SELECT 'Documentation', 'Confirm supplier documentation', 3, TRUE UNION ALL
+    SELECT 'Measurement', 'Verify dimensions/specifications', 1, TRUE UNION ALL
+    SELECT 'Measurement', 'Check weight/volume accuracy', 2, FALSE UNION ALL
+    SELECT 'Storage', 'Check storage requirements compliance', 1, FALSE UNION ALL
+    SELECT 'Storage', 'Verify expiration dates (if applicable)', 2, TRUE
+) AS tmp
+WHERE NOT EXISTS (SELECT 1 FROM inspection_checklist_items LIMIT 1);
+
+-- 3. Material Inspections (Completed Checklists)
+CREATE TABLE IF NOT EXISTS material_inspections (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    inspector_name VARCHAR(100) NOT NULL,
+    inspection_date DATE NOT NULL,
+    checklist_results JSON NOT NULL,
+    overall_pass BOOLEAN NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE,
+    INDEX idx_inspection_date (inspection_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 4. Material Defect Reports
+CREATE TABLE IF NOT EXISTS material_defect_reports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    defect_type VARCHAR(100) NOT NULL,
+    severity ENUM('low', 'medium', 'high', 'critical') NOT NULL,
+    description TEXT NOT NULL,
+    reported_by VARCHAR(100) NOT NULL,
+    report_date DATE NOT NULL,
+    status ENUM('open', 'investigating', 'resolved', 'closed') DEFAULT 'open',
+    resolution_notes TEXT,
+    resolved_date DATE NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE,
+    INDEX idx_status (status),
+    INDEX idx_severity (severity)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 5. Material Test Results
+CREATE TABLE IF NOT EXISTS material_test_results (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    test_type VARCHAR(100) NOT NULL,
+    test_date DATE NOT NULL,
+    result_value VARCHAR(200),
+    pass_fail ENUM('pass', 'fail', 'conditional') NOT NULL,
+    tester_name VARCHAR(100) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE,
+    INDEX idx_test_type (test_type),
+    INDEX idx_test_date (test_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 1201 update
+
+-- 1. Add 'unit_price' column to materials_used (Required for Price Analysis)
+-- If this column already exists, this command might fail or warn, which is fine.
+ALTER TABLE materials_used 
+ADD COLUMN unit_price DECIMAL(10,2) DEFAULT 0.00;
+
+-- 2. Create 'material_arrival_logs' (Required for Delivery Punctuality)
+CREATE TABLE IF NOT EXISTS material_arrival_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    expected_date DATE NOT NULL,
+    actual_date DATE NULL,
+    delivery_status ENUM('pending', 'in_transit', 'delivered', 'delayed') DEFAULT 'pending',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE
+);
+
+-- 3. Create 'vendor_ratings' (Required for Vendor Rating History)
+CREATE TABLE IF NOT EXISTS vendor_ratings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    vendor_name VARCHAR(255) NOT NULL,
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    project_id INT,
+    rated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. Create 'material_quality_scores' (Required for Quality Control)
+CREATE TABLE IF NOT EXISTS material_quality_scores (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    score DECIMAL(3,1) NOT NULL CHECK (score >= 0 AND score <= 10),
+    inspector_name VARCHAR(100) NOT NULL,
+    inspection_date DATE NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE
+);
+
+-- 5. Create 'material_inventory' (Required for Inventory Tracking)
+CREATE TABLE IF NOT EXISTS material_inventory (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    quantity_received DECIMAL(10,2) NOT NULL,
+    received_date DATE NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE
+);
 --------Step2 建立的虛擬機--------
 
 -- 2.1 建立帳號密碼連接assignment-mysql的table --
@@ -487,11 +757,18 @@ npm install express
 npm install mysql2
 node app.js
 
--- 2.3 重新虛擬機的docker --
+-- 2.3 Set the Groq API key (get it from https://console.groq.com/) ==> required to buy an AI (additional)
+export GROQ_API_KEY="gsk_your_actual_key_here"
+echo $GROQ_API_KEY
+cd /app
+node app.js
+
+-- 2.4 重新虛擬機的docker --
 docker start procura-dev
 docker exec -it procura-dev bash
 cd /app
 node app.js
+
 
 ----------------------------------------------------------
 
