@@ -3425,6 +3425,57 @@ app.post('/api/project/:projectId/export-inventory-excel', async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 });
+// ==================== ADD THIS ENDPOINT TO YOUR app.js ====================
+// Place this with your other Material Management APIs (around line 500-600)
+
+// GET MATERIALS FOR DELIVERY DROPDOWN
+// This endpoint returns all materials in a project that can have arrival logs
+app.get('/api/project/:projectId/materials-for-delivery', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
+  
+  try {
+    // Get all materials for this project
+    const [materials] = await dbPool.query(`
+      SELECT 
+        mu.id,
+        mu.material_name,
+        mu.vendor,
+        mu.qty,
+        mu.unit,
+        mu.material_status,
+        wi.name as work_item_name,
+        wi.work_date
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ?
+      ORDER BY wi.work_date DESC, mu.material_name
+    `, [projectId]);
+    
+    // Format for dropdown (id + label)
+    const formattedMaterials = materials.map(m => ({
+      id: m.id,
+      label: `${m.material_name} (${m.qty} ${m.unit || 'units'}) - ${m.work_item_name}`,
+      material_name: m.material_name,
+      vendor: m.vendor,
+      qty: m.qty,
+      unit: m.unit,
+      work_date: m.work_date
+    }));
+    
+    res.json({ 
+      success: true, 
+      materials: formattedMaterials 
+    });
+    
+  } catch (error) {
+    console.error('Get materials for delivery error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '伺服器錯誤: ' + error.message 
+    });
+  }
+});
 // 啟動伺服器
 app.listen(PORT, () => {
     console.log(`[Express] Server running on port ${PORT}`);
