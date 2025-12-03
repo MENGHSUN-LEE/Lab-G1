@@ -535,6 +535,7 @@ export const ReportsManager = {
 
 
     /**
+    /**
      * Export report - ACTUAL IMPLEMENTATION
      */
     async exportReport(reportType, format) {
@@ -553,6 +554,14 @@ export const ReportsManager = {
                 endpoint = `/api/project/${this.currentProjectId}/export-health-excel`;
             } else if (reportType === 'cost' && format === 'excel') {
                 endpoint = `/api/project/${this.currentProjectId}/export-cost-excel`;
+            } else if (reportType === 'predictions' && format === 'pdf') {
+                endpoint = `/api/project/${this.currentProjectId}/export-predictions-pdf`;
+            } else if (reportType === 'quality' && format === 'pdf') {
+                endpoint = `/api/project/${this.currentProjectId}/export-quality-pdf`;
+            } else if (reportType === 'vendors' && format === 'excel') {
+                endpoint = `/api/project/${this.currentProjectId}/export-vendors-excel`;
+            } else if (reportType === 'inventory' && format === 'excel') {
+                endpoint = `/api/project/${this.currentProjectId}/export-inventory-excel`;
             } else {
                 throw new Error(`Export format not supported: ${reportType} as ${format}`);
             }
