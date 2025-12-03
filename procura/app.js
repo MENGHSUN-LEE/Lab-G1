@@ -2330,21 +2330,21 @@ app.get('/api/project/:projectId/report/health', async (req, res) => {
         COUNT(*) as total,
         SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as ahead,
         SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as on_time,
-        SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as delayed,
+        SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as \`delayed\`,
         SUM(CASE WHEN work_date < CURDATE() THEN 1 ELSE 0 END) as completed,
         SUM(CASE WHEN work_date >= CURDATE() THEN 1 ELSE 0 END) as upcoming
       FROM work_items
       WHERE project_id = ?
     `, [projectId]);
     
-    // Materials Summary
+    // Materials Summary - FIXED with correct status mapping
     const [materialsStats] = await dbPool.query(`
       SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN material_status = 0 THEN 1 ELSE 0 END) as arrived,
-        SUM(CASE WHEN material_status = 1 THEN 1 ELSE 0 END) as ordered,
-        SUM(CASE WHEN material_status = 2 THEN 1 ELSE 0 END) as pending,
-        SUM(CASE WHEN material_status = 3 THEN 1 ELSE 0 END) as in_transit,
+        SUM(CASE WHEN material_status = 1 THEN 1 ELSE 0 END) as in_transit,
+        SUM(CASE WHEN material_status = 2 THEN 1 ELSE 0 END) as \`ordered\`,
+        SUM(CASE WHEN material_status = 3 THEN 1 ELSE 0 END) as \`delayed\`,
         SUM(qty * COALESCE(unit_price, 0)) as total_cost
       FROM materials_used mu
       JOIN work_items wi ON mu.work_item_id = wi.id
@@ -2367,9 +2367,9 @@ app.get('/api/project/:projectId/report/health', async (req, res) => {
     const [defectsStats] = await dbPool.query(`
       SELECT 
         COUNT(*) as total_defects,
-        SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical,
-        SUM(CASE WHEN severity = 'high' THEN 1 ELSE 0 END) as high,
-        SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open_defects
+        SUM(CASE WHEN dr.severity = 'critical' THEN 1 ELSE 0 END) as critical,
+        SUM(CASE WHEN dr.severity = 'high' THEN 1 ELSE 0 END) as high,
+        SUM(CASE WHEN dr.status = 'open' THEN 1 ELSE 0 END) as open_defects 
       FROM material_defect_reports dr
       JOIN materials_used mu ON dr.material_id = mu.id
       JOIN work_items wi ON mu.work_item_id = wi.id
