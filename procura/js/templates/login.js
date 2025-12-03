@@ -74,6 +74,13 @@ export const loginTemplate = `
         <button id="backToLoginBtn" class="btn">← Back</button>
       </div>
 
-      <p class="muted">For detailed subscription plans, please refer to the company's official website</p>
+      <p class="muted">
+    For detailed subscription plans, please refer to the 
+    <a href="./photos/subscription.jpg" 
+       target="_blank" 
+       style="text-decoration: underline; color: var(--primary); cursor: pointer;">
+        company's official website
+    </a>
+</p>
     </section>
 `;

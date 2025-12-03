@@ -149,6 +149,39 @@ export function refreshMaterialOverview() {
   }
 }
 
+/** * 重新獲取專案細節數據，更新前端狀態，並重新渲染所有頁籤 
+ * @param {string} projectId - 當前專案ID
+ * @param {string} activeTab - 刷新完成後應切換到的目標頁籤
+ */
+async function refreshDetailData(projectId, activeTab = 'progress') {
+    try {
+        const response = await fetch(`/api/projects/${projectId}`);
+        const result = await response.json();
+        
+        if (result.success && result.project) {
+            state.currentProject = result.project;
+            
+            // 重新渲染/同步所有依賴於 state.currentProject 的頁面元素
+            syncProgressDates();
+            // 不帶過濾參數重新渲染進度頁
+            renderProgress('all'); 
+            syncCreateSelectors();
+            syncEditSelectors();
+            renderMaterialsTable();
+            // renderMaterialOverview(result.project); // (如果已實作)
+            // renderVendorManagement(result.project); // (如果已實作)
+            
+            setActiveTab(activeTab); // 確保停留在操作完成的頁籤
+        } else {
+            console.error("Failed to refresh detail data:", result.message);
+            alert(`資料刷新失敗: ${result.message}`);
+        }
+    } catch (error) {
+        console.error("Refresh fetch failed:", error);
+        alert('網路錯誤，無法刷新資料。');
+    }
+}
+
 // --- 匯出供外部 (router, common) 呼叫 ---
 export {
   renderProgress,
@@ -157,5 +190,6 @@ export {
   syncEditSelectors,
   renderMaterialOverview,
   renderVendorManagement,
-  initMaterialOverview  // ✨ Export for external use
+  initMaterialOverview,
+  refreshDetailData 
 };

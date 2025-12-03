@@ -9,14 +9,22 @@ import { renderAccountDetail } from './pages/account.js';
  * @param {string} name - 頁面名稱 (login, signup, search, detail)
  */
 export function showPage(name) {
-  Object.values(pages).forEach(s => s && s.classList.add("hidden"));
-  pages[name]?.classList.remove("hidden");
-  // 登入後才顯示 Header，且登入/註冊頁面不顯示 Header
-  headerEl.style.display = (state.authed && name !== "login" && name !== "signup") ? "block" : "none";
+    Object.values(pages).forEach(s => s && s.classList.add("hidden"));
+    pages[name]?.classList.remove("hidden");
+    headerEl.style.display = (state.authed && name !== "login" && name !== "signup") ? "block" : "none";
+}
+
+function restoreState() {
+    if (localStorage.getItem('isAuthenticated') === 'true') {
+        state.authed = true;
+        state.user.id = localStorage.getItem('userId');
+        state.user.plan = localStorage.getItem('userPlan');
+    }
 }
 
 /** 處理 URL 雜湊變更的路由邏輯 */
 export function router() {
+  restoreState();
   const hash = location.hash || "#login";
 
   // 未登入時限制路由

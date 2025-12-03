@@ -5,6 +5,7 @@ import { renderProgress } from './progress.js';
 import { renderMaterialsTable } from './materials.js';
 import { setActiveTab } from '../common.js';
 import { WORK_STATUS, MAT_STATUS } from '../../constants.js';
+import { refreshDetailData } from './index.js';
 
 function getEditElements() {
     return {
@@ -152,7 +153,7 @@ export function bindEditEvents() {
                     work.status = newStatus;
                     renderProgress(d);
                     setActiveTab("progress");
-
+                    await refreshDetailData(proj.id, 'progress');
                 } else {
                     alert(`更新失敗: ${result.message}`);
                 }
@@ -201,7 +202,7 @@ export function bindEditEvents() {
                     if (newMStatus === 0 && mat.vendor) {
                         showRatingModal(mat.vendor, mat.name, proj.id, mat.id, d);
                     }
-
+                    await refreshDetailData(proj.id, 'materials');
                 } else {
                     alert(`更新失敗: ${result.message}`);
                 }

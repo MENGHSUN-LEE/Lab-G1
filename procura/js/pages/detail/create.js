@@ -5,6 +5,7 @@ import { renderProgress, syncProgressDates } from './progress.js';
 import { renderMaterialsTable } from './materials.js';
 import { setActiveTab } from '../common.js';
 import { MATERIAL_CATEGORIES, WORK_STATUS, MAT_STATUS } from '../../constants.js';
+import { refreshDetailData } from './index.js';
 
 let workItemsGroupedByDate = {};
 let materialMasterList = [];
@@ -202,7 +203,7 @@ export function bindCreateEvents() {
                     if (createWorkName) createWorkName.value = "";
 
                     location.hash = `#detail?id=${proj.id}`;
-
+                    await refreshDetailData(proj.id, 'progress');
                 } else {
                     alert(`新增失敗: ${result.message}`);
                 }
@@ -257,7 +258,7 @@ export function bindCreateEvents() {
                     if (matUnit) matUnit.value = "";
 
                     location.hash = `#detail?id=${proj.id}`;
-
+                    await refreshDetailData(proj.id, 'materials');
                 } else {
                     alert(`新增建材失敗: ${result.message}`);
                 }
