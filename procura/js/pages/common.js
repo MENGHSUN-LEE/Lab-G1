@@ -6,7 +6,7 @@ import { renderMaterialsTable } from './detail/materials.js';
 import { syncCreateSelectors } from './detail/create.js';
 import { syncEditSelectors } from './detail/edit.js';
 import { renderMaterialOverview } from './detail/material_overview.js';
-import { renderVendorManagement } from './detail/vendor_management.js?v=4';
+import { renderVendorManagement } from './detail/vendor_management.js?v=6';
 
 /** 根據工項狀態值返回 CSS 類別 */
 export function getWorkStatusClass(status) {
