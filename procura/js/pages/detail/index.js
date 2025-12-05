@@ -7,7 +7,7 @@ import { renderMaterialsTable } from './materials.js';
 import { syncCreateSelectors, bindCreateEvents } from './create.js';
 import { syncEditSelectors, bindEditEvents } from './edit.js';
 import { bindMaterialOverviewEvents, renderMaterialOverview } from './material_overview.js';
-import { bindVendorManagementEvents, renderVendorManagement } from './vendor_management.js?v=4';
+import { bindVendorManagementEvents, renderVendorManagement } from './vendor_management.js?v=6';
 
 // ✨ EXISTING: Import Steven's Material Overview feature
 import { initMaterialOverview } from '../material/overview.js';
