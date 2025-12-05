@@ -461,10 +461,11 @@ async function updateExistingMaterialPrices() {
         `);
 
     if (updated.length > 0) {
-      console.log('[Price Update] Materials with prices:');
-      updated.forEach(m => {
-        console.log(`  - ID ${m.id}: ${m.material_name} = $${m.unit_price}`);
-      });
+      // console.log('[Price Update] Materials with prices:');
+      // updated.forEach(m => {
+      //   console.log(`  - ID ${m.id}: ${m.material_name} = $${m.unit_price}`);
+      // });
+      console.log(`[Price Update] Total materials with prices: ${updated.length}`);
     }
 
   } catch (error) {
@@ -1147,14 +1148,30 @@ async function initVendorRatingsTable() {
         `;
     await dbPool.execute(query);
     console.log('[MySQL] vendor_ratings table checked/created.');
+
+    const arrivalLogQuery = `
+            CREATE TABLE IF NOT EXISTS material_arrival_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                material_id INT NOT NULL,
+                expected_date DATE NOT NULL,
+                actual_date DATE DEFAULT NULL,
+                delivery_status ENUM('pending','in_transit','delivered','delayed') DEFAULT 'pending',
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE
+            );
+        `;
+    await dbPool.execute(arrivalLogQuery);
+    console.log('[MySQL] material_arrival_logs table checked/created.');
+
   } catch (error) {
-    console.error('[MySQL] Failed to init vendor_ratings table:', error);
+    console.error('[MySQL] Failed to init tables:', error);
   }
 }
 // 在 DB 連線後呼叫
 setTimeout(() => {
   if (app.locals.dbPool) initVendorRatingsTable();
-}, 1000);
+}, 2000);
 
 
 // 1. Get Unique Vendors (from materials_used & Company)
@@ -1317,94 +1334,108 @@ app.get('/api/vendor-performance', async (req, res) => {
 app.get('/api/vendor-metrics', async (req, res) => {
   const dbPool = app.locals.dbPool;
   try {
-    // Get all vendors from materials_used and Company
-    const vendorQuery = `
-            SELECT name AS vendor FROM Company
-            UNION
-            SELECT DISTINCT vendor FROM materials_used WHERE vendor IS NOT NULL AND vendor != ''
-            ORDER BY vendor;
-        `;
-    const [vendorRows] = await dbPool.execute(vendorQuery);
-    const vendors = vendorRows.map(r => r.vendor);
+    // --- OPTIMIZED QUERY FOR VENDOR METRICS ---
+
+    // 1. Fetch Delivery Metrics (from materials_used & arrival_logs)
+    const [deliveryRows] = await dbPool.execute(`
+        SELECT 
+            mu.vendor,
+            COUNT(*) as total_orders,
+            SUM(CASE 
+                WHEN al.delivery_status = 'delivered' THEN 1
+                WHEN al.delivery_status = 'delayed' THEN 0
+                WHEN al.actual_date IS NOT NULL AND al.actual_date <= al.expected_date THEN 1
+                ELSE 0
+            END) as on_time_count
+        FROM materials_used mu
+        JOIN material_arrival_logs al ON mu.id = al.material_id
+        WHERE mu.vendor IS NOT NULL AND mu.vendor != ''
+        GROUP BY mu.vendor
+    `);
+
+    const deliveryMap = {};
+    deliveryRows.forEach(r => {
+      deliveryMap[r.vendor] = {
+        total: r.total_orders,
+        on_time: parseFloat(r.on_time_count),
+        pct: Math.round((parseFloat(r.on_time_count) / r.total_orders) * 100)
+      };
+    });
+
+    // 2. Fetch Price Metrics (from Transaction table - Historical Data)
+    // Get average price per material per vendor
+    const [priceRows] = await dbPool.execute(`
+        SELECT 
+            c.name as vendor, 
+            m.Item_Description as material_name, 
+            AVG(t.price_per_unit) as avg_price
+        FROM Transaction t
+        JOIN Company c ON t.FK_company_id = c.company_id
+        JOIN Material m ON t.FK_material_id = m.material_id
+        WHERE t.price_per_unit > 0
+        GROUP BY c.name, m.Item_Description
+    `);
+
+    // Calculate Market Average per Material (Unweighted average of vendor prices)
+    const materialPrices = {}; // { "Cement": [100, 110, 105], ... }
+    priceRows.forEach(row => {
+      if (!materialPrices[row.material_name]) materialPrices[row.material_name] = [];
+      materialPrices[row.material_name].push(parseFloat(row.avg_price));
+    });
+
+    const marketAverages = {};
+    for (const [mat, prices] of Object.entries(materialPrices)) {
+      const sum = prices.reduce((a, b) => a + b, 0);
+      marketAverages[mat] = sum / prices.length;
+    }
+
+    // Calculate Savings % per Vendor
+    const vendorSavings = {}; // { "VendorA": { totalSavings: 20, count: 2 } }
+
+    priceRows.forEach(row => {
+      const marketAvg = marketAverages[row.material_name];
+      if (marketAvg) {
+        const vendorAvg = parseFloat(row.avg_price);
+        const savings = ((marketAvg - vendorAvg) / marketAvg) * 100;
+
+        if (!vendorSavings[row.vendor]) vendorSavings[row.vendor] = { sum: 0, count: 0 };
+        vendorSavings[row.vendor].sum += savings;
+        vendorSavings[row.vendor].count++;
+      }
+    });
+
+    // 3. Combine Data
+    // Get distinct list of vendors from both sources
+    const allVendors = new Set([
+      ...Object.keys(deliveryMap),
+      ...Object.keys(vendorSavings)
+    ]);
 
     const metrics = [];
+    allVendors.forEach(vendor => {
+      // Delivery Data
+      const dData = deliveryMap[vendor] || { total: 0, on_time: 0, pct: "N/A" };
 
-    for (const vendor of vendors) {
-      // 1. DELIVERY PUNCTUALITY
-      // Get all materials from this vendor with arrival logs
-      const [deliveryData] = await dbPool.execute(`
-                SELECT 
-                    al.expected_date,
-                    al.actual_date,
-                    al.delivery_status,
-                    CASE 
-                        WHEN al.actual_date IS NOT NULL AND al.actual_date <= al.expected_date THEN 1
-                        WHEN al.delivery_status = 'delivered' AND al.actual_date IS NULL THEN 1
-                        ELSE 0
-                    END as on_time
-                FROM material_arrival_logs al
-                JOIN materials_used mu ON al.material_id = mu.id
-                WHERE mu.vendor = ? AND al.delivery_status = 'delivered'
-            `, [vendor]);
-
-      let deliveryMetrics = {
-        total: deliveryData.length,
-        on_time: 0,
-        pct: "N/A"
-      };
-
-      if (deliveryData.length > 0) {
-        deliveryMetrics.on_time = deliveryData.filter(d => d.on_time === 1).length;
-        deliveryMetrics.pct = Math.round((deliveryMetrics.on_time / deliveryMetrics.total) * 100);
-      }
-
-      // 2. PRICE COMPETITIVENESS
-      // Compare vendor's average price vs market average for same materials
-      const [priceData] = await dbPool.execute(`
-                SELECT 
-                    mu.material_name,
-                    AVG(mu.unit_price) as vendor_avg_price
-                FROM materials_used mu
-                WHERE mu.vendor = ? AND mu.unit_price IS NOT NULL AND mu.unit_price > 0
-                GROUP BY mu.material_name
-            `, [vendor]);
-
+      // Price Data
       let priceCompetitiveness = "N/A";
-
-      if (priceData.length > 0) {
-        let totalSavings = 0;
-        let materialCount = 0;
-
-        for (const material of priceData) {
-          // Get market average for this material
-          const [marketAvg] = await dbPool.execute(`
-                        SELECT AVG(unit_price) as market_avg
-                        FROM materials_used
-                        WHERE material_name = ? AND unit_price IS NOT NULL AND unit_price > 0
-                    `, [material.material_name]);
-
-          if (marketAvg[0]?.market_avg) {
-            const vendorPrice = parseFloat(material.vendor_avg_price);
-            const marketPrice = parseFloat(marketAvg[0].market_avg);
-
-            // Calculate savings percentage
-            const savings = ((marketPrice - vendorPrice) / marketPrice) * 100;
-            totalSavings += savings;
-            materialCount++;
-          }
-        }
-
-        if (materialCount > 0) {
-          priceCompetitiveness = (totalSavings / materialCount).toFixed(1);
-        }
+      if (vendorSavings[vendor]) {
+        priceCompetitiveness = (vendorSavings[vendor].sum / vendorSavings[vendor].count).toFixed(1);
       }
 
       metrics.push({
         vendor_name: vendor,
-        delivery: deliveryMetrics,
+        delivery: dData,
         price_competitiveness: priceCompetitiveness
       });
-    }
+    });
+
+    // Sort: Vendors with savings first (desc), then N/A (-9999), then name
+    metrics.sort((a, b) => {
+      const valA = a.price_competitiveness === 'N/A' ? -9999 : parseFloat(a.price_competitiveness);
+      const valB = b.price_competitiveness === 'N/A' ? -9999 : parseFloat(b.price_competitiveness);
+      if (valA !== valB) return valB - valA; // Descending
+      return a.vendor_name.localeCompare(b.vendor_name);
+    });
 
     res.json({ success: true, metrics });
 
