@@ -3,6 +3,7 @@
 import { state } from '../../app.js';
 
 let cachedVendors = [];
+console.log("Vendor Management script v4 loaded");
 
 export function bindVendorManagementEvents() {
     const rateStars = document.getElementById("rate-stars");
@@ -241,6 +242,56 @@ async function loadVendorMetrics() {
         const result = await res.json();
 
         if (result.success && result.metrics.length > 0) {
+            console.log('[Vendor Metrics] Loaded metrics:', result.metrics.length);
+            const DISPLAY_LIMIT = 6; // 只顯示前 6 個
+            const displayMetrics = result.metrics.slice(0, DISPLAY_LIMIT);
+            const hasMore = result.metrics.length > DISPLAY_LIMIT;
+
+            // Helper function to generate delivery table rows
+            const generateDeliveryRows = (metrics) => {
+                return metrics.map(m => {
+                    const pct = m.delivery.pct;
+                    const color = pct === "N/A" ? "#999" : (pct >= 90 ? "green" : (pct >= 70 ? "orange" : "red"));
+                    return `
+                        <tr style="border-bottom: 1px solid #f9f9f9;">
+                            <td style="padding: 8px;">${m.vendor_name}</td>
+                            <td style="padding: 8px; font-weight:bold; color: ${color};">
+                                ${pct === "N/A" ? "N/A" : pct + "%"}
+                            </td>
+                            <td style="padding: 8px; color: #777;">${m.delivery.total}</td>
+                        </tr>
+                    `;
+                }).join("");
+            };
+
+            // Helper function to generate price table rows
+            const generatePriceRows = (metrics) => {
+                return metrics.map(m => {
+                    const val = m.price_competitiveness;
+                    let status = "Neutral";
+                    let color = "#777";
+
+                    if (val !== "N/A") {
+                        const num = parseFloat(val);
+                        if (num > 0) { status = "Good"; color = "green"; }
+                        else if (num < 0) { status = "Expensive"; color = "red"; }
+                        else { status = "Neutral"; color = "gray"; }
+                    }
+
+                    return `
+                        <tr style="border-bottom: 1px solid #f9f9f9;">
+                            <td style="padding: 8px;">${m.vendor_name}</td>
+                            <td style="padding: 8px; font-weight:bold; color: ${color};">
+                                ${val === "N/A" ? "N/A" : (val > 0 ? "+" + val : val) + "%"}
+                            </td>
+                            <td style="padding: 8px;">
+                                <span class="tag" style="background:${color}15; color:${color}; font-size:0.8em;">${status}</span>
+                            </td>
+                        </tr>
+                    `;
+                }).join("");
+            };
+
             // 1. Delivery Punctuality Card
             const deliveryHTML = `
                 <div class="card" style="padding: 20px;">
@@ -254,21 +305,16 @@ async function loadVendorMetrics() {
                             </tr>
                         </thead>
                         <tbody>
-                            ${result.metrics.map(m => {
-                const pct = m.delivery.pct;
-                const color = pct === "N/A" ? "#999" : (pct >= 90 ? "green" : (pct >= 70 ? "orange" : "red"));
-                return `
-                                    <tr style="border-bottom: 1px solid #f9f9f9;">
-                                        <td style="padding: 8px;">${m.vendor_name}</td>
-                                        <td style="padding: 8px; font-weight:bold; color: ${color};">
-                                            ${pct === "N/A" ? "N/A" : pct + "%"}
-                                        </td>
-                                        <td style="padding: 8px; color: #777;">${m.delivery.total}</td>
-                                    </tr>
-                                `;
-            }).join("")}
+                            ${generateDeliveryRows(displayMetrics)}
                         </tbody>
                     </table>
+                    ${hasMore ? `
+                        <div style="text-align: center; margin-top: 15px;">
+                            <button class="btn" id="view-more-delivery" style="font-size: 0.9em;">
+                                查看更多 (${result.metrics.length} 個供應商)
+                            </button>
+                        </div>
+                    ` : ''}
                 </div>
             `;
 
@@ -286,36 +332,34 @@ async function loadVendorMetrics() {
                             </tr>
                         </thead>
                         <tbody>
-                            ${result.metrics.map(m => {
-                const val = m.price_competitiveness;
-                let status = "Neutral";
-                let color = "#777";
-
-                if (val !== "N/A") {
-                    const num = parseFloat(val);
-                    if (num > 0) { status = "Good"; color = "green"; }
-                    else if (num < 0) { status = "Expensive"; color = "red"; }
-                    else { status = "Neutral"; color = "gray"; }
-                }
-
-                return `
-                                    <tr style="border-bottom: 1px solid #f9f9f9;">
-                                        <td style="padding: 8px;">${m.vendor_name}</td>
-                                        <td style="padding: 8px; font-weight:bold; color: ${color};">
-                                            ${val === "N/A" ? "N/A" : (val > 0 ? "+" + val : val) + "%"}
-                                        </td>
-                                        <td style="padding: 8px;">
-                                            <span class="tag" style="background:${color}15; color:${color}; font-size:0.8em;">${status}</span>
-                                        </td>
-                                    </tr>
-                                `;
-            }).join("")}
+                            ${generatePriceRows(displayMetrics)}
                         </tbody>
                     </table>
+                    ${hasMore ? `
+                        <div style="text-align: center; margin-top: 15px;">
+                            <button class="btn" id="view-more-price" style="font-size: 0.9em;">
+                                查看更多 (${result.metrics.length} 個供應商)
+                            </button>
+                        </div>
+                    ` : ''}
                 </div>
             `;
 
             grid.innerHTML = deliveryHTML + priceHTML;
+
+            // Bind "View More" button events
+            if (hasMore) {
+                const deliveryBtn = document.getElementById("view-more-delivery");
+                const priceBtn = document.getElementById("view-more-price");
+
+                if (deliveryBtn) {
+                    deliveryBtn.onclick = () => showVendorModal('Delivery Punctuality', result.metrics, 'delivery');
+                }
+
+                if (priceBtn) {
+                    priceBtn.onclick = () => showVendorModal('Price Competitiveness', result.metrics, 'price');
+                }
+            }
 
         } else {
             grid.innerHTML = `<p class="muted col-span-2" style="text-align:center;">No metric data available.</p>`;
@@ -324,4 +368,140 @@ async function loadVendorMetrics() {
         console.error("Failed to load metrics", e);
         grid.innerHTML = `<p class="muted">Error loading metrics.</p>`;
     }
+}
+
+// Show modal with all vendors
+function showVendorModal(title, metrics, type) {
+    // Create modal container
+    const modal = document.createElement('div');
+    modal.id = 'vendor-modal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    `;
+
+    let tableContent = '';
+
+    if (type === 'delivery') {
+        tableContent = `
+            <table style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #eee; text-align:left;">
+                        <th style="padding: 10px;">Vendor</th>
+                        <th style="padding: 10px;">On-Time %</th>
+                        <th style="padding: 10px;">Total Orders</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${metrics.map(m => {
+            const pct = m.delivery.pct;
+            const color = pct === "N/A" ? "#999" : (pct >= 90 ? "green" : (pct >= 70 ? "orange" : "red"));
+            return `
+                            <tr style="border-bottom: 1px solid #f9f9f9;">
+                                <td style="padding: 10px;">${m.vendor_name}</td>
+                                <td style="padding: 10px; font-weight:bold; color: ${color};">
+                                    ${pct === "N/A" ? "N/A" : pct + "%"}
+                                </td>
+                                <td style="padding: 10px; color: #777;">${m.delivery.total}</td>
+                            </tr>
+                        `;
+        }).join("")}
+                </tbody>
+            </table>
+        `;
+    } else {
+        tableContent = `
+            <table style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #eee; text-align:left;">
+                        <th style="padding: 10px;">Vendor</th>
+                        <th style="padding: 10px;">Savings %</th>
+                        <th style="padding: 10px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${metrics.map(m => {
+            const val = m.price_competitiveness;
+            let status = "Neutral";
+            let color = "#777";
+
+            if (val !== "N/A") {
+                const num = parseFloat(val);
+                if (num > 0) { status = "Good"; color = "green"; }
+                else if (num < 0) { status = "Expensive"; color = "red"; }
+                else { status = "Neutral"; color = "gray"; }
+            }
+
+            return `
+                            <tr style="border-bottom: 1px solid #f9f9f9;">
+                                <td style="padding: 10px;">${m.vendor_name}</td>
+                                <td style="padding: 10px; font-weight:bold; color: ${color};">
+                                    ${val === "N/A" ? "N/A" : (val > 0 ? "+" + val : val) + "%"}
+                                </td>
+                                <td style="padding: 10px;">
+                                    <span class="tag" style="background:${color}15; color:${color}; font-size:0.9em; padding: 4px 8px;">${status}</span>
+                                </td>
+                            </tr>
+                        `;
+        }).join("")}
+                </tbody>
+            </table>
+        `;
+    }
+
+    modal.innerHTML = `
+        <div style="
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: #667eea;">${title === 'Delivery Punctuality' ? '🚚' : '💰'} ${title}</h3>
+                <button id="close-modal" style="
+                    background: none;
+                    border: none;
+                    font-size: 24px;
+                    cursor: pointer;
+                    color: #999;
+                    padding: 0;
+                    width: 30px;
+                    height: 30px;
+                    line-height: 30px;
+                ">&times;</button>
+            </div>
+            ${type === 'price' ? '<p class="muted" style="margin-bottom: 15px;">Compared to Market Average Price</p>' : ''}
+            <div style="overflow-x: auto;">
+                ${tableContent}
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn" id="close-modal-btn">關閉</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Close modal events
+    const closeModal = () => {
+        modal.remove();
+    };
+
+    document.getElementById('close-modal').onclick = closeModal;
+    document.getElementById('close-modal-btn').onclick = closeModal;
+    modal.onclick = (e) => {
+        if (e.target === modal) closeModal();
+    };
 }

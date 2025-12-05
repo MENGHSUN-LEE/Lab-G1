@@ -7,7 +7,7 @@ import { renderMaterialsTable } from './materials.js';
 import { syncCreateSelectors, bindCreateEvents } from './create.js';
 import { syncEditSelectors, bindEditEvents } from './edit.js';
 import { bindMaterialOverviewEvents, renderMaterialOverview } from './material_overview.js';
-import { bindVendorManagementEvents, renderVendorManagement } from './vendor_management.js';
+import { bindVendorManagementEvents, renderVendorManagement } from './vendor_management.js?v=4';
 
 // ✨ EXISTING: Import Steven's Material Overview feature
 import { initMaterialOverview } from '../material/overview.js';
@@ -24,30 +24,30 @@ const detailMeta = document.getElementById("detailMeta");
 export function renderDetail(p) {
   // Update state
   state.currentProject = p;
-  
+
   const detailTitle = document.getElementById("detailTitle");
   const detailMeta = document.getElementById("detailMeta");
-  
+
   // Update page title and metadata
   detailTitle.textContent = p.name || "專案細項";
   detailMeta.textContent = `Owner：${p.owner || "-"}　｜　Tags：${Array.isArray(p.tags) ? p.tags.join(", ") : p.tags || "-"}`;
-  
+
   // Set default active tab
   setActiveTab("progress");
-  
+
   // 同步所有需要初始化的 UI
   syncProgressDates();
   renderProgress('all');
   syncCreateSelectors();
   syncEditSelectors();
   renderMaterialsTable();
-  
+
   // ✨ EXISTING: Setup Material Overview tab lazy loading
   setupMaterialOverviewTab();
-  
+
   // ✅ NEW: Initialize Alerts & Reports System
   initAlertsAndReports(p.id);
-  
+
   console.log("✅ Detail page rendered with all features including Alerts & Reports");
 }
 
@@ -65,12 +65,12 @@ async function initAlertsAndReports(projectId) {
 // ✨ EXISTING: Setup Material Overview tab with lazy initialization
 function setupMaterialOverviewTab() {
   const overviewTab = document.querySelector('.tab-btn[data-tab="overview"]');
-  
+
   if (!overviewTab) {
     console.warn('Material Overview tab button not found');
     return;
   }
-  
+
   // Add click listener for lazy loading
   overviewTab.addEventListener('click', () => {
     // Initialize Material Overview only once when first clicked
@@ -80,7 +80,7 @@ function setupMaterialOverviewTab() {
       overviewTab.dataset.initialized = 'true';
     }
   });
-  
+
   // ✨ If user directly opens detail page on overview tab, initialize it
   if (location.hash.includes('tab=overview')) {
     console.log('🚀 Auto-initializing Material Overview (direct link)...');
@@ -96,10 +96,10 @@ export function bindDetailEvents() {
   bindEditEvents();
   bindMaterialOverviewEvents();
   bindVendorManagementEvents();
-  
+
   // ✨ EXISTING: Bind tab switching events with Material Overview support
   bindTabSwitchingWithMaterialOverview();
-  
+
   // ✅ NEW: Bind tab switching for Alerts & Reports
   bindAlertsReportsTabEvents();
 }
@@ -107,11 +107,11 @@ export function bindDetailEvents() {
 // ✨ EXISTING: Enhanced tab switching that supports Material Overview
 function bindTabSwitchingWithMaterialOverview() {
   const tabBtns = document.querySelectorAll('.tab-btn');
-  
+
   tabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       const target = btn.dataset.tab;
-      
+
       // Special handling for Material Overview tab
       if (target === 'overview' && !btn.dataset.initialized) {
         console.log('🚀 Initializing Material Overview via tab click...');
@@ -126,14 +126,14 @@ function bindTabSwitchingWithMaterialOverview() {
 function bindAlertsReportsTabEvents() {
   const alertsTab = document.querySelector('.tab-btn[data-tab="alerts"]');
   const reportsTab = document.querySelector('.tab-btn[data-tab="reports"]');
-  
+
   if (alertsTab) {
     alertsTab.addEventListener('click', () => {
       console.log('🚨 Alerts tab clicked - refreshing alerts...');
       AlertsManager.loadAlerts();
     });
   }
-  
+
   if (reportsTab) {
     reportsTab.addEventListener('click', () => {
       console.log('📊 Reports tab clicked');
@@ -146,44 +146,44 @@ function bindAlertsReportsTabEvents() {
 export function renderDetailWithAutoInit(p) {
   // Update state
   state.currentProject = p;
-  
+
   const detailTitle = document.getElementById("detailTitle");
   const detailMeta = document.getElementById("detailMeta");
-  
+
   // Update page title and metadata
   detailTitle.textContent = p.name || "專案細項";
   detailMeta.textContent = `Owner：${p.owner || "-"}　｜　Tags：${Array.isArray(p.tags) ? p.tags.join(", ") : p.tags || "-"}`;
-  
+
   // Set default active tab
   setActiveTab("progress");
-  
+
   // Initialize all tabs
   syncProgressDates();
   renderProgress('all');
   syncCreateSelectors();
   syncEditSelectors();
   renderMaterialsTable();
-  
+
   // ✨ EXISTING: Auto-initialize Material Overview on page load (not lazy)
   console.log('🚀 Auto-initializing Material Overview...');
   initMaterialOverview();
-  
+
   // Mark as initialized
   const overviewTab = document.querySelector('.tab-btn[data-tab="overview"]');
   if (overviewTab) {
     overviewTab.dataset.initialized = 'true';
   }
-  
+
   // ✅ NEW: Initialize Alerts & Reports
   initAlertsAndReports(p.id);
-  
+
   console.log("✅ Detail page rendered with Material Overview auto-initialized and Alerts & Reports");
 }
 
 // ✨ EXISTING: Force refresh Material Overview
 export function refreshMaterialOverview() {
   const overviewTab = document.querySelector('.tab-btn[data-tab="overview"]');
-  
+
   if (overviewTab?.dataset.initialized === 'true') {
     console.log('🔄 Refreshing Material Overview...');
     initMaterialOverview();
@@ -202,32 +202,32 @@ export function refreshAlerts() {
  * @param {string} activeTab - 刷新完成後應切換到的目標頁籤
  */
 async function refreshDetailData(projectId, activeTab = 'progress') {
-    try {
-        const response = await fetch(`/api/projects/${projectId}`);
-        const result = await response.json();
-        
-        if (result.success && result.project) {
-            state.currentProject = result.project;
-            
-            // 重新渲染/同步所有依賴於 state.currentProject 的頁面元素
-            syncProgressDates();
-            renderProgress('all'); 
-            syncCreateSelectors();
-            syncEditSelectors();
-            renderMaterialsTable();
-            
-            // ✅ NEW: Refresh Alerts after data update
-            AlertsManager.loadAlerts();
-            
-            setActiveTab(activeTab);
-        } else {
-            console.error("Failed to refresh detail data:", result.message);
-            alert(`資料刷新失敗: ${result.message}`);
-        }
-    } catch (error) {
-        console.error("Refresh fetch failed:", error);
-        alert('網路錯誤，無法刷新資料。');
+  try {
+    const response = await fetch(`/api/projects/${projectId}`);
+    const result = await response.json();
+
+    if (result.success && result.project) {
+      state.currentProject = result.project;
+
+      // 重新渲染/同步所有依賴於 state.currentProject 的頁面元素
+      syncProgressDates();
+      renderProgress('all');
+      syncCreateSelectors();
+      syncEditSelectors();
+      renderMaterialsTable();
+
+      // ✅ NEW: Refresh Alerts after data update
+      AlertsManager.loadAlerts();
+
+      setActiveTab(activeTab);
+    } else {
+      console.error("Failed to refresh detail data:", result.message);
+      alert(`資料刷新失敗: ${result.message}`);
     }
+  } catch (error) {
+    console.error("Refresh fetch failed:", error);
+    alert('網路錯誤，無法刷新資料。');
+  }
 }
 
 // --- 匯出供外部 (router, common) 呼叫 ---
