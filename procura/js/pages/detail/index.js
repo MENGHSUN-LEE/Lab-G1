@@ -15,6 +15,7 @@ import { initMaterialOverview } from '../material/overview.js';
 // ✅ NEW: Import Alerts & Reports modules
 import { AlertsManager } from './alerts.js';
 import { ReportsManager } from './reports.js';
+import { initRFQ } from './rfq.js';
 
 // --- 元素快取 (只保留共用元素) ---
 const detailTitle = document.getElementById("detailTitle");
@@ -47,7 +48,7 @@ export function renderDetail(p) {
 
   // ✅ NEW: Initialize Alerts & Reports System
   initAlertsAndReports(p.id);
-
+  setupRFQTab();
   console.log("✅ Detail page rendered with all features including Alerts & Reports");
 }
 
@@ -61,7 +62,32 @@ async function initAlertsAndReports(projectId) {
     console.error("❌ Error initializing Alerts & Reports:", error);
   }
 }
+// ✅ NEW: Setup RFQ tab with lazy initialization
+function setupRFQTab() {
+  const rfqTab = document.querySelector('.tab-btn[data-tab="rfq"]');
 
+  if (!rfqTab) {
+    console.warn('RFQ tab button not found');
+    return;
+  }
+
+  // Add click listener for lazy loading
+  rfqTab.addEventListener('click', () => {
+    // Initialize RFQ only once when first clicked
+    if (!rfqTab.dataset.initialized) {
+      console.log('🚀 Initializing RFQ for the first time...');
+      initRFQ();
+      rfqTab.dataset.initialized = 'true';
+    }
+  });
+
+  // If user directly opens detail page on rfq tab, initialize it
+  if (location.hash.includes('tab=rfq')) {
+    console.log('🚀 Auto-initializing RFQ (direct link)...');
+    initRFQ();
+    rfqTab.dataset.initialized = 'true';
+  }
+}
 // ✨ EXISTING: Setup Material Overview tab with lazy initialization
 function setupMaterialOverviewTab() {
   const overviewTab = document.querySelector('.tab-btn[data-tab="overview"]');
@@ -241,5 +267,6 @@ export {
   initMaterialOverview,
   refreshDetailData,
   AlertsManager,
-  ReportsManager
+  ReportsManager,
+  initRFQ
 };

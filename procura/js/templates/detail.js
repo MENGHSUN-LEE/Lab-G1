@@ -19,6 +19,7 @@ export const detailTemplate = `
         <!-- ✅ ADD THESE TWO NEW TABS -->
         <button class="tab-btn" data-tab="alerts">🚨 Alerts</button>
         <button class="tab-btn" data-tab="reports">📊 Reports</button>
+        <button class="tab-btn" data-tab="rfq">📝 Request Quotes</button>
       </div>
 
       <!-- EXISTING TAB PANELS -->
@@ -206,6 +207,14 @@ export const detailTemplate = `
 
       <div id="tab-reports" class="tab-panel">
           <div id="reports-container"></div>
+      </div>
+
+      <!-- ✅ ADD THIS NEW TAB PANEL -->
+      <div id="tab-rfq" class="tab-panel">
+          <div id="rfq-container">
+              <!-- RFQ content will be dynamically loaded here -->
+              <p class="muted">Loading RFQ system...</p>
+          </div>
       </div>
 
     </section>

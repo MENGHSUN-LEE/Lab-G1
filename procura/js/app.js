@@ -10,6 +10,7 @@ import { searchTemplate } from './templates/search.js';
 import { detailTemplate } from './templates/detail.js';
 import { bindAccountEvents } from './pages/account.js';
 import { accountTemplate } from './templates/account.js';
+import { initRFQ } from './pages/detail/rfq.js';
 
 // --- 全域狀態與元素 (Exported for other modules) ---
 export const state = { authed: false, currentProject: null, user: {} };

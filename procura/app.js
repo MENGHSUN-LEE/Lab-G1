@@ -1197,6 +1197,69 @@ app.get('/api/vendors', async (req, res) => {
   }
 });
 
+// GET VENDORS WITH COMPANY IDs (for RFQ supplier selection)
+app.get('/api/vendors-with-ids', async (req, res) => {
+  const dbPool = app.locals.dbPool;
+  try {
+    // Get all companies first
+    const [companies] = await dbPool.execute(`
+      SELECT company_id, name 
+      FROM Company 
+      WHERE name IS NOT NULL AND name != ''
+      ORDER BY name
+    `);
+    
+    // Get unique vendors from materials_used
+    const [vendorsFromMaterials] = await dbPool.execute(`
+      SELECT DISTINCT vendor 
+      FROM materials_used 
+      WHERE vendor IS NOT NULL AND vendor != ''
+    `);
+    
+    // Combine both lists and try to match
+    const vendorMap = new Map();
+    
+    // Add all companies with their IDs
+    companies.forEach(c => {
+      vendorMap.set(c.name.toLowerCase().trim(), {
+        name: c.name,
+        company_id: c.company_id
+      });
+    });
+    
+    // Add vendors from materials_used, try to find matching company
+    vendorsFromMaterials.forEach(v => {
+      const vendorName = v.vendor;
+      const normalizedName = vendorName.toLowerCase().trim();
+      
+      // If not already in map, add with null company_id
+      if (!vendorMap.has(normalizedName)) {
+        // Try to find a matching company by fuzzy match
+        const matchingCompany = companies.find(c => 
+          c.name.toLowerCase().trim() === normalizedName
+        );
+        
+        vendorMap.set(normalizedName, {
+          name: vendorName,
+          company_id: matchingCompany ? matchingCompany.company_id : null
+        });
+      }
+    });
+    
+    // Convert to array and filter out nulls
+    const vendors = Array.from(vendorMap.values())
+      .filter(v => v.company_id !== null)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    
+    console.log(`[Vendors API] Found ${vendors.length} vendors with company IDs`);
+    
+    res.json({ success: true, vendors });
+  } catch (error) {
+    console.error('Get Vendors with IDs error:', error);
+    res.status(500).json({ success: false, message: 'Server error retrieving vendors.' });
+  }
+});
+
 // 2. Add Vendor Rating
 app.post('/api/vendor-ratings', async (req, res) => {
   const { vendor_name, rating, comment, project_id } = req.body;
