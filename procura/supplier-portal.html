@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procura Supplier Portal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1400px;
+            padding: 20px;
+        }
+
+        /* Login Page */
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 60px;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .login-header h1 {
+            color: #667eea;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            display: none;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .dashboard.active {
+            display: block;
+        }
+
+        .dashboard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dashboard-header h1 {
+            font-size: 28px;
+        }
+
+        .dashboard-header .user-info {
+            text-align: right;
+        }
+
+        .dashboard-header .user-info p {
+            margin: 5px 0;
+            opacity: 0.9;
+        }
+
+        .btn-logout {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .btn-logout:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .dashboard-nav {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .nav-tab:hover {
+            background: #f0f0f0;
+            color: #667eea;
+        }
+
+        .nav-tab.active {
+            color: #667eea;
+            background: white;
+            border-bottom-color: #667eea;
+        }
+
+        .dashboard-content {
+            padding: 30px;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-card .value {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            font-size: 13px;
+            opacity: 0.8;
+        }
+
+        /* Orders Table */
+        .orders-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .orders-controls select,
+        .orders-controls input {
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .orders-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .orders-table th {
+            background: #f8f9fa;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .orders-table td {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .orders-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-transit {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .status-delivered {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-delayed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .btn-update {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .btn-update:hover {
+            background: #5568d3;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #333;
+            font-size: 24px;
+        }
+
+        .modal-body .form-group {
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        /* Performance Section */
+        .performance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .performance-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 25px;
+        }
+
+        .performance-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #666;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Page -->
+        <div id="loginPage" class="login-container">
+            <div class="login-header">
+                <h1>🏢 Supplier Portal</h1>
+                <p>Manage your orders and deliveries</p>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="loginEmail" required placeholder="your-email@supplier.com">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" required placeholder="Enter password">
+                </div>
+                <button type="submit" class="btn">Login</button>
+                <div id="loginError" class="error-message"></div>
+            </form>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="dashboard">
+            <div class="dashboard-header">
+                <div>
+                    <h1>Supplier Dashboard</h1>
+                    <p id="companyName"></p>
+                </div>
+                <div class="user-info">
+                    <p id="userEmail"></p>
+                    <button class="btn-logout" onclick="logout()">Logout</button>
+                </div>
+            </div>
+
+            <div class="dashboard-nav">
+                <div class="nav-tab active" onclick="showTab('overview')">Overview</div>
+                <div class="nav-tab" onclick="showTab('orders')">My Orders</div>
+                <div class="nav-tab" onclick="showTab('performance')">Performance</div>
+            </div>
+
+            <div class="dashboard-content">
+                <!-- Overview Tab -->
+                <div id="overviewTab" class="tab-pane active">
+                    <div class="stats-grid" id="statsGrid"></div>
+                    <h2 style="margin-bottom: 15px;">Urgent Orders (Next 7 Days)</h2>
+                    <div id="urgentOrders"></div>
+                </div>
+
+                <!-- Orders Tab -->
+                <div id="ordersTab" class="tab-pane">
+                    <div class="orders-controls">
+                        <select id="statusFilter" onchange="filterOrders()">
+                            <option value="">All Statuses</option>
+                            <option value="2">Pending</option>
+                            <option value="1">In Transit</option>
+                            <option value="0">Delivered</option>
+                            <option value="3">Delayed</option>
+                        </select>
+                        <input type="date" id="dateFromFilter" onchange="filterOrders()">
+                        <input type="date" id="dateToFilter" onchange="filterOrders()">
+                    </div>
+                    <table class="orders-table" id="ordersTable">
+                        <thead>
+                            <tr>
+                                <th>Material</th>
+                                <th>Quantity</th>
+                                <th>Project</th>
+                                <th>Required Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- Performance Tab -->
+                <div id="performanceTab" class="tab-pane">
+                    <div class="performance-grid" id="performanceGrid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Order Modal -->
+    <div id="updateModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Update Order Status</h2>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="modalStatus">
+                        <option value="2">Pending Order</option>
+                        <option value="1">In Transit</option>
+                        <option value="0">Delivered</option>
+                        <option value="3">Delayed</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Expected Delivery Date</label>
+                    <input type="date" id="modalDeliveryDate">
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <input type="text" id="modalNotes" placeholder="Optional notes">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveOrderStatus()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSupplier = null;
+        let currentOrders = [];
+        let selectedOrderId = null;
+
+        // Login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const response = await fetch('/api/supplier/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentSupplier = data.supplier;
+                    document.getElementById('loginPage').style.display = 'none';
+                    document.getElementById('dashboard').classList.add('active');
+                    document.getElementById('companyName').textContent = currentSupplier.company_name;
+                    document.getElementById('userEmail').textContent = currentSupplier.email;
+                    loadDashboard();
+                } else {
+                    showError(data.message);
+                }
+            } catch (error) {
+                showError('Login failed. Please try again.');
+            }
+        });
+
+        function showError(message) {
+            const errorEl = document.getElementById('loginError');
+            errorEl.textContent = message;
+            errorEl.classList.add('show');
+        }
+
+        function logout() {
+            currentSupplier = null;
+            document.getElementById('dashboard').classList.remove('active');
+            document.getElementById('loginPage').style.display = 'block';
+            document.getElementById('loginForm').reset();
+        }
+
+        async function loadDashboard() {
+            try {
+                const response = await fetch(`/api/supplier/${currentSupplier.id}/dashboard`);
+                const data = await response.json();
+
+                if (data.success) {
+                    renderStats(data.dashboard.statistics);
+                    renderUrgentOrders(data.dashboard.urgent_orders);
+                }
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+            }
+
+            loadOrders();
+            loadPerformance();
+        }
+
+        function renderStats(stats) {
+            const html = `
+                <div class="stat-card">
+                    <h3>Total Orders</h3>
+                    <div class="value">${stats.total_orders}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Pending</h3>
+                    <div class="value">${stats.pending_orders}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>In Transit</h3>
+                    <div class="value">${stats.in_transit_orders}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Delivered</h3>
+                    <div class="value">${stats.delivered_orders}</div>
+                </div>
+            `;
+            document.getElementById('statsGrid').innerHTML = html;
+        }
+
+        function renderUrgentOrders(orders) {
+            if (orders.length === 0) {
+                document.getElementById('urgentOrders').innerHTML = '<p>No urgent orders</p>';
+                return;
+            }
+
+            const html = `
+                <table class="orders-table">
+                    <thead>
+                        <tr>
+                            <th>Material</th>
+                            <th>Quantity</th>
+                            <th>Project</th>
+                            <th>Required Date</th>
+                            <th>Days Until</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${orders.map(order => `
+                            <tr>
+                                <td>${order.material_name}</td>
+                                <td>${order.qty} ${order.unit}</td>
+                                <td>${order.project_name}</td>
+                                <td>${new Date(order.work_date).toLocaleDateString()}</td>
+                                <td><strong>${order.days_until} days</strong></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            document.getElementById('urgentOrders').innerHTML = html;
+        }
+
+        async function loadOrders() {
+            const status = document.getElementById('statusFilter').value;
+            const dateFrom = document.getElementById('dateFromFilter').value;
+            const dateTo = document.getElementById('dateToFilter').value;
+
+            let url = `/api/supplier/${currentSupplier.id}/orders?`;
+            if (status) url += `status=${status}&`;
+            if (dateFrom) url += `date_from=${dateFrom}&`;
+            if (dateTo) url += `date_to=${dateTo}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success) {
+                    currentOrders = data.orders;
+                    renderOrders(data.orders);
+                }
+            } catch (error) {
+                console.error('Failed to load orders:', error);
+            }
+        }
+
+        function renderOrders(orders) {
+            const tbody = document.getElementById('ordersTableBody');
+            
+            if (orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No orders found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = orders.map(order => {
+                const statusClass = {
+                    0: 'status-delivered',
+                    1: 'status-transit',
+                    2: 'status-pending',
+                    3: 'status-delayed'
+                }[order.material_status];
+
+                return `
+                    <tr>
+                        <td>${order.material_name}</td>
+                        <td>${order.qty} ${order.unit}</td>
+                        <td>${order.project_name}</td>
+                        <td>${new Date(order.required_date).toLocaleDateString()}</td>
+                        <td><span class="status-badge ${statusClass}">${order.status_label}</span></td>
+                        <td><button class="btn-update" onclick="openUpdateModal(${order.id})">Update</button></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function loadPerformance() {
+            try {
+                const response = await fetch(`/api/supplier/${currentSupplier.id}/performance`);
+                const data = await response.json();
+
+                if (data.success) {
+                    renderPerformance(data.performance);
+                }
+            } catch (error) {
+                console.error('Failed to load performance:', error);
+            }
+        }
+
+        function renderPerformance(perf) {
+            const html = `
+                <div class="performance-card">
+                    <h3>Delivery Performance</h3>
+                    <div class="metric">
+                        <span class="metric-label">Total Deliveries</span>
+                        <span class="metric-value">${perf.delivery.total}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">On-Time Rate</span>
+                        <span class="metric-value">${perf.delivery.on_time_rate}%</span>
+                    </div>
+                </div>
+                <div class="performance-card">
+                    <h3>Quality Metrics</h3>
+                    <div class="metric">
+                        <span class="metric-label">Avg Quality Score</span>
+                        <span class="metric-value">${perf.quality.avg_score}/10</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Inspections</span>
+                        <span class="metric-value">${perf.quality.total_inspections}</span>
+                    </div>
+                </div>
+                <div class="performance-card">
+                    <h3>Customer Ratings</h3>
+                    <div class="metric">
+                        <span class="metric-label">Average Rating</span>
+                        <span class="metric-value">${perf.ratings.avg_rating}/5</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total Reviews</span>
+                        <span class="metric-value">${perf.ratings.total_ratings}</span>
+                    </div>
+                </div>
+                <div class="performance-card">
+                    <h3>Issues</h3>
+                    <div class="metric">
+                        <span class="metric-label">Open Defects</span>
+                        <span class="metric-value">${perf.defects}</span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('performanceGrid').innerHTML = html;
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+        }
+
+        function filterOrders() {
+            loadOrders();
+        }
+
+        function openUpdateModal(orderId) {
+            selectedOrderId = orderId;
+            const order = currentOrders.find(o => o.id === orderId);
+            if (order) {
+                document.getElementById('modalStatus').value = order.material_status;
+            }
+            document.getElementById('updateModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('updateModal').classList.remove('show');
+            selectedOrderId = null;
+        }
+
+        async function saveOrderStatus() {
+            const status = document.getElementById('modalStatus').value;
+            const deliveryDate = document.getElementById('modalDeliveryDate').value;
+            const notes = document.getElementById('modalNotes').value;
+
+            try {
+                const response = await fetch(`/api/supplier/orders/${selectedOrderId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status: parseInt(status),
+                        expected_delivery_date: deliveryDate,
+                        notes: notes,
+                        supplier_id: currentSupplier.id
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Order status updated successfully!');
+                    closeModal();
+                    loadOrders();
+                    loadDashboard();
+                } else {
+                    alert('Failed to update: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error updating order status');
+            }
+        }
+    </script>
+</body>
+</html>

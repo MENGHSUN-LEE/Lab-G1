@@ -3613,3 +3613,829 @@ app.listen(PORT, () => {
   console.log(`[Express] Server running on port ${PORT}`);
   console.log(`Access: http://localhost:${PORT}`);
 });
+
+// ==================== SUPPLIER LOGIN & MANAGEMENT SYSTEM ====================
+// Add these endpoints to your existing app.js file
+
+// ============ SUPPLIER AUTHENTICATION ============
+
+// 1. SUPPLIER SIGNUP
+app.post('/api/supplier/signup', async (req, res) => {
+  const { company_name, email, password, contact_person, phone } = req.body;
+  const dbPool = app.locals.dbPool;
+
+  if (!company_name || !email || !password) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Company name, email, and password are required.' 
+    });
+  }
+
+  try {
+    // Check if company exists
+    const [companies] = await dbPool.query(
+      'SELECT company_id FROM Company WHERE LOWER(name) = LOWER(?)',
+      [company_name]
+    );
+
+    if (companies.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Company not found. Please contact admin to register your company.' 
+      });
+    }
+
+    const company_id = companies[0].company_id;
+
+    // Check if supplier user already exists
+    const [existing] = await dbPool.query(
+      'SELECT id FROM supplier_users WHERE company_id = ? OR email = ?',
+      [company_id, email]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({ 
+        success: false, 
+        message: 'Supplier account already exists for this company or email.' 
+      });
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Create supplier user
+    const [result] = await dbPool.query(`
+      INSERT INTO supplier_users 
+      (company_id, email, password_hash, contact_person_name, contact_phone)
+      VALUES (?, ?, ?, ?, ?)
+    `, [company_id, email, passwordHash, contact_person, phone]);
+
+    res.json({ 
+      success: true, 
+      message: 'Supplier account created successfully.',
+      supplier_id: result.insertId
+    });
+
+  } catch (error) {
+    console.error('Supplier signup error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error during signup.' 
+    });
+  }
+});
+
+// 2. SUPPLIER LOGIN
+app.post('/api/supplier/login', async (req, res) => {
+  const { email, password } = req.body;
+  const dbPool = app.locals.dbPool;
+
+  if (!email || !password) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Email and password are required.' 
+    });
+  }
+
+  try {
+    // Get supplier user with company info
+    const [users] = await dbPool.query(`
+      SELECT 
+        su.id,
+        su.company_id,
+        su.email,
+        su.password_hash,
+        su.contact_person_name,
+        su.is_active,
+        c.name as company_name
+      FROM supplier_users su
+      JOIN Company c ON su.company_id = c.company_id
+      WHERE su.email = ? AND su.is_active = TRUE
+    `, [email]);
+
+    if (users.length === 0) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid email or password.' 
+      });
+    }
+
+    const user = users[0];
+
+    // Verify password
+    const match = await bcrypt.compare(password, user.password_hash);
+
+    if (!match) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid email or password.' 
+      });
+    }
+
+    // Update last login
+    await dbPool.query(
+      'UPDATE supplier_users SET last_login = NOW() WHERE id = ?',
+      [user.id]
+    );
+
+    // Return user info (excluding password hash)
+    res.json({
+      success: true,
+      message: 'Login successful.',
+      supplier: {
+        id: user.id,
+        company_id: user.company_id,
+        company_name: user.company_name,
+        email: user.email,
+        contact_person: user.contact_person_name
+      }
+    });
+
+  } catch (error) {
+    console.error('Supplier login error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error during login.' 
+    });
+  }
+});
+
+// ============ SUPPLIER DASHBOARD ENDPOINTS ============
+
+// 3. GET SUPPLIER DASHBOARD SUMMARY
+app.get('/api/supplier/:supplierId/dashboard', async (req, res) => {
+  const { supplierId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Get supplier company info
+    const [supplier] = await dbPool.query(`
+      SELECT su.*, c.name as company_name
+      FROM supplier_users su
+      JOIN Company c ON su.company_id = c.company_id
+      WHERE su.id = ?
+    `, [supplierId]);
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Supplier not found.' 
+      });
+    }
+
+    const companyName = supplier[0].company_name;
+
+    // Get order statistics
+    const [stats] = await dbPool.query(`
+      SELECT 
+        COUNT(*) as total_orders,
+        SUM(CASE WHEN material_status = 2 THEN 1 ELSE 0 END) as pending_orders,
+        SUM(CASE WHEN material_status = 1 THEN 1 ELSE 0 END) as in_transit_orders,
+        SUM(CASE WHEN material_status = 0 THEN 1 ELSE 0 END) as delivered_orders,
+        SUM(CASE WHEN material_status = 3 THEN 1 ELSE 0 END) as delayed_orders,
+        SUM(qty * COALESCE(unit_price, 0)) as total_value,
+        COUNT(DISTINCT wi.project_id) as active_projects
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE LOWER(TRIM(mu.vendor)) = LOWER(TRIM(?))
+    `, [companyName]);
+
+    // Get urgent orders (required within 7 days)
+    const [urgentOrders] = await dbPool.query(`
+      SELECT 
+        mu.id,
+        mu.material_name,
+        mu.qty,
+        mu.unit,
+        wi.work_date,
+        p.project_name,
+        DATEDIFF(wi.work_date, CURDATE()) as days_until
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      JOIN projects p ON wi.project_id = p.id
+      WHERE LOWER(TRIM(mu.vendor)) = LOWER(TRIM(?))
+        AND mu.material_status IN (2, 3)
+        AND wi.work_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+      ORDER BY wi.work_date ASC
+      LIMIT 10
+    `, [companyName]);
+
+    // Get unread notifications count
+    const [notifications] = await dbPool.query(`
+      SELECT COUNT(*) as unread_count
+      FROM supplier_notifications
+      WHERE supplier_company_id = ? AND is_read = FALSE
+    `, [supplier[0].company_id]);
+
+    res.json({
+      success: true,
+      dashboard: {
+        supplier_info: supplier[0],
+        statistics: stats[0],
+        urgent_orders: urgentOrders,
+        unread_notifications: notifications[0].unread_count
+      }
+    });
+
+  } catch (error) {
+    console.error('Get supplier dashboard error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// 4. GET ALL ORDERS FOR SUPPLIER
+app.get('/api/supplier/:supplierId/orders', async (req, res) => {
+  const { supplierId } = req.params;
+  const { status, project_id, date_from, date_to } = req.query;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Get supplier company name
+    const [supplier] = await dbPool.query(`
+      SELECT c.name as company_name
+      FROM supplier_users su
+      JOIN Company c ON su.company_id = c.company_id
+      WHERE su.id = ?
+    `, [supplierId]);
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Supplier not found.' 
+      });
+    }
+
+    const companyName = supplier[0].company_name;
+
+    // Build query with filters
+    let query = `
+      SELECT 
+        mu.id,
+        mu.material_name,
+        mu.qty,
+        mu.unit,
+        mu.unit_price,
+        (mu.qty * COALESCE(mu.unit_price, 0)) as total_value,
+        mu.material_status,
+        wi.name as work_item_name,
+        wi.work_date as required_date,
+        p.id as project_id,
+        p.project_name,
+        p.owner as project_owner,
+        al.expected_date,
+        al.actual_date,
+        al.delivery_status,
+        CASE mu.material_status
+          WHEN 0 THEN 'Delivered'
+          WHEN 1 THEN 'In Transit'
+          WHEN 2 THEN 'Pending Order'
+          WHEN 3 THEN 'Delayed'
+        END as status_label
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      JOIN projects p ON wi.project_id = p.id
+      LEFT JOIN material_arrival_logs al ON mu.id = al.material_id
+      WHERE LOWER(TRIM(mu.vendor)) = LOWER(TRIM(?))
+    `;
+
+    const params = [companyName];
+
+    // Add filters
+    if (status !== undefined) {
+      query += ' AND mu.material_status = ?';
+      params.push(status);
+    }
+
+    if (project_id) {
+      query += ' AND p.id = ?';
+      params.push(project_id);
+    }
+
+    if (date_from) {
+      query += ' AND wi.work_date >= ?';
+      params.push(date_from);
+    }
+
+    if (date_to) {
+      query += ' AND wi.work_date <= ?';
+      params.push(date_to);
+    }
+
+    query += ' ORDER BY wi.work_date ASC, mu.id DESC';
+
+    const [orders] = await dbPool.query(query, params);
+
+    res.json({
+      success: true,
+      orders: orders,
+      total_count: orders.length
+    });
+
+  } catch (error) {
+    console.error('Get supplier orders error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// 5. UPDATE ORDER STATUS (Supplier confirms shipment)
+app.put('/api/supplier/orders/:orderId/status', async (req, res) => {
+  const { orderId } = req.params;
+  const { status, notes, expected_delivery_date, supplier_id } = req.body;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Verify supplier owns this order
+    const [order] = await dbPool.query(`
+      SELECT mu.*, c.company_id
+      FROM materials_used mu
+      LEFT JOIN Company c ON LOWER(TRIM(c.name)) = LOWER(TRIM(mu.vendor))
+      JOIN supplier_users su ON c.company_id = su.company_id
+      WHERE mu.id = ? AND su.id = ?
+    `, [orderId, supplier_id]);
+
+    if (order.length === 0) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Order not found or access denied.' 
+      });
+    }
+
+    // Log status change
+    await dbPool.query(`
+      INSERT INTO supplier_order_status_log 
+      (material_id, old_status, new_status, notes, changed_by)
+      VALUES (?, ?, ?, ?, ?)
+    `, [orderId, order[0].material_status, status, notes, `Supplier-${supplier_id}`]);
+
+    // Update material status
+    await dbPool.query(
+      'UPDATE materials_used SET material_status = ? WHERE id = ?',
+      [status, orderId]
+    );
+
+    // Update or create arrival log
+    if (expected_delivery_date) {
+      const [existingLog] = await dbPool.query(
+        'SELECT id FROM material_arrival_logs WHERE material_id = ? ORDER BY created_at DESC LIMIT 1',
+        [orderId]
+      );
+
+      if (existingLog.length > 0) {
+        await dbPool.query(`
+          UPDATE material_arrival_logs 
+          SET expected_date = ?, delivery_status = ?, notes = ?
+          WHERE id = ?
+        `, [expected_delivery_date, 
+            status === 1 ? 'in_transit' : status === 0 ? 'delivered' : 'pending',
+            notes, existingLog[0].id]);
+      } else {
+        await dbPool.query(`
+          INSERT INTO material_arrival_logs 
+          (material_id, expected_date, delivery_status, notes)
+          VALUES (?, ?, ?, ?)
+        `, [orderId, expected_delivery_date, 
+            status === 1 ? 'in_transit' : 'pending', notes]);
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Order status updated successfully.' 
+    });
+
+  } catch (error) {
+    console.error('Update order status error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// 6. GET SUPPLIER NOTIFICATIONS
+app.get('/api/supplier/:supplierId/notifications', async (req, res) => {
+  const { supplierId } = req.params;
+  const { unread_only } = req.query;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Supplier not found.' 
+      });
+    }
+
+    let query = `
+      SELECT * FROM supplier_notifications
+      WHERE supplier_company_id = ?
+    `;
+
+    if (unread_only === 'true') {
+      query += ' AND is_read = FALSE';
+    }
+
+    query += ' ORDER BY created_at DESC LIMIT 50';
+
+    const [notifications] = await dbPool.query(query, [supplier[0].company_id]);
+
+    res.json({ 
+      success: true, 
+      notifications: notifications 
+    });
+
+  } catch (error) {
+    console.error('Get notifications error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// 7. MARK NOTIFICATION AS READ
+app.put('/api/supplier/notifications/:notificationId/read', async (req, res) => {
+  const { notificationId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    await dbPool.query(
+      'UPDATE supplier_notifications SET is_read = TRUE WHERE id = ?',
+      [notificationId]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Notification marked as read.' 
+    });
+
+  } catch (error) {
+    console.error('Mark notification read error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// 8. GET SUPPLIER PERFORMANCE METRICS
+app.get('/api/supplier/:supplierId/performance', async (req, res) => {
+  const { supplierId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [supplier] = await dbPool.query(`
+      SELECT c.name as company_name, c.company_id
+      FROM supplier_users su
+      JOIN Company c ON su.company_id = c.company_id
+      WHERE su.id = ?
+    `, [supplierId]);
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Supplier not found.' 
+      });
+    }
+
+    const companyName = supplier[0].company_name;
+
+    // On-time delivery rate
+    const [deliveryMetrics] = await dbPool.query(`
+      SELECT 
+        COUNT(*) as total_deliveries,
+        SUM(CASE 
+          WHEN al.delivery_status = 'delivered' AND al.actual_date <= al.expected_date 
+          THEN 1 ELSE 0 
+        END) as on_time_deliveries
+      FROM materials_used mu
+      JOIN material_arrival_logs al ON mu.id = al.material_id
+      WHERE LOWER(TRIM(mu.vendor)) = LOWER(TRIM(?))
+        AND al.delivery_status = 'delivered'
+    `, [companyName]);
+
+    // Average quality score
+    const [qualityMetrics] = await dbPool.query(`
+      SELECT 
+        AVG(qs.score) as avg_quality_score,
+        COUNT(*) as total_inspections
+      FROM material_quality_scores qs
+      JOIN materials_used mu ON qs.material_id = mu.id
+      WHERE LOWER(TRIM(mu.vendor)) = LOWER(TRIM(?))
+    `, [companyName]);
+
+    // Ratings
+    const [ratings] = await dbPool.query(`
+      SELECT 
+        AVG(rating) as avg_rating,
+        COUNT(*) as total_ratings
+      FROM vendor_ratings
+      WHERE LOWER(TRIM(vendor_name)) = LOWER(TRIM(?))
+    `, [companyName]);
+
+    // Defect count
+    const [defects] = await dbPool.query(`
+      SELECT COUNT(*) as defect_count
+      FROM material_defect_reports dr
+      JOIN materials_used mu ON dr.material_id = mu.id
+      WHERE LOWER(TRIM(mu.vendor)) = LOWER(TRIM(?))
+        AND dr.status IN ('open', 'investigating')
+    `, [companyName]);
+
+    const onTimeRate = deliveryMetrics[0].total_deliveries > 0
+      ? (deliveryMetrics[0].on_time_deliveries / deliveryMetrics[0].total_deliveries * 100)
+      : 0;
+
+    res.json({
+      success: true,
+      performance: {
+        delivery: {
+          total: deliveryMetrics[0].total_deliveries,
+          on_time: deliveryMetrics[0].on_time_deliveries,
+          on_time_rate: onTimeRate.toFixed(1)
+        },
+        quality: {
+          avg_score: qualityMetrics[0].avg_quality_score 
+            ? parseFloat(qualityMetrics[0].avg_quality_score).toFixed(1) 
+            : 'N/A',
+          total_inspections: qualityMetrics[0].total_inspections
+        },
+        ratings: {
+          avg_rating: ratings[0].avg_rating 
+            ? parseFloat(ratings[0].avg_rating).toFixed(1) 
+            : 'N/A',
+          total_ratings: ratings[0].total_ratings
+        },
+        defects: defects[0].defect_count
+      }
+    });
+
+  } catch (error) {
+    console.error('Get supplier performance error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// ==================== SUPPLIER ACCOUNT INITIALIZATION SCRIPT ====================
+// Add this to your app.js or run it as a separate initialization script
+
+/**
+ * Initialize supplier accounts for all companies in the database
+ * Default password: "123"
+ */
+async function initializeSupplierAccounts() {
+  const dbPool = app.locals.dbPool;
+  
+  try {
+    console.log('[Supplier Setup] Starting supplier account initialization...');
+
+    // Get all companies
+    const [companies] = await dbPool.query(`
+      SELECT 
+        c.company_id,
+        c.name,
+        ci.email,
+        ci.phone
+      FROM Company c
+      JOIN ContactInfo ci ON c.FK_contact_id = ci.contact_id
+      WHERE c.name IS NOT NULL AND c.name != ''
+      ORDER BY c.name
+    `);
+
+    console.log(`[Supplier Setup] Found ${companies.length} companies`);
+
+    // Hash the default password "123"
+    const defaultPassword = '123';
+    const passwordHash = await bcrypt.hash(defaultPassword, 10);
+
+    let successCount = 0;
+    let skipCount = 0;
+
+    for (const company of companies) {
+      try {
+        // Check if supplier user already exists
+        const [existing] = await dbPool.query(
+          'SELECT id FROM supplier_users WHERE company_id = ?',
+          [company.company_id]
+        );
+
+        if (existing.length > 0) {
+          console.log(`[Supplier Setup] Skipping ${company.name} - account already exists`);
+          skipCount++;
+          continue;
+        }
+
+        // Generate email from company name
+        const email = company.email || 
+          `${company.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@supplier.com`;
+
+        // Create supplier account
+        await dbPool.query(`
+          INSERT INTO supplier_users 
+          (company_id, email, password_hash, contact_person_name, contact_phone)
+          VALUES (?, ?, ?, ?, ?)
+        `, [
+          company.company_id,
+          email,
+          passwordHash,
+          company.name,
+          company.phone
+        ]);
+
+        console.log(`[Supplier Setup] ✓ Created account for: ${company.name}`);
+        console.log(`   Email: ${email}`);
+        console.log(`   Password: ${defaultPassword}`);
+        successCount++;
+
+      } catch (error) {
+        console.error(`[Supplier Setup] Failed to create account for ${company.name}:`, error.message);
+      }
+    }
+
+    console.log('\n[Supplier Setup] Initialization complete!');
+    console.log(`   Created: ${successCount} accounts`);
+    console.log(`   Skipped: ${skipCount} accounts (already exist)`);
+    console.log(`   Total: ${companies.length} companies\n`);
+
+    // Show login credentials
+    console.log('[Supplier Setup] Login Credentials Summary:');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    const [supplierAccounts] = await dbPool.query(`
+      SELECT 
+        su.id,
+        su.email,
+        c.name as company_name
+      FROM supplier_users su
+      JOIN Company c ON su.company_id = c.company_id
+      ORDER BY c.name
+      LIMIT 20
+    `);
+
+    supplierAccounts.forEach((account, index) => {
+      console.log(`${index + 1}. ${account.company_name}`);
+      console.log(`   Email: ${account.email}`);
+      console.log(`   Password: 123`);
+      console.log('   ─────────────────────────────────────');
+    });
+
+    if (supplierAccounts.length < companies.length) {
+      console.log(`   ... and ${companies.length - supplierAccounts.length} more accounts`);
+    }
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+  } catch (error) {
+    console.error('[Supplier Setup] Initialization failed:', error);
+  }
+}
+
+/**
+ * Update a specific supplier's password
+ */
+async function updateSupplierPassword(email, newPassword) {
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    const [result] = await dbPool.query(
+      'UPDATE supplier_users SET password_hash = ? WHERE email = ?',
+      [passwordHash, email]
+    );
+
+    if (result.affectedRows > 0) {
+      console.log(`[Supplier Setup] Password updated for ${email}`);
+      return true;
+    } else {
+      console.log(`[Supplier Setup] Supplier not found: ${email}`);
+      return false;
+    }
+  } catch (error) {
+    console.error(`[Supplier Setup] Failed to update password:`, error);
+    return false;
+  }
+}
+
+/**
+ * Get all supplier login credentials (for testing)
+ */
+async function getAllSupplierCredentials() {
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [suppliers] = await dbPool.query(`
+      SELECT 
+        su.id,
+        su.email,
+        c.name as company_name,
+        c.company_id,
+        su.created_at
+      FROM supplier_users su
+      JOIN Company c ON su.company_id = c.company_id
+      ORDER BY c.name
+    `);
+
+    console.log('\n[Supplier Credentials] All Supplier Accounts:');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    suppliers.forEach((supplier, index) => {
+      console.log(`${index + 1}. ${supplier.company_name} (ID: ${supplier.company_id})`);
+      console.log(`   Email: ${supplier.email}`);
+      console.log(`   Password: 123 (default)`);
+      console.log(`   Created: ${supplier.created_at}`);
+      console.log('   ─────────────────────────────────────');
+    });
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+    return suppliers;
+  } catch (error) {
+    console.error('[Supplier Credentials] Failed to fetch:', error);
+    return [];
+  }
+}
+
+// ==================== API ENDPOINT FOR MANUAL INITIALIZATION ====================
+
+// Add this endpoint to manually trigger initialization via API
+app.post('/api/admin/initialize-suppliers', async (req, res) => {
+  const { admin_key } = req.body;
+
+  // Simple security check (replace with proper authentication)
+  if (admin_key !== '417') {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Unauthorized' 
+    });
+  }
+
+  try {
+    await initializeSupplierAccounts();
+    const credentials = await getAllSupplierCredentials();
+
+    res.json({
+      success: true,
+      message: 'Supplier accounts initialized successfully',
+      total_accounts: credentials.length,
+      accounts: credentials.map(c => ({
+        company_name: c.company_name,
+        email: c.email,
+        default_password: '123'
+      }))
+    });
+
+  } catch (error) {
+    console.error('Initialization error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
+// ==================== AUTO-RUN ON SERVER START ====================
+
+// Automatically initialize supplier accounts when server starts
+// Add this after your database initialization in app.js
+
+setTimeout(async () => {
+  if (app.locals.dbPool) {
+    console.log('\n[Server] Checking supplier accounts...\n');
+    
+    // Check if any supplier accounts exist
+    const [existing] = await app.locals.dbPool.query(
+      'SELECT COUNT(*) as count FROM supplier_users'
+    );
+
+    if (existing[0].count === 0) {
+      console.log('[Server] No supplier accounts found. Initializing...\n');
+      await initializeSupplierAccounts();
+    } else {
+      console.log(`[Server] Found ${existing[0].count} existing supplier accounts.\n`);
+      // Uncomment to see all credentials:
+      // await getAllSupplierCredentials();
+    }
+  }
+}, 3000); // Wait 3 seconds after server start
+
+// Export functions for manual use
+module.exports = {
+  initializeSupplierAccounts,
+  updateSupplierPassword,
+  getAllSupplierCredentials
+};

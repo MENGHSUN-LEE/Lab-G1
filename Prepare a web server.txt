@@ -740,6 +740,118 @@ CREATE TABLE IF NOT EXISTS material_inventory (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE
 );
+
+-- ==================== SUPPLIER LOGIN SYSTEM TABLES ====================
+
+-- 1. Create supplier_users table (links to Company table)
+CREATE TABLE IF NOT EXISTS supplier_users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    company_id BIGINT NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    contact_person_name VARCHAR(100),
+    contact_phone VARCHAR(50),
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES Company(company_id) ON DELETE CASCADE,
+    INDEX idx_email (email),
+    INDEX idx_company (company_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 2. Initialize supplier accounts with default password "123"
+-- Password hash for "123" using bcrypt (you'll need to generate this properly)
+-- For now, we'll use a placeholder that you'll update via the signup endpoint
+
+INSERT INTO supplier_users (company_id, email, password_hash, contact_person_name)
+SELECT 
+    c.company_id,
+    CONCAT(LOWER(REPLACE(c.name, ' ', '')), '@supplier.com') as email,
+    '$2b$10$rZ5Z.ZqX6YJZ6YJZ6YJZ6O7vK7vK7vK7vK7vK7vK7vK7vK7vK7vK7v' as password_hash, -- Placeholder
+    c.name as contact_person_name
+FROM Company c
+WHERE NOT EXISTS (
+    SELECT 1 FROM supplier_users su WHERE su.company_id = c.company_id
+);
+
+-- 3. Create supplier_notifications table
+CREATE TABLE IF NOT EXISTS supplier_notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    supplier_company_id BIGINT NOT NULL,
+    notification_type ENUM('new_order', 'order_update', 'payment', 'review') NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    related_material_id INT NULL,
+    related_project_id INT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (supplier_company_id) REFERENCES Company(company_id) ON DELETE CASCADE,
+    INDEX idx_supplier_unread (supplier_company_id, is_read),
+    INDEX idx_created (created_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 4. Create supplier_order_status_log table (tracks order status changes)
+CREATE TABLE IF NOT EXISTS supplier_order_status_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    material_id INT NOT NULL,
+    old_status TINYINT,
+    new_status TINYINT NOT NULL,
+    notes TEXT,
+    changed_by VARCHAR(100),
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE,
+    INDEX idx_material (material_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 5. View: Supplier Orders Summary
+CREATE OR REPLACE VIEW supplier_orders_view AS
+SELECT 
+    mu.id as material_order_id,
+    mu.material_name,
+    mu.vendor as supplier_name,
+    mu.qty as quantity,
+    mu.unit,
+    mu.unit_price,
+    (mu.qty * mu.unit_price) as total_value,
+    mu.material_status,
+    wi.name as work_item_name,
+    wi.work_date as required_date,
+    wi.project_id,
+    p.project_name,
+    p.owner as project_owner,
+    CASE mu.material_status
+        WHEN 0 THEN 'Delivered'
+        WHEN 1 THEN 'In Transit'
+        WHEN 2 THEN 'Pending Order'
+        WHEN 3 THEN 'Delayed'
+        ELSE 'Unknown'
+    END as status_label,
+    al.expected_date,
+    al.actual_date,
+    al.delivery_status,
+    c.company_id as supplier_company_id
+FROM materials_used mu
+JOIN work_items wi ON mu.work_item_id = wi.id
+JOIN projects p ON wi.project_id = p.id
+LEFT JOIN material_arrival_logs al ON mu.id = al.material_id
+LEFT JOIN Company c ON LOWER(TRIM(c.name)) = LOWER(TRIM(mu.vendor))
+WHERE mu.vendor IS NOT NULL AND mu.vendor != '';
+
+-- 6. Sample data for testing
+-- You'll need to update password hashes properly using bcrypt in your application
+
+-- Show all suppliers with their contact info
+SELECT 
+    c.company_id,
+    c.name as company_name,
+    ci.email,
+    ci.phone,
+    a.full_address
+FROM Company c
+JOIN ContactInfo ci ON c.FK_contact_id = ci.contact_id
+JOIN Address a ON c.FK_address_id = a.address_id
+ORDER BY c.name;
+
 --------Step2 建立的虛擬機--------
 
 -- 2.1 建立帳號密碼連接assignment-mysql的table --
