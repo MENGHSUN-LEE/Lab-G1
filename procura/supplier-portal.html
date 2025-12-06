@@ -464,6 +464,8 @@
                 <div class="nav-tab active" onclick="showTab('overview')">Overview</div>
                 <div class="nav-tab" onclick="showTab('orders')">My Orders</div>
                 <div class="nav-tab" onclick="showTab('performance')">Performance</div>
+                <div class="nav-tab" onclick="showTab('products')">My Products</div>
+                <div class="nav-tab" onclick="showTab('rfqs')">RFQs</div>
             </div>
 
             <div class="dashboard-content">
@@ -506,6 +508,49 @@
                 <div id="performanceTab" class="tab-pane">
                     <div class="performance-grid" id="performanceGrid"></div>
                 </div>
+                <!-- Products Tab -->
+                <div id="productsTab" class="tab-pane">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2>Product Catalog</h2>
+                        <button class="btn-primary" onclick="openAddProductModal()">+ Add Product</button>
+                    </div>
+                    <div class="orders-controls">
+                        <select id="categoryFilter" onchange="filterProducts()">
+                            <option value="">All Categories</option>
+                            <option value="Concrete">Concrete</option>
+                            <option value="Steel">Steel</option>
+                            <option value="Wood">Wood</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <table class="orders-table">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Category</th>
+                                <th>Unit</th>
+                                <th>Price Range</th>
+                                <th>Stock</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- RFQs Tab -->
+                <div id="rfqsTab" class="tab-pane">
+                    <h2 style="margin-bottom: 15px;">Available Requests for Quotation</h2>
+                    <div class="orders-controls">
+                        <select id="rfqStatusFilter" onchange="filterRFQs()">
+                            <option value="">All RFQs</option>
+                            <option value="published">Open</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+                    <div id="rfqsList"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -538,6 +583,107 @@
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeModal()">Cancel</button>
                 <button class="btn-primary" onclick="saveOrderStatus()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Product Modal -->
+    <div id="productModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="productModalTitle">Add Product</h2>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Product Name *</label>
+                    <input type="text" id="productName" required placeholder="e.g., Portland Cement">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="productDescription" placeholder="Brief description">
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="productCategory">
+                        <option value="Concrete">Concrete</option>
+                        <option value="Steel">Steel</option>
+                        <option value="Wood">Wood</option>
+                        <option value="Electrical">Electrical</option>
+                        <option value="Plumbing">Plumbing</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Unit *</label>
+                    <input type="text" id="productUnit" required placeholder="e.g., kg, L, pcs">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Min Price ($)</label>
+                        <input type="number" id="productPriceMin" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Price ($)</label>
+                        <input type="number" id="productPriceMax" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Current Stock</label>
+                    <input type="number" id="productStock" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Lead Time (days)</label>
+                    <input type="number" id="productLeadTime" value="7">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="productAvailable" checked> Available for Order
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeProductModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveProduct()">Save Product</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quote Modal -->
+    <div id="quoteModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Submit Quotation</h2>
+            </div>
+            <div class="modal-body">
+                <div id="rfqDetails" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;"></div>
+                <div class="form-group">
+                    <label>Unit Price ($) *</label>
+                    <input type="number" id="quoteUnitPrice" step="0.01" required placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Quantity Offered *</label>
+                    <input type="number" id="quoteQuantity" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Estimated Delivery Date *</label>
+                    <input type="date" id="quoteDeliveryDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Payment Terms</label>
+                    <input type="text" id="quotePaymentTerms" placeholder="e.g., Net 30">
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="quoteNotes" rows="3" placeholder="Additional information"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Quote Valid For (days)</label>
+                    <input type="number" id="quoteValidity" value="30">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeQuoteModal()">Cancel</button>
+                <button class="btn-primary" onclick="submitQuote()">Submit Quote</button>
             </div>
         </div>
     </div>
@@ -828,6 +974,362 @@
                 }
             } catch (error) {
                 alert('Error updating order status');
+            }
+        }
+        // ============ PRODUCT CATALOG FUNCTIONS ============
+        
+        let currentProducts = [];
+        let selectedProductId = null;
+
+        async function loadProducts() {
+            const category = document.getElementById('categoryFilter')?.value;
+            let url = `/api/supplier/${currentSupplier.id}/products?`;
+            if (category) url += `category=${category}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success) {
+                    currentProducts = data.products;
+                    renderProducts(data.products);
+                }
+            } catch (error) {
+                console.error('Failed to load products:', error);
+            }
+        }
+
+        function renderProducts(products) {
+            const tbody = document.getElementById('productsTableBody');
+            
+            if (products.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No products yet. Click "Add Product" to start.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = products.map(product => {
+                const priceRange = product.price_min && product.price_max 
+                    ? `$${product.price_min} - $${product.price_max}`
+                    : 'Contact for quote';
+                const statusClass = product.is_available ? 'status-delivered' : 'status-delayed';
+                const statusText = product.is_available ? 'Available' : 'Unavailable';
+
+                return `
+                    <tr>
+                        <td><strong>${product.product_name}</strong><br><small>${product.description || ''}</small></td>
+                        <td>${product.category || 'Other'}</td>
+                        <td>${product.unit}</td>
+                        <td>${priceRange}</td>
+                        <td>${product.current_stock || 0}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>
+                            <button class="btn-update" onclick="editProduct(${product.id})" style="margin-right: 5px;">Edit</button>
+                            <button class="btn-update" style="background: #dc3545;" onclick="deleteProduct(${product.id})">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterProducts() {
+            loadProducts();
+        }
+
+        function openAddProductModal() {
+            selectedProductId = null;
+            document.getElementById('productModalTitle').textContent = 'Add Product';
+            document.getElementById('productName').value = '';
+            document.getElementById('productDescription').value = '';
+            document.getElementById('productCategory').value = 'Concrete';
+            document.getElementById('productUnit').value = '';
+            document.getElementById('productPriceMin').value = '';
+            document.getElementById('productPriceMax').value = '';
+            document.getElementById('productStock').value = '0';
+            document.getElementById('productLeadTime').value = '7';
+            document.getElementById('productAvailable').checked = true;
+            document.getElementById('productModal').classList.add('show');
+        }
+
+        function editProduct(productId) {
+            const product = currentProducts.find(p => p.id === productId);
+            if (!product) return;
+
+            selectedProductId = productId;
+            document.getElementById('productModalTitle').textContent = 'Edit Product';
+            document.getElementById('productName').value = product.product_name;
+            document.getElementById('productDescription').value = product.description || '';
+            document.getElementById('productCategory').value = product.category || 'Other';
+            document.getElementById('productUnit').value = product.unit;
+            document.getElementById('productPriceMin').value = product.price_min || '';
+            document.getElementById('productPriceMax').value = product.price_max || '';
+            document.getElementById('productStock').value = product.current_stock || 0;
+            document.getElementById('productLeadTime').value = product.lead_time_days || 7;
+            document.getElementById('productAvailable').checked = product.is_available;
+            document.getElementById('productModal').classList.add('show');
+        }
+
+        function closeProductModal() {
+            document.getElementById('productModal').classList.remove('show');
+            selectedProductId = null;
+        }
+
+        async function saveProduct() {
+            const productData = {
+                product_name: document.getElementById('productName').value,
+                description: document.getElementById('productDescription').value,
+                category: document.getElementById('productCategory').value,
+                unit: document.getElementById('productUnit').value,
+                price_min: document.getElementById('productPriceMin').value || null,
+                price_max: document.getElementById('productPriceMax').value || null,
+                current_stock: document.getElementById('productStock').value,
+                lead_time_days: document.getElementById('productLeadTime').value,
+                is_available: document.getElementById('productAvailable').checked
+            };
+
+            if (!productData.product_name || !productData.unit) {
+                alert('Product name and unit are required');
+                return;
+            }
+
+            try {
+                const url = selectedProductId 
+                    ? `/api/supplier/${currentSupplier.id}/products/${selectedProductId}`
+                    : `/api/supplier/${currentSupplier.id}/products`;
+                
+                const method = selectedProductId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(productData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(selectedProductId ? 'Product updated!' : 'Product added!');
+                    closeProductModal();
+                    loadProducts();
+                } else {
+                    alert('Failed: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error saving product');
+            }
+        }
+
+        async function deleteProduct(productId) {
+            if (!confirm('Are you sure you want to delete this product?')) return;
+
+            try {
+                const response = await fetch(`/api/supplier/${currentSupplier.id}/products/${productId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Product deleted');
+                    loadProducts();
+                } else {
+                    alert('Failed to delete: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error deleting product');
+            }
+        }
+
+        // ============ RFQ FUNCTIONS ============
+        
+        let currentRFQs = [];
+        let selectedRFQId = null;
+
+        async function loadRFQs() {
+            const status = document.getElementById('rfqStatusFilter')?.value;
+            let url = `/api/supplier/${currentSupplier.id}/rfqs?`;
+            if (status) url += `status=${status}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success) {
+                    currentRFQs = data.rfqs;
+                    renderRFQs(data.rfqs);
+                }
+            } catch (error) {
+                console.error('Failed to load RFQs:', error);
+            }
+        }
+
+        function renderRFQs(rfqs) {
+            const container = document.getElementById('rfqsList');
+            
+            if (rfqs.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#666; padding:40px;">No RFQs available at this time.</p>';
+                return;
+            }
+
+            container.innerHTML = rfqs.map(rfq => {
+                const daysUntil = Math.ceil((new Date(rfq.required_by_date) - new Date()) / (1000 * 60 * 60 * 24));
+                const urgencyClass = daysUntil < 7 ? 'status-delayed' : daysUntil < 14 ? 'status-pending' : 'status-delivered';
+                const hasQuoted = rfq.my_quotation_id !== null;
+                const quoteStatus = hasQuoted ? rfq.my_quotation_status : null;
+
+                return `
+                    <div class="performance-card" style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                            <div>
+                                <h3 style="margin-bottom: 5px;">${rfq.material_name}</h3>
+                                <p style="color: #666; margin-bottom: 10px;">${rfq.description || 'No description provided'}</p>
+                            </div>
+                            <span class="status-badge ${urgencyClass}">${daysUntil} days</span>
+                        </div>
+                        
+                        <div class="metric">
+                            <span class="metric-label">Project</span>
+                            <span class="metric-value">${rfq.project_name}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Company</span>
+                            <span class="metric-value">${rfq.requester_company}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Quantity</span>
+                            <span class="metric-value">${rfq.quantity} ${rfq.unit}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Required By</span>
+                            <span class="metric-value">${new Date(rfq.required_by_date).toLocaleDateString()}</span>
+                        </div>
+                        ${rfq.budget_range_min && rfq.budget_range_max ? `
+                        <div class="metric">
+                            <span class="metric-label">Budget Range</span>
+                            <span class="metric-value">$${rfq.budget_range_min} - $${rfq.budget_range_max}</span>
+                        </div>
+                        ` : ''}
+                        
+                        <div style="margin-top: 15px; display: flex; gap: 10px;">
+                            ${hasQuoted ? `
+                                <button class="btn-secondary" disabled>
+                                    ${quoteStatus === 'accepted' ? '✓ Quote Accepted' : 
+                                      quoteStatus === 'rejected' ? '✗ Quote Rejected' : 
+                                      '📝 Quote Submitted'}
+                                </button>
+                            ` : `
+                                <button class="btn-primary" onclick="openQuoteModal(${rfq.id})">Submit Quote</button>
+                            `}
+                            <button class="btn-update" onclick="viewRFQDetails(${rfq.id})">View Details</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterRFQs() {
+            loadRFQs();
+        }
+
+        function openQuoteModal(rfqId) {
+            const rfq = currentRFQs.find(r => r.id === rfqId);
+            if (!rfq) return;
+
+            selectedRFQId = rfqId;
+
+            // Display RFQ details in modal
+            document.getElementById('rfqDetails').innerHTML = `
+                <strong>${rfq.material_name}</strong><br>
+                <small>Quantity: ${rfq.quantity} ${rfq.unit} | Required by: ${new Date(rfq.required_by_date).toLocaleDateString()}</small>
+            `;
+
+            // Pre-fill quantity
+            document.getElementById('quoteQuantity').value = rfq.quantity;
+            document.getElementById('quoteUnitPrice').value = '';
+            document.getElementById('quoteDeliveryDate').value = '';
+            document.getElementById('quotePaymentTerms').value = 'Net 30';
+            document.getElementById('quoteNotes').value = '';
+            document.getElementById('quoteValidity').value = '30';
+
+            document.getElementById('quoteModal').classList.add('show');
+        }
+
+        function closeQuoteModal() {
+            document.getElementById('quoteModal').classList.remove('show');
+            selectedRFQId = null;
+        }
+
+        async function submitQuote() {
+            const unitPrice = document.getElementById('quoteUnitPrice').value;
+            const quantity = document.getElementById('quoteQuantity').value;
+            const deliveryDate = document.getElementById('quoteDeliveryDate').value;
+
+            if (!unitPrice || !quantity || !deliveryDate) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            const quoteData = {
+                unit_price: parseFloat(unitPrice),
+                quantity_offered: parseFloat(quantity),
+                estimated_delivery_date: deliveryDate,
+                payment_terms: document.getElementById('quotePaymentTerms').value,
+                notes: document.getElementById('quoteNotes').value,
+                validity_days: parseInt(document.getElementById('quoteValidity').value)
+            };
+
+            try {
+                const response = await fetch(`/api/supplier/${currentSupplier.id}/rfqs/${selectedRFQId}/quote`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(quoteData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Quotation submitted successfully!');
+                    closeQuoteModal();
+                    loadRFQs();
+                } else {
+                    alert('Failed to submit: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error submitting quotation');
+            }
+        }
+
+        function viewRFQDetails(rfqId) {
+            const rfq = currentRFQs.find(r => r.id === rfqId);
+            if (!rfq) return;
+
+            const details = `
+                Material: ${rfq.material_name}
+                Description: ${rfq.description || 'N/A'}
+                Quantity: ${rfq.quantity} ${rfq.unit}
+                Required By: ${new Date(rfq.required_by_date).toLocaleDateString()}
+                Budget: ${rfq.budget_range_min && rfq.budget_range_max ? `$${rfq.budget_range_min} - $${rfq.budget_range_max}` : 'Not specified'}
+                Delivery Address: ${rfq.delivery_address || 'Not specified'}
+                Special Requirements: ${rfq.special_requirements || 'None'}
+            `;
+            
+            alert(details);
+        }
+
+        // ============ UPDATE showTab FUNCTION ============
+        
+        // Replace the existing showTab function with this updated version:
+        function showTab(tabName) {
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+
+            // Load data when tab is opened
+            if (tabName === 'products') {
+                loadProducts();
+            } else if (tabName === 'rfqs') {
+                loadRFQs();
             }
         }
     </script>

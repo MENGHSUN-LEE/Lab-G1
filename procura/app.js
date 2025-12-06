@@ -4439,3 +4439,599 @@ module.exports = {
   updateSupplierPassword,
   getAllSupplierCredentials
 };
+
+// ==================== ADD THESE TO YOUR app.js ====================
+// Supplier Product Catalog & RFQ Management APIs
+
+// ============ SUPPLIER PRODUCT CATALOG MANAGEMENT ============
+
+// 1. GET ALL PRODUCTS FOR A SUPPLIER
+app.get('/api/supplier/:supplierId/products', async (req, res) => {
+  const { supplierId } = req.params;
+  const { category, available_only } = req.query;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    let query = `
+      SELECT * FROM supplier_products 
+      WHERE supplier_company_id = ?
+    `;
+    const params = [supplier[0].company_id];
+
+    if (category) {
+      query += ' AND category = ?';
+      params.push(category);
+    }
+
+    if (available_only === 'true') {
+      query += ' AND is_available = TRUE';
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const [products] = await dbPool.query(query, params);
+
+    res.json({ success: true, products });
+  } catch (error) {
+    console.error('Get supplier products error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 2. CREATE NEW PRODUCT
+app.post('/api/supplier/:supplierId/products', async (req, res) => {
+  const { supplierId } = req.params;
+  const {
+    product_name, description, category, unit,
+    price_min, price_max, current_stock,
+    min_order_quantity, lead_time_days, specifications
+  } = req.body;
+  const dbPool = app.locals.dbPool;
+
+  if (!product_name || !unit) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Product name and unit are required' 
+    });
+  }
+
+  try {
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    const [result] = await dbPool.query(`
+      INSERT INTO supplier_products 
+      (supplier_company_id, product_name, description, category, unit, 
+       price_min, price_max, current_stock, min_order_quantity, 
+       lead_time_days, specifications)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      supplier[0].company_id, product_name, description, category, unit,
+      price_min || null, price_max || null, current_stock || 0,
+      min_order_quantity || 1, lead_time_days || 7,
+      specifications ? JSON.stringify(specifications) : null
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Product created successfully',
+      product_id: result.insertId
+    });
+  } catch (error) {
+    console.error('Create product error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 3. UPDATE PRODUCT
+app.put('/api/supplier/:supplierId/products/:productId', async (req, res) => {
+  const { supplierId, productId } = req.params;
+  const updateData = req.body;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Verify ownership
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    const [product] = await dbPool.query(
+      'SELECT id FROM supplier_products WHERE id = ? AND supplier_company_id = ?',
+      [productId, supplier[0].company_id]
+    );
+
+    if (product.length === 0) {
+      return res.status(403).json({ success: false, message: 'Product not found or access denied' });
+    }
+
+    // Build dynamic update query
+    const allowedFields = [
+      'product_name', 'description', 'category', 'unit', 'price_min', 'price_max',
+      'current_stock', 'min_order_quantity', 'lead_time_days', 'is_available', 'specifications'
+    ];
+    
+    const updates = [];
+    const values = [];
+
+    for (const [key, value] of Object.entries(updateData)) {
+      if (allowedFields.includes(key)) {
+        updates.push(`${key} = ?`);
+        values.push(key === 'specifications' ? JSON.stringify(value) : value);
+      }
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, message: 'No valid fields to update' });
+    }
+
+    values.push(productId);
+
+    await dbPool.query(
+      `UPDATE supplier_products SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    res.json({ success: true, message: 'Product updated successfully' });
+  } catch (error) {
+    console.error('Update product error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 4. DELETE PRODUCT
+app.delete('/api/supplier/:supplierId/products/:productId', async (req, res) => {
+  const { supplierId, productId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    const [result] = await dbPool.query(
+      'DELETE FROM supplier_products WHERE id = ? AND supplier_company_id = ?',
+      [productId, supplier[0].company_id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    res.json({ success: true, message: 'Product deleted successfully' });
+  } catch (error) {
+    console.error('Delete product error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 5. BROWSE ALL SUPPLIER PRODUCTS (For Contractors)
+app.get('/api/products/browse', async (req, res) => {
+  const { category, search, supplier_id, price_max } = req.query;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    let query = `
+      SELECT 
+        sp.*,
+        c.name as supplier_name,
+        ci.phone as supplier_phone,
+        ci.email as supplier_email
+      FROM supplier_products sp
+      JOIN Company c ON sp.supplier_company_id = c.company_id
+      JOIN ContactInfo ci ON c.FK_contact_id = ci.contact_id
+      WHERE sp.is_available = TRUE
+    `;
+    const params = [];
+
+    if (category) {
+      query += ' AND sp.category = ?';
+      params.push(category);
+    }
+
+    if (search) {
+      query += ' AND (sp.product_name LIKE ? OR sp.description LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (supplier_id) {
+      query += ' AND sp.supplier_company_id = ?';
+      params.push(supplier_id);
+    }
+
+    if (price_max) {
+      query += ' AND sp.price_min <= ?';
+      params.push(price_max);
+    }
+
+    query += ' ORDER BY sp.created_at DESC LIMIT 100';
+
+    const [products] = await dbPool.query(query, params);
+
+    res.json({ success: true, products });
+  } catch (error) {
+    console.error('Browse products error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============ RFQ (REQUEST FOR QUOTATION) MANAGEMENT ============
+
+// 6. CREATE RFQ (Contractor)
+app.post('/api/projects/:projectId/rfqs', async (req, res) => {
+  const { projectId } = req.params;
+  const {
+    requester_user_id, material_name, description, quantity, unit,
+    required_by_date, budget_range_min, budget_range_max,
+    delivery_address, special_requirements, invited_suppliers
+  } = req.body;
+  const dbPool = app.locals.dbPool;
+
+  if (!material_name || !quantity || !unit || !required_by_date) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Material name, quantity, unit, and required date are required' 
+    });
+  }
+
+  try {
+    // Create RFQ
+    const [result] = await dbPool.query(`
+      INSERT INTO rfq_requests 
+      (project_id, requester_user_id, material_name, description, quantity, unit,
+       required_by_date, budget_range_min, budget_range_max, 
+       delivery_address, special_requirements, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
+    `, [
+      projectId, requester_user_id, material_name, description, quantity, unit,
+      required_by_date, budget_range_min, budget_range_max,
+      delivery_address, special_requirements
+    ]);
+
+    const rfqId = result.insertId;
+
+    // Invite suppliers if provided
+    if (invited_suppliers && Array.isArray(invited_suppliers)) {
+      for (const supplierId of invited_suppliers) {
+        await dbPool.query(`
+          INSERT INTO rfq_invitations (rfq_id, supplier_company_id)
+          VALUES (?, ?)
+        `, [rfqId, supplierId]);
+
+        // Create notification for supplier
+        await dbPool.query(`
+          INSERT INTO supplier_notifications 
+          (supplier_company_id, notification_type, title, message, related_project_id)
+          VALUES (?, 'new_order', ?, ?, ?)
+        `, [
+          supplierId,
+          'New RFQ Available',
+          `You have been invited to quote for ${material_name}`,
+          projectId
+        ]);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'RFQ created successfully',
+      rfq_id: rfqId
+    });
+  } catch (error) {
+    console.error('Create RFQ error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 7. GET RFQs FOR SUPPLIER
+app.get('/api/supplier/:supplierId/rfqs', async (req, res) => {
+  const { supplierId } = req.params;
+  const { status } = req.query;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    let query = `
+      SELECT 
+        r.*,
+        p.project_name,
+        u.company_name as requester_company,
+        i.viewed_at,
+        q.id as my_quotation_id,
+        q.status as my_quotation_status
+      FROM rfq_requests r
+      JOIN projects p ON r.project_id = p.id
+      JOIN users u ON r.requester_user_id = u.id
+      LEFT JOIN rfq_invitations i ON r.id = i.rfq_id AND i.supplier_company_id = ?
+      LEFT JOIN supplier_quotations q ON r.id = q.rfq_id AND q.supplier_company_id = ?
+      WHERE (i.rfq_id IS NOT NULL OR r.status = 'published')
+    `;
+    const params = [supplier[0].company_id, supplier[0].company_id];
+
+    if (status) {
+      query += ' AND r.status = ?';
+      params.push(status);
+    }
+
+    query += ' ORDER BY r.required_by_date ASC';
+
+    const [rfqs] = await dbPool.query(query, params);
+
+    res.json({ success: true, rfqs });
+  } catch (error) {
+    console.error('Get supplier RFQs error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 8. MARK RFQ AS VIEWED
+app.post('/api/supplier/:supplierId/rfqs/:rfqId/view', async (req, res) => {
+  const { supplierId, rfqId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    await dbPool.query(`
+      UPDATE rfq_invitations 
+      SET viewed_at = NOW() 
+      WHERE rfq_id = ? AND supplier_company_id = ? AND viewed_at IS NULL
+    `, [rfqId, supplier[0].company_id]);
+
+    res.json({ success: true, message: 'RFQ marked as viewed' });
+  } catch (error) {
+    console.error('Mark RFQ viewed error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 9. SUBMIT QUOTATION (Supplier Response to RFQ)
+app.post('/api/supplier/:supplierId/rfqs/:rfqId/quote', async (req, res) => {
+  const { supplierId, rfqId } = req.params;
+  const {
+    unit_price, quantity_offered, estimated_delivery_date,
+    payment_terms, notes, validity_days
+  } = req.body;
+  const dbPool = app.locals.dbPool;
+
+  if (!unit_price || !quantity_offered || !estimated_delivery_date) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Price, quantity, and delivery date are required' 
+    });
+  }
+
+  try {
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    // Get RFQ details
+    const [rfq] = await dbPool.query(
+      'SELECT unit FROM rfq_requests WHERE id = ? AND status = "published"',
+      [rfqId]
+    );
+
+    if (rfq.length === 0) {
+      return res.status(404).json({ success: false, message: 'RFQ not found or closed' });
+    }
+
+    const totalPrice = parseFloat(unit_price) * parseFloat(quantity_offered);
+
+    // Check if quotation already exists
+    const [existing] = await dbPool.query(
+      'SELECT id FROM supplier_quotations WHERE rfq_id = ? AND supplier_company_id = ?',
+      [rfqId, supplier[0].company_id]
+    );
+
+    let quotationId;
+
+    if (existing.length > 0) {
+      // Update existing quotation
+      await dbPool.query(`
+        UPDATE supplier_quotations 
+        SET unit_price = ?, total_price = ?, quantity_offered = ?,
+            estimated_delivery_date = ?, payment_terms = ?, notes = ?,
+            validity_days = ?, status = 'submitted', submitted_at = NOW()
+        WHERE id = ?
+      `, [
+        unit_price, totalPrice, quantity_offered,
+        estimated_delivery_date, payment_terms, notes,
+        validity_days || 30, existing[0].id
+      ]);
+      quotationId = existing[0].id;
+    } else {
+      // Create new quotation
+      const [result] = await dbPool.query(`
+        INSERT INTO supplier_quotations 
+        (rfq_id, supplier_company_id, supplier_user_id, unit_price, total_price,
+         quantity_offered, unit, estimated_delivery_date, payment_terms, notes,
+         validity_days, status, submitted_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', NOW())
+      `, [
+        rfqId, supplier[0].company_id, supplierId, unit_price, totalPrice,
+        quantity_offered, rfq[0].unit, estimated_delivery_date,
+        payment_terms, notes, validity_days || 30
+      ]);
+      quotationId = result.insertId;
+    }
+
+    res.json({
+      success: true,
+      message: 'Quotation submitted successfully',
+      quotation_id: quotationId
+    });
+  } catch (error) {
+    console.error('Submit quotation error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 10. GET RFQs FOR PROJECT (Contractor View)
+app.get('/api/projects/:projectId/rfqs', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [rfqs] = await dbPool.query(`
+      SELECT 
+        r.*,
+        COUNT(DISTINCT i.supplier_company_id) as invited_count,
+        COUNT(DISTINCT q.id) as quotation_count,
+        MIN(q.unit_price) as lowest_quote,
+        MAX(q.unit_price) as highest_quote
+      FROM rfq_requests r
+      LEFT JOIN rfq_invitations i ON r.id = i.rfq_id
+      LEFT JOIN supplier_quotations q ON r.id = q.rfq_id AND q.status = 'submitted'
+      WHERE r.project_id = ?
+      GROUP BY r.id
+      ORDER BY r.created_at DESC
+    `, [projectId]);
+
+    res.json({ success: true, rfqs });
+  } catch (error) {
+    console.error('Get project RFQs error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 11. GET QUOTATIONS FOR AN RFQ (Contractor View)
+app.get('/api/rfqs/:rfqId/quotations', async (req, res) => {
+  const { rfqId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [quotations] = await dbPool.query(`
+      SELECT 
+        q.*,
+        c.name as supplier_name,
+        ci.phone as supplier_phone,
+        ci.email as supplier_email,
+        AVG(vr.rating) as supplier_avg_rating
+      FROM supplier_quotations q
+      JOIN Company c ON q.supplier_company_id = c.company_id
+      JOIN ContactInfo ci ON c.FK_contact_id = ci.contact_id
+      LEFT JOIN vendor_ratings vr ON vr.vendor_name = c.name
+      WHERE q.rfq_id = ? AND q.status = 'submitted'
+      GROUP BY q.id, c.name, ci.phone, ci.email
+      ORDER BY q.unit_price ASC
+    `, [rfqId]);
+
+    res.json({ success: true, quotations });
+  } catch (error) {
+    console.error('Get RFQ quotations error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 12. ACCEPT QUOTATION (Contractor)
+app.post('/api/quotations/:quotationId/accept', async (req, res) => {
+  const { quotationId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Get quotation details
+    const [quotation] = await dbPool.query(
+      'SELECT rfq_id, supplier_company_id FROM supplier_quotations WHERE id = ?',
+      [quotationId]
+    );
+
+    if (quotation.length === 0) {
+      return res.status(404).json({ success: false, message: 'Quotation not found' });
+    }
+
+    // Update quotation status
+    await dbPool.query(
+      'UPDATE supplier_quotations SET status = "accepted" WHERE id = ?',
+      [quotationId]
+    );
+
+    // Reject other quotations for this RFQ
+    await dbPool.query(
+      'UPDATE supplier_quotations SET status = "rejected" WHERE rfq_id = ? AND id != ?',
+      [quotation[0].rfq_id, quotationId]
+    );
+
+    // Close the RFQ
+    await dbPool.query(
+      'UPDATE rfq_requests SET status = "closed" WHERE id = ?',
+      [quotation[0].rfq_id]
+    );
+
+    // Notify supplier
+    await dbPool.query(`
+      INSERT INTO supplier_notifications 
+      (supplier_company_id, notification_type, title, message)
+      VALUES (?, 'order_update', 'Quotation Accepted', 'Your quotation has been accepted!')
+    `, [quotation[0].supplier_company_id]);
+
+    res.json({ success: true, message: 'Quotation accepted successfully' });
+  } catch (error) {
+    console.error('Accept quotation error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 13. GET PRODUCT CATEGORIES
+app.get('/api/products/categories', async (req, res) => {
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [categories] = await dbPool.query(`
+      SELECT DISTINCT category, COUNT(*) as product_count
+      FROM supplier_products
+      WHERE is_available = TRUE
+      GROUP BY category
+      ORDER BY category
+    `);
+
+    res.json({ success: true, categories });
+  } catch (error) {
+    console.error('Get categories error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});

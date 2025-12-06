@@ -852,6 +852,204 @@ JOIN ContactInfo ci ON c.FK_contact_id = ci.contact_id
 JOIN Address a ON c.FK_address_id = a.address_id
 ORDER BY c.name;
 
+-- 1. SUPPLIER PRODUCT CATALOG
+-- Allows suppliers to list products they can provide
+CREATE TABLE IF NOT EXISTS supplier_products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    supplier_company_id BIGINT NOT NULL,
+    product_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(100),
+    unit VARCHAR(50) NOT NULL,
+    price_min DECIMAL(10,2),
+    price_max DECIMAL(10,2),
+    current_stock INT DEFAULT 0,
+    min_order_quantity DECIMAL(10,2) DEFAULT 1,
+    lead_time_days INT DEFAULT 7,
+    is_available BOOLEAN DEFAULT TRUE,
+    image_url VARCHAR(500),
+    specifications JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (supplier_company_id) REFERENCES Company(company_id) ON DELETE CASCADE,
+    INDEX idx_supplier (supplier_company_id),
+    INDEX idx_category (category),
+    INDEX idx_available (is_available)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 2. RFQ (REQUEST FOR QUOTATION) FROM CONTRACTORS
+-- Contractors can create RFQs for materials they need
+CREATE TABLE IF NOT EXISTS rfq_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    project_id INT NOT NULL,
+    requester_user_id INT NOT NULL,
+    material_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    quantity DECIMAL(10,2) NOT NULL,
+    unit VARCHAR(50) NOT NULL,
+    required_by_date DATE NOT NULL,
+    budget_range_min DECIMAL(10,2),
+    budget_range_max DECIMAL(10,2),
+    delivery_address TEXT,
+    special_requirements TEXT,
+    status ENUM('draft', 'published', 'closed', 'cancelled') DEFAULT 'draft',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (requester_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_status (status),
+    INDEX idx_required_date (required_by_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 3. RFQ INVITATION TO SUPPLIERS
+-- Track which suppliers were invited to respond to an RFQ
+CREATE TABLE IF NOT EXISTS rfq_invitations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    rfq_id INT NOT NULL,
+    supplier_company_id BIGINT NOT NULL,
+    invited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    viewed_at TIMESTAMP NULL,
+    is_declined BOOLEAN DEFAULT FALSE,
+    decline_reason TEXT,
+    FOREIGN KEY (rfq_id) REFERENCES rfq_requests(id) ON DELETE CASCADE,
+    FOREIGN KEY (supplier_company_id) REFERENCES Company(company_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_invitation (rfq_id, supplier_company_id),
+    INDEX idx_rfq (rfq_id),
+    INDEX idx_supplier (supplier_company_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 4. SUPPLIER QUOTATIONS (RESPONSES TO RFQs)
+-- Suppliers submit their quotes in response to RFQs
+CREATE TABLE IF NOT EXISTS supplier_quotations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    rfq_id INT NOT NULL,
+    supplier_company_id BIGINT NOT NULL,
+    supplier_user_id INT NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    total_price DECIMAL(10,2) NOT NULL,
+    quantity_offered DECIMAL(10,2) NOT NULL,
+    unit VARCHAR(50) NOT NULL,
+    estimated_delivery_date DATE NOT NULL,
+    validity_days INT DEFAULT 30,
+    payment_terms VARCHAR(255),
+    notes TEXT,
+    attachments JSON,
+    status ENUM('draft', 'submitted', 'accepted', 'rejected', 'expired') DEFAULT 'draft',
+    submitted_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (rfq_id) REFERENCES rfq_requests(id) ON DELETE CASCADE,
+    FOREIGN KEY (supplier_company_id) REFERENCES Company(company_id) ON DELETE CASCADE,
+    FOREIGN KEY (supplier_user_id) REFERENCES supplier_users(id) ON DELETE CASCADE,
+    INDEX idx_rfq (rfq_id),
+    INDEX idx_supplier (supplier_company_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 5. QUOTATION LINE ITEMS (Optional: for detailed breakdown)
+CREATE TABLE IF NOT EXISTS quotation_line_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    quotation_id INT NOT NULL,
+    item_description VARCHAR(255) NOT NULL,
+    quantity DECIMAL(10,2) NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    total_price DECIMAL(10,2) NOT NULL,
+    notes TEXT,
+    FOREIGN KEY (quotation_id) REFERENCES supplier_quotations(id) ON DELETE CASCADE,
+    INDEX idx_quotation (quotation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 6. RFQ MESSAGES/DISCUSSIONS
+-- Allow contractors and suppliers to communicate about RFQs
+CREATE TABLE IF NOT EXISTS rfq_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    rfq_id INT NOT NULL,
+    sender_type ENUM('contractor', 'supplier') NOT NULL,
+    sender_id INT NOT NULL,
+    message TEXT NOT NULL,
+    is_private BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (rfq_id) REFERENCES rfq_requests(id) ON DELETE CASCADE,
+    INDEX idx_rfq (rfq_id),
+    INDEX idx_created (created_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 7. CONTRACTOR PRODUCT FAVORITES
+-- Contractors can save suppliers' products for quick access
+CREATE TABLE IF NOT EXISTS contractor_favorite_products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    supplier_product_id INT NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (supplier_product_id) REFERENCES supplier_products(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_favorite (user_id, supplier_product_id),
+    INDEX idx_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ==================== VIEWS FOR REPORTING ====================
+
+-- View: Active RFQs with Response Summary
+CREATE OR REPLACE VIEW rfq_summary_view AS
+SELECT 
+    r.id as rfq_id,
+    r.project_id,
+    r.material_name,
+    r.quantity,
+    r.unit,
+    r.required_by_date,
+    r.status,
+    p.project_name,
+    u.company_name as requester_company,
+    COUNT(DISTINCT i.supplier_company_id) as invited_suppliers,
+    COUNT(DISTINCT q.id) as received_quotations,
+    MIN(q.unit_price) as lowest_quote,
+    MAX(q.unit_price) as highest_quote,
+    r.created_at
+FROM rfq_requests r
+JOIN projects p ON r.project_id = p.id
+JOIN users u ON r.requester_user_id = u.id
+LEFT JOIN rfq_invitations i ON r.id = i.rfq_id
+LEFT JOIN supplier_quotations q ON r.id = q.rfq_id AND q.status = 'submitted'
+GROUP BY r.id, r.project_id, r.material_name, r.quantity, r.unit, 
+         r.required_by_date, r.status, p.project_name, u.company_name, r.created_at;
+
+-- View: Supplier Product Catalog with Performance Metrics
+CREATE OR REPLACE VIEW supplier_product_performance AS
+SELECT 
+    sp.id as product_id,
+    sp.product_name,
+    sp.category,
+    sp.price_min,
+    sp.price_max,
+    sp.is_available,
+    c.name as supplier_name,
+    c.company_id as supplier_company_id,
+    COUNT(DISTINCT q.id) as times_quoted,
+    COUNT(CASE WHEN q.status = 'accepted' THEN 1 END) as times_accepted,
+    AVG(q.unit_price) as avg_quoted_price
+FROM supplier_products sp
+JOIN Company c ON sp.supplier_company_id = c.company_id
+LEFT JOIN supplier_quotations q ON q.supplier_company_id = sp.supplier_company_id
+GROUP BY sp.id, sp.product_name, sp.category, sp.price_min, sp.price_max, 
+         sp.is_available, c.name, c.company_id;
+
+-- View all supplier accounts with details
+SELECT 
+    su.id,
+    su.email,
+    c.name as company_name,
+    c.company_id,
+    su.contact_person_name,
+    su.contact_phone,
+    su.is_active,
+    su.created_at,
+    su.last_login
+FROM supplier_users su
+JOIN Company c ON su.company_id = c.company_id
+ORDER BY c.name;
+
 --------Step2 建立的虛擬機--------
 
 -- 2.1 建立帳號密碼連接assignment-mysql的table --
