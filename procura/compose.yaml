@@ -18,13 +18,13 @@ services:
       - ./companies.tsv:/var/lib/mysql-files/companies.tsv
       - ./transactions.tsv:/var/lib/mysql-files/transactions.tsv
       - ./materials.tsv:/var/lib/mysql-files/materials.tsv
-      - mysql_data:/var/lib/mysq
+      - mysql_data:/var/lib/mysq1
 
     command: 
       --local-infile=1 
       
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
       interval: 20s
       timeout: 10s
       start_period: 300s 
