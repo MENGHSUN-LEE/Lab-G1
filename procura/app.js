@@ -7,8 +7,408 @@ const bcrypt = require('bcrypt'); // 用於加密密碼
 const config = require('./config'); // 引入您的配置檔
 
 const app = express();
+<<<<<<< HEAD
 const PORT = process.env.PORT || 8080;
+=======
+const PORT = process.env.PORT || 80;
+const PDFDocument = require('pdfkit');
+const ExcelJS = require('exceljs');
+const fs = require('fs');
+const downloadsDir = path.join(__dirname, 'downloads');
+>>>>>>> af97edda03db963412ac6753020c9195eec4bb20
 
+// Create downloads directory
+if (!fs.existsSync(downloadsDir)) {
+  fs.mkdirSync(downloadsDir, { recursive: true });
+  console.log('[Downloads] Created directory:', downloadsDir);
+} else {
+  console.log('[Downloads] Directory exists:', downloadsDir);
+}
+
+// Verify write permissions
+try {
+  fs.accessSync(downloadsDir, fs.constants.W_OK);
+  console.log('[Downloads] Write permissions verified ✓');
+} catch (err) {
+  console.error('[Downloads] WARNING: No write permissions!', err.message);
+}
+
+// --- Middleware ---
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ============ ADD THESE ENDPOINTS TO YOUR app.js ============
+
+// 1. EXPORT HEALTH REPORT AS PDF
+app.post('/api/project/:projectId/export-health-pdf', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Fetch data
+    const [projectInfo] = await dbPool.query('SELECT * FROM projects WHERE id = ?', [projectId]);
+    if (projectInfo.length === 0) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+
+    const [workItems] = await dbPool.query(`
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as ahead,
+                SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as on_time,
+                SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as \`delayed\`
+            FROM work_items WHERE project_id = ?
+        `, [projectId]);
+
+    const [materials] = await dbPool.query(`
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN material_status = 0 THEN 1 ELSE 0 END) as arrived,
+                SUM(CASE WHEN material_status = 2 THEN 1 ELSE 0 END) as \`ordered\`,
+                SUM(CASE WHEN material_status = 3 THEN 1 ELSE 0 END) as \`delayed\`,
+                SUM(qty * COALESCE(unit_price, 0)) as total_cost
+            FROM materials_used mu
+            JOIN work_items wi ON mu.work_item_id = wi.id
+            WHERE wi.project_id = ?
+        `, [projectId]);
+
+    const [topMaterials] = await dbPool.query(`
+            SELECT 
+                material_name,
+                vendor,
+                SUM(qty) as total_qty,
+                unit,
+                SUM(qty * COALESCE(unit_price, 0)) as total_cost
+            FROM materials_used mu
+            JOIN work_items wi ON mu.work_item_id = wi.id
+            WHERE wi.project_id = ?
+            GROUP BY material_name, vendor, unit
+            ORDER BY total_cost DESC
+            LIMIT 10
+        `, [projectId]);
+
+    // Generate PDF
+    const filename = `health-report-${projectId}-${Date.now()}.pdf`;
+    const filepath = path.join(downloadsDir, filename);
+    const doc = new PDFDocument({ margin: 50 });
+    const stream = fs.createWriteStream(filepath);
+
+    doc.pipe(stream);
+
+    // Header
+    doc.fontSize(24).text('Project Health Report', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Project: ${projectInfo[0].project_name}`, { align: 'center' });
+    doc.text(`Owner: ${projectInfo[0].owner}`, { align: 'center' });
+    doc.text(`Generated: ${new Date().toLocaleString()}`, { align: 'center' });
+    doc.moveDown(2);
+
+    // Work Items Section
+    doc.fontSize(16).text('Work Items Status', { underline: true });
+    doc.moveDown(0.5);
+    doc.fontSize(11);
+    doc.text(`Total: ${workItems[0].total}`);
+    doc.text(`✓ Ahead: ${workItems[0].ahead}`);
+    doc.text(`✓ On Time: ${workItems[0].on_time}`);
+    doc.text(`⚠ Delayed: ${workItems[0].delayed}`);
+    doc.moveDown();
+
+    // Materials Section
+    doc.fontSize(16).text('Materials Overview', { underline: true });
+    doc.moveDown(0.5);
+    doc.fontSize(11);
+    doc.text(`Total Materials: ${materials[0].total}`);
+    doc.text(`Arrived: ${materials[0].arrived}`);
+    doc.text(`Ordered: ${materials[0].ordered}`);
+    doc.text(`Delayed: ${materials[0].delayed}`);
+    doc.text(`Total Cost: $${parseFloat(materials[0].total_cost || 0).toFixed(2)}`);
+    doc.moveDown();
+
+    // Top Materials Table
+    doc.addPage();
+    doc.fontSize(16).text('Top 10 Materials by Cost', { underline: true });
+    doc.moveDown();
+
+    const tableTop = doc.y;
+    const colWidths = [200, 100, 80, 100];
+    const headers = ['Material', 'Vendor', 'Quantity', 'Total Cost'];
+
+    // Table headers
+    doc.fontSize(10).font('Helvetica-Bold');
+    let x = 50;
+    headers.forEach((header, i) => {
+      doc.text(header, x, tableTop, { width: colWidths[i] });
+      x += colWidths[i];
+    });
+
+    // Table rows
+    doc.font('Helvetica').fontSize(9);
+    let y = tableTop + 20;
+    topMaterials.forEach(mat => {
+      x = 50;
+      doc.text(mat.material_name.substring(0, 30), x, y, { width: colWidths[0] });
+      doc.text(mat.vendor || 'N/A', x + colWidths[0], y, { width: colWidths[1] });
+      doc.text(`${mat.total_qty} ${mat.unit || ''}`, x + colWidths[0] + colWidths[1], y, { width: colWidths[2] });
+      doc.text(`$${parseFloat(mat.total_cost || 0).toFixed(2)}`, x + colWidths[0] + colWidths[1] + colWidths[2], y, { width: colWidths[3] });
+      y += 20;
+      if (y > 700) {
+        doc.addPage();
+        y = 50;
+      }
+    });
+
+    // Footer
+    doc.moveDown(2);
+    doc.fontSize(8).text('Generated by Procura Construction Management System', { align: 'center' });
+
+    doc.end();
+
+    stream.on('finish', () => {
+      res.json({
+        success: true,
+        filename,
+        download_url: `/downloads/${filename}`
+      });
+    });
+
+    stream.on('error', (error) => {
+      console.error('PDF generation error:', error);
+      res.status(500).json({ success: false, message: 'Failed to generate PDF' });
+    });
+
+  } catch (error) {
+    console.error('Export health PDF error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 2. EXPORT HEALTH REPORT AS EXCEL
+app.post('/api/project/:projectId/export-health-excel', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Fetch data (same as PDF)
+    const [projectInfo] = await dbPool.query('SELECT * FROM projects WHERE id = ?', [projectId]);
+    if (projectInfo.length === 0) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+
+    const [workItems] = await dbPool.query(`
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as ahead,
+                SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as on_time,
+                SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as \`delayed\`
+            FROM work_items WHERE project_id = ?
+        `, [projectId]);
+
+    const [materials] = await dbPool.query(`
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN material_status = 0 THEN 1 ELSE 0 END) as arrived,
+                SUM(CASE WHEN material_status = 2 THEN 1 ELSE 0 END) as \`ordered\`,
+                SUM(CASE WHEN material_status = 3 THEN 1 ELSE 0 END) as \`delayed\`,
+                SUM(qty * COALESCE(unit_price, 0)) as total_cost
+            FROM materials_used mu
+            JOIN work_items wi ON mu.work_item_id = wi.id
+            WHERE wi.project_id = ?
+        `, [projectId]);
+
+    const [topMaterials] = await dbPool.query(`
+            SELECT 
+                material_name,
+                vendor,
+                SUM(qty) as total_qty,
+                unit,
+                SUM(qty * COALESCE(unit_price, 0)) as total_cost
+            FROM materials_used mu
+            JOIN work_items wi ON mu.work_item_id = wi.id
+            WHERE wi.project_id = ?
+            GROUP BY material_name, vendor, unit
+            ORDER BY total_cost DESC
+            LIMIT 20
+        `, [projectId]);
+
+    // Generate Excel
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Procura System';
+    workbook.created = new Date();
+
+    // Sheet 1: Summary
+    const summarySheet = workbook.addWorksheet('Summary');
+    summarySheet.columns = [
+      { width: 30 },
+      { width: 20 }
+    ];
+
+    summarySheet.addRow(['Project Health Report']);
+    summarySheet.getCell('A1').font = { size: 16, bold: true };
+    summarySheet.addRow([]);
+    summarySheet.addRow(['Project Name', projectInfo[0].project_name]);
+    summarySheet.addRow(['Owner', projectInfo[0].owner]);
+    summarySheet.addRow(['Generated', new Date().toLocaleString()]);
+    summarySheet.addRow([]);
+
+    summarySheet.addRow(['Work Items']);
+    summarySheet.getCell('A7').font = { bold: true };
+    summarySheet.addRow(['Total', workItems[0].total]);
+    summarySheet.addRow(['Ahead', workItems[0].ahead]);
+    summarySheet.addRow(['On Time', workItems[0].on_time]);
+    summarySheet.addRow(['Delayed', workItems[0].delayed]);
+    summarySheet.addRow([]);
+
+    summarySheet.addRow(['Materials']);
+    summarySheet.getCell('A13').font = { bold: true };
+    summarySheet.addRow(['Total', materials[0].total]);
+    summarySheet.addRow(['Arrived', materials[0].arrived]);
+    summarySheet.addRow(['Ordered', materials[0].ordered]);
+    summarySheet.addRow(['Delayed', materials[0].delayed]);
+    summarySheet.addRow(['Total Cost', `$${parseFloat(materials[0].total_cost || 0).toFixed(2)}`]);
+
+    // Sheet 2: Top Materials
+    const materialsSheet = workbook.addWorksheet('Top Materials');
+    materialsSheet.columns = [
+      { header: 'Material Name', key: 'material_name', width: 40 },
+      { header: 'Vendor', key: 'vendor', width: 20 },
+      { header: 'Quantity', key: 'total_qty', width: 15 },
+      { header: 'Unit', key: 'unit', width: 10 },
+      { header: 'Total Cost', key: 'total_cost', width: 15 }
+    ];
+
+    materialsSheet.getRow(1).font = { bold: true };
+
+    topMaterials.forEach(mat => {
+      materialsSheet.addRow({
+        material_name: mat.material_name,
+        vendor: mat.vendor || 'N/A',
+        total_qty: mat.total_qty,
+        unit: mat.unit || '',
+        total_cost: `$${parseFloat(mat.total_cost || 0).toFixed(2)}`
+      });
+    });
+
+    // Save file
+    const filename = `health-report-${projectId}-${Date.now()}.xlsx`;
+    const filepath = path.join(downloadsDir, filename);
+    await workbook.xlsx.writeFile(filepath);
+
+    res.json({
+      success: true,
+      filename,
+      download_url: `/downloads/${filename}`
+    });
+
+  } catch (error) {
+    console.error('Export health Excel error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 3. EXPORT COST ANALYSIS AS EXCEL
+app.post('/api/project/:projectId/export-cost-excel', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [costs] = await dbPool.query(`
+            SELECT 
+                mu.material_name,
+                mu.vendor,
+                SUM(mu.qty) as total_quantity,
+                mu.unit,
+                AVG(COALESCE(mu.unit_price, 0)) as avg_price,
+                SUM(mu.qty * COALESCE(mu.unit_price, 0)) as total_cost
+            FROM materials_used mu
+            JOIN work_items wi ON mu.work_item_id = wi.id
+            WHERE wi.project_id = ?
+            GROUP BY mu.material_name, mu.vendor, mu.unit
+            ORDER BY total_cost DESC
+        `, [projectId]);
+
+    const totalProjectCost = costs.reduce((sum, item) =>
+      sum + parseFloat(item.total_cost || 0), 0
+    );
+
+    // Generate Excel
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Cost Analysis');
+
+    sheet.columns = [
+      { header: 'Material', key: 'material_name', width: 40 },
+      { header: 'Vendor', key: 'vendor', width: 25 },
+      { header: 'Quantity', key: 'total_quantity', width: 12 },
+      { header: 'Unit', key: 'unit', width: 10 },
+      { header: 'Avg Price', key: 'avg_price', width: 15 },
+      { header: 'Total Cost', key: 'total_cost', width: 15 }
+    ];
+
+    sheet.getRow(1).font = { bold: true };
+
+    costs.forEach(cost => {
+      sheet.addRow({
+        material_name: cost.material_name,
+        vendor: cost.vendor || 'N/A',
+        total_quantity: cost.total_quantity,
+        unit: cost.unit || '',
+        avg_price: `$${parseFloat(cost.avg_price).toFixed(2)}`,
+        total_cost: `$${parseFloat(cost.total_cost).toFixed(2)}`
+      });
+    });
+
+    sheet.addRow([]);
+    const totalRow = sheet.addRow(['', '', '', '', 'TOTAL:', `$${totalProjectCost.toFixed(2)}`]);
+    totalRow.font = { bold: true };
+    totalRow.getCell(6).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFF00' }
+    };
+
+    const filename = `cost-analysis-${projectId}-${Date.now()}.xlsx`;
+    const filepath = path.join(downloadsDir, filename);
+    await workbook.xlsx.writeFile(filepath);
+
+    res.json({
+      success: true,
+      filename,
+      download_url: `/downloads/${filename}`
+    });
+
+  } catch (error) {
+    console.error('Export cost Excel error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 4. FILE DOWNLOAD ENDPOINT
+app.get('/downloads/:filename', (req, res) => {
+  const { filename } = req.params;
+  const filepath = path.join(downloadsDir, filename);
+
+  // Security: prevent directory traversal
+  if (filename.includes('..') || filename.includes('/')) {
+    return res.status(400).json({ success: false, message: 'Invalid filename' });
+  }
+
+  if (!fs.existsSync(filepath)) {
+    return res.status(404).json({ success: false, message: 'File not found' });
+  }
+
+  res.download(filepath, (err) => {
+    if (err) {
+      console.error('Download error:', err);
+    }
+
+    // Delete file after download (1 minute delay)
+    setTimeout(() => {
+      if (fs.existsSync(filepath)) {
+        fs.unlinkSync(filepath);
+        console.log(`Deleted temporary file: ${filename}`);
+      }
+    }, 60000);
+  });
+});
 // --- 中介軟體 (Middleware) ---
 // 1. 處理 JSON 格式的請求體 (POST/PUT 請求)
 app.use(express.json());
@@ -66,9 +466,10 @@ async function updateExistingMaterialPrices() {
 
     if (updated.length > 0) {
       // console.log('[Price Update] Materials with prices:');
-      updated.forEach(m => {
-        // console.log(`  - ID ${m.id}: ${m.material_name} = $${m.unit_price}`);
-      });
+      // updated.forEach(m => {
+      //   console.log(`  - ID ${m.id}: ${m.material_name} = $${m.unit_price}`);
+      // });
+      console.log(`[Price Update] Total materials with prices: ${updated.length}`);
     }
 
   } catch (error) {
@@ -642,42 +1043,6 @@ app.put('/api/materials-used/:id/status', async (req, res) => {
   }
 });
 
-// GET Price Comparison for a Material Used item
-app.get('/api/materials-used/:id/price-comparison', async (req, res) => {
-  const { id } = req.params;
-  const dbPool = app.locals.dbPool;
-
-  try {
-    const query = `
-            SELECT 
-                mu.unit_price,
-                m.PriceAvg as market_avg
-            FROM materials_used mu
-            JOIN Material m ON LOWER(TRIM(mu.material_name)) = LOWER(TRIM(m.Item_Description))
-            WHERE mu.id = ?
-        `;
-    const [rows] = await dbPool.execute(query, [id]);
-
-    if (rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Material not found or no market price available.' });
-    }
-
-    const { unit_price, market_avg } = rows[0];
-    const savings_pct = market_avg > 0 ? ((market_avg - unit_price) / market_avg) * 100 : 0;
-
-    res.json({
-      success: true,
-      unit_price,
-      market_avg,
-      savings_pct: parseFloat(savings_pct.toFixed(1))
-    });
-
-  } catch (error) {
-    console.error('Get Price Comparison error:', error);
-    res.status(500).json({ success: false, message: 'Server error retrieving price comparison.' });
-  }
-});
-
 app.get('/api/users/:id', async (req, res) => {
   const userId = req.params.id;
   const dbPool = app.locals.dbPool;
@@ -787,14 +1152,30 @@ async function initVendorRatingsTable() {
         `;
     await dbPool.execute(query);
     console.log('[MySQL] vendor_ratings table checked/created.');
+
+    const arrivalLogQuery = `
+            CREATE TABLE IF NOT EXISTS material_arrival_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                material_id INT NOT NULL,
+                expected_date DATE NOT NULL,
+                actual_date DATE DEFAULT NULL,
+                delivery_status ENUM('pending','in_transit','delivered','delayed') DEFAULT 'pending',
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE
+            );
+        `;
+    await dbPool.execute(arrivalLogQuery);
+    console.log('[MySQL] material_arrival_logs table checked/created.');
+
   } catch (error) {
-    console.error('[MySQL] Failed to init vendor_ratings table:', error);
+    console.error('[MySQL] Failed to init tables:', error);
   }
 }
 // 在 DB 連線後呼叫
 setTimeout(() => {
   if (app.locals.dbPool) initVendorRatingsTable();
-}, 1000);
+}, 2000);
 
 
 // 1. Get Unique Vendors (from materials_used & Company)
@@ -820,6 +1201,69 @@ app.get('/api/vendors', async (req, res) => {
   }
 });
 
+// GET VENDORS WITH COMPANY IDs (for RFQ supplier selection)
+app.get('/api/vendors-with-ids', async (req, res) => {
+  const dbPool = app.locals.dbPool;
+  try {
+    // Get all companies first
+    const [companies] = await dbPool.execute(`
+      SELECT company_id, name 
+      FROM Company 
+      WHERE name IS NOT NULL AND name != ''
+      ORDER BY name
+    `);
+    
+    // Get unique vendors from materials_used
+    const [vendorsFromMaterials] = await dbPool.execute(`
+      SELECT DISTINCT vendor 
+      FROM materials_used 
+      WHERE vendor IS NOT NULL AND vendor != ''
+    `);
+    
+    // Combine both lists and try to match
+    const vendorMap = new Map();
+    
+    // Add all companies with their IDs
+    companies.forEach(c => {
+      vendorMap.set(c.name.toLowerCase().trim(), {
+        name: c.name,
+        company_id: c.company_id
+      });
+    });
+    
+    // Add vendors from materials_used, try to find matching company
+    vendorsFromMaterials.forEach(v => {
+      const vendorName = v.vendor;
+      const normalizedName = vendorName.toLowerCase().trim();
+      
+      // If not already in map, add with null company_id
+      if (!vendorMap.has(normalizedName)) {
+        // Try to find a matching company by fuzzy match
+        const matchingCompany = companies.find(c => 
+          c.name.toLowerCase().trim() === normalizedName
+        );
+        
+        vendorMap.set(normalizedName, {
+          name: vendorName,
+          company_id: matchingCompany ? matchingCompany.company_id : null
+        });
+      }
+    });
+    
+    // Convert to array and filter out nulls
+    const vendors = Array.from(vendorMap.values())
+      .filter(v => v.company_id !== null)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    
+    console.log(`[Vendors API] Found ${vendors.length} vendors with company IDs`);
+    
+    res.json({ success: true, vendors });
+  } catch (error) {
+    console.error('Get Vendors with IDs error:', error);
+    res.status(500).json({ success: false, message: 'Server error retrieving vendors.' });
+  }
+});
+
 // 2. Add Vendor Rating
 app.post('/api/vendor-ratings', async (req, res) => {
   const { vendor_name, rating, comment, project_id } = req.body;
@@ -837,13 +1281,13 @@ app.post('/api/vendor-ratings', async (req, res) => {
     const [result] = await dbPool.execute(query, [vendor_name, rating, comment || '', project_id || null]);
 
     if (result.affectedRows === 1) {
-      res.json({ success: true, message: 'Rating submitted.' });
+      res.json({ success: true, message: 'Rating added successfully.' });
     } else {
-      res.status(500).json({ success: false, message: 'Failed to save rating.' });
+      res.status(500).json({ success: false, message: 'Failed to add rating.' });
     }
   } catch (error) {
-    console.error('Add Rating error:', error);
-    res.status(500).json({ success: false, message: 'Server error saving rating.' });
+    console.error('Add Vendor Rating error:', error);
+    res.status(500).json({ success: false, message: 'Server error adding rating.' });
   }
 });
 
@@ -953,77 +1397,111 @@ app.get('/api/vendor-performance', async (req, res) => {
   }
 });
 
-// 5. Get Vendor Metrics (Delivery & Price)
+// 5. Get Vendor Metrics (Delivery Punctuality & Price Competitiveness)
 app.get('/api/vendor-metrics', async (req, res) => {
   const dbPool = app.locals.dbPool;
   try {
-    // 1. Delivery Punctuality
-    const deliveryQuery = `
-            SELECT 
-                mu.vendor,
-                COUNT(*) as total_deliveries,
-                SUM(CASE WHEN mal.delivery_status != 'delayed' THEN 1 ELSE 0 END) as on_time_count
-            FROM materials_used mu
-            JOIN material_arrival_logs mal ON mu.id = mal.material_id
-            WHERE mu.vendor IS NOT NULL AND mu.vendor != ''
-            GROUP BY mu.vendor
-        `;
-    const [deliveryRows] = await dbPool.execute(deliveryQuery);
+    // --- OPTIMIZED QUERY FOR VENDOR METRICS ---
+
+    // 1. Fetch Delivery Metrics (from materials_used & arrival_logs)
+    const [deliveryRows] = await dbPool.execute(`
+        SELECT 
+            mu.vendor,
+            COUNT(*) as total_orders,
+            SUM(CASE 
+                WHEN al.delivery_status = 'delivered' THEN 1
+                WHEN al.delivery_status = 'delayed' THEN 0
+                WHEN al.actual_date IS NOT NULL AND al.actual_date <= al.expected_date THEN 1
+                ELSE 0
+            END) as on_time_count
+        FROM materials_used mu
+        JOIN material_arrival_logs al ON mu.id = al.material_id
+        WHERE mu.vendor IS NOT NULL AND mu.vendor != ''
+        GROUP BY mu.vendor
+    `);
+
     const deliveryMap = {};
-    deliveryRows.forEach(row => {
-      deliveryMap[row.vendor] = {
-        total: row.total_deliveries,
-        on_time: row.on_time_count,
-        pct: Math.round((row.on_time_count / row.total_deliveries) * 100)
+    deliveryRows.forEach(r => {
+      deliveryMap[r.vendor] = {
+        total: r.total_orders,
+        on_time: parseFloat(r.on_time_count),
+        pct: Math.round((parseFloat(r.on_time_count) / r.total_orders) * 100)
       };
     });
 
-    // 2. Price Competitiveness
-    // Logic: 
-    // 1. Calculate Market Avg from historical Transactions (if available) or use Material.PriceAvg
-    // 2. Compare Vendor's Unit Price against Market Avg
-    // 3. Formula: (MarketAvg - UnitPrice) / MarketAvg * 100
-    const priceQuery = `
-            SELECT 
-                mu.vendor,
-                AVG(
-                    CASE 
-                        WHEN COALESCE(tx.market_avg, m.PriceAvg) > 0 THEN 
-                            ((COALESCE(tx.market_avg, m.PriceAvg) - mu.unit_price) / COALESCE(tx.market_avg, m.PriceAvg)) * 100
-                        ELSE 0
-                    END
-                ) as avg_savings_pct
-            FROM materials_used mu
-            JOIN Material m ON LOWER(TRIM(mu.material_name)) = LOWER(TRIM(m.Item_Description))
-            LEFT JOIN (
-                SELECT FK_material_id, AVG(price_per_unit) as market_avg
-                FROM Transaction
-                GROUP BY FK_material_id
-            ) tx ON m.material_id = tx.FK_material_id
-            WHERE mu.vendor IS NOT NULL AND mu.vendor != '' 
-              AND mu.unit_price > 0 
-            GROUP BY mu.vendor
-        `;
+    // 2. Fetch Price Metrics (from Transaction table - Historical Data)
+    // Get average price per material per vendor
+    const [priceRows] = await dbPool.execute(`
+        SELECT 
+            c.name as vendor, 
+            m.Item_Description as material_name, 
+            AVG(t.price_per_unit) as avg_price
+        FROM Transaction t
+        JOIN Company c ON t.FK_company_id = c.company_id
+        JOIN Material m ON t.FK_material_id = m.material_id
+        WHERE t.price_per_unit > 0
+        GROUP BY c.name, m.Item_Description
+    `);
 
-    const [priceRows] = await dbPool.execute(priceQuery);
-
-    // console.log('[Vendor Metrics] Price Rows:', priceRows);
-
-    const priceMap = {};
+    // Calculate Market Average per Material (Unweighted average of vendor prices)
+    const materialPrices = {}; // { "Cement": [100, 110, 105], ... }
     priceRows.forEach(row => {
-      priceMap[row.vendor] = parseFloat(row.avg_savings_pct).toFixed(1);
+      if (!materialPrices[row.material_name]) materialPrices[row.material_name] = [];
+      materialPrices[row.material_name].push(parseFloat(row.avg_price));
     });
 
-    // Combine for all known vendors
-    const [vendors] = await dbPool.execute(`SELECT DISTINCT vendor FROM materials_used WHERE vendor IS NOT NULL AND vendor != ''`);
+    const marketAverages = {};
+    for (const [mat, prices] of Object.entries(materialPrices)) {
+      const sum = prices.reduce((a, b) => a + b, 0);
+      marketAverages[mat] = sum / prices.length;
+    }
 
-    const metrics = vendors.map(v => {
-      const name = v.vendor;
-      return {
-        vendor_name: name,
-        delivery: deliveryMap[name] || { pct: "N/A", total: 0 },
-        price_competitiveness: priceMap[name] || "N/A"
-      };
+    // Calculate Savings % per Vendor
+    const vendorSavings = {}; // { "VendorA": { totalSavings: 20, count: 2 } }
+
+    priceRows.forEach(row => {
+      const marketAvg = marketAverages[row.material_name];
+      if (marketAvg) {
+        const vendorAvg = parseFloat(row.avg_price);
+        const savings = ((marketAvg - vendorAvg) / marketAvg) * 100;
+
+        if (!vendorSavings[row.vendor]) vendorSavings[row.vendor] = { sum: 0, count: 0 };
+        vendorSavings[row.vendor].sum += savings;
+        vendorSavings[row.vendor].count++;
+      }
+    });
+
+    // 3. Combine Data
+    // Get distinct list of vendors from both sources
+    const allVendors = new Set([
+      ...Object.keys(deliveryMap),
+      ...Object.keys(vendorSavings)
+    ]);
+
+    const metrics = [];
+    allVendors.forEach(vendor => {
+      // Delivery Data
+      const dData = deliveryMap[vendor] || { total: 0, on_time: 0, pct: "N/A" };
+
+      // Price Data
+      let priceCompetitiveness = "N/A";
+      if (vendorSavings[vendor]) {
+        priceCompetitiveness = (vendorSavings[vendor].sum / vendorSavings[vendor].count).toFixed(1);
+      }
+
+      metrics.push({
+        vendor_name: vendor,
+        delivery: dData,
+        price_competitiveness: priceCompetitiveness
+      });
+    });
+
+    // Sort: Vendors with savings first (desc), then N/A (-9999), then name
+    metrics.sort((a, b) => {
+      const valA = a.price_competitiveness === 'N/A' ? -9999 : parseFloat(a.price_competitiveness);
+      const valB = b.price_competitiveness === 'N/A' ? -9999 : parseFloat(b.price_competitiveness);
+      if (valA !== valB) return valB - valA; // Descending
+      return a.vendor_name.localeCompare(b.vendor_name);
     });
 
     res.json({ success: true, metrics });
@@ -1122,8 +1600,8 @@ app.post('/api/materials/:materialUsedId/arrival-log', async (req, res) => {
   const { expected_date, actual_date, delivery_status, notes } = req.body;
   const dbPool = app.locals.dbPool;
 
-  // console.log('Adding arrival log for material_used_id:', materialUsedId);
-  // console.log('Request body:', req.body);
+  console.log('Adding arrival log for material_used_id:', materialUsedId);
+  console.log('Request body:', req.body);
 
   if (!expected_date) {
     return res.status(400).json({ success: false, message: '預期到貨日期是必需的' });
@@ -1143,7 +1621,7 @@ app.post('/api/materials/:materialUsedId/arrival-log', async (req, res) => {
       });
     }
 
-    // console.log('Found material:', material[0]);
+    console.log('Found material:', material[0]);
 
     const [result] = await dbPool.query(`
       INSERT INTO material_arrival_logs 
@@ -1157,7 +1635,7 @@ app.post('/api/materials/:materialUsedId/arrival-log', async (req, res) => {
       notes || ''
     ]);
 
-    // console.log('Insert successful, log ID:', result.insertId);
+    console.log('Insert successful, log ID:', result.insertId);
 
     res.json({
       success: true,
@@ -1719,8 +2197,8 @@ app.post('/api/materials/:materialId/quality-score', async (req, res) => {
   const { score, inspector_name, inspection_date, notes } = req.body;
   const dbPool = app.locals.dbPool;
 
-  // console.log('Adding quality score for material_id:', materialId);
-  // console.log('Request body:', req.body);
+  console.log('Adding quality score for material_id:', materialId);
+  console.log('Request body:', req.body);
 
   if (!score || !inspector_name || !inspection_date) {
     return res.status(400).json({
@@ -1756,7 +2234,7 @@ app.post('/api/materials/:materialId/quality-score', async (req, res) => {
       VALUES (?, ?, ?, ?, ?)
     `, [materialId, score, inspector_name, inspection_date, notes || '']);
 
-    // console.log('Quality score added successfully, ID:', result.insertId);
+    console.log('Quality score added successfully, ID:', result.insertId);
 
     res.json({
       success: true,
@@ -2166,161 +2644,2461 @@ function getStatusLabel(status) {
   return labels[status] || 'Unknown';
 }
 
-// Helper function to generate contextual mock responses
-function generateMockAIResponse(query, context) {
-  const lowerQuery = query.toLowerCase();
-  const totalMaterials = context.total_materials || 0;
-  const vendors = context.vendors || [];
-  const materialsSummary = context.materials_summary || [];
+// ==================== REPORTS & ALERTS SYSTEM (Steven's Advanced Features) ====================
+// Add these to your app.js file
 
-  if (lowerQuery.includes('vendor') || lowerQuery.includes('supplier') || lowerQuery.includes('on-time')) {
-    if (vendors.length === 0) {
-      return `No vendor data available yet. Start tracking material deliveries to get vendor performance insights.`;
-    }
+// ============ PREDICTIVE ALERTS ============
 
-    // Sort vendors by on-time delivery rate
-    const sortedVendors = vendors
-      .map(v => ({
-        ...v,
-        onTimeRate: (v.on_time_deliveries / v.total_deliveries * 100).toFixed(1)
-      }))
-      .sort((a, b) => b.onTimeRate - a.onTimeRate);
+// 1. GET ALL ACTIVE ALERTS FOR A PROJECT
+app.get('/api/project/:projectId/alerts', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
 
-    const topVendors = sortedVendors.slice(0, 3);
+  try {
+    const alerts = [];
 
-    let response = `📊 **Vendor Performance Analysis** (${vendors.length} vendors tracked)\n\n`;
-    response += `**Top Performers:**\n`;
-    topVendors.forEach((v, i) => {
-      response += `${i + 1}. **${v.name}**\n`;
-      response += `   • On-time: ${v.onTimeRate}% (${v.on_time_deliveries}/${v.total_deliveries} deliveries)\n`;
-      response += `   • Quality: ${parseFloat(v.avg_quality_score).toFixed(1)}/10\n`;
-      response += `   • Defects: ${v.defect_count}\n\n`;
+    // ALERT TYPE 1: Delayed Material Deliveries
+    const [delayedMaterials] = await dbPool.query(`
+      SELECT 
+        al.*,
+        mu.id as material_id,
+        mu.material_name,
+        mu.vendor,
+        mu.qty,
+        wi.name as work_item_name,
+        wi.work_date,
+        DATEDIFF(CURDATE(), al.expected_date) as days_overdue
+      FROM material_arrival_logs al
+      JOIN materials_used mu ON al.material_id = mu.id
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ? 
+        AND al.delivery_status NOT IN ('delivered')
+        AND al.expected_date < CURDATE()
+      ORDER BY days_overdue DESC
+      LIMIT 10
+    `, [projectId]);
+
+    delayedMaterials.forEach(m => {
+      alerts.push({
+        id: `delay-material-${m.id}`,
+        type: 'material_delay',
+        severity: m.days_overdue > 7 ? 'critical' : m.days_overdue > 3 ? 'high' : 'medium',
+        title: `Material Delivery Overdue`,
+        message: `${m.material_name} from ${m.vendor || 'Unknown'} is ${m.days_overdue} days overdue`,
+        details: {
+          material_id: m.material_id,
+          material_name: m.material_name,
+          vendor: m.vendor,
+          expected_date: m.expected_date,
+          days_overdue: m.days_overdue,
+          work_item: m.work_item_name,
+          quantity: m.qty
+        },
+        action_required: true,
+        created_at: new Date().toISOString()
+      });
     });
 
-    response += `**Recommendations:**\n`;
-    if (topVendors[0].onTimeRate >= 90) {
-      response += `✅ ${topVendors[0].name} shows excellent reliability (${topVendors[0].onTimeRate}% on-time)\n`;
-    }
+    // ALERT TYPE 2: Work Items at Risk (Approaching deadline with dependencies)
+    const [riskyWorkItems] = await dbPool.query(`
+      SELECT 
+        wi.*,
+        DATEDIFF(wi.work_date, CURDATE()) as days_until,
+        COUNT(mu.id) as material_count,
+        SUM(CASE WHEN mu.material_status IN (1,2,3) THEN 1 ELSE 0 END) as pending_materials
+      FROM work_items wi
+      LEFT JOIN materials_used mu ON wi.id = mu.work_item_id
+      WHERE wi.project_id = ?
+        AND wi.work_date > CURDATE()
+        AND wi.work_date <= DATE_ADD(CURDATE(), INTERVAL 14 DAY)
+        AND wi.status != 0
+      GROUP BY wi.id
+      HAVING pending_materials > 0
+      ORDER BY days_until ASC
+    `, [projectId]);
 
-    const poorPerformers = sortedVendors.filter(v => parseFloat(v.onTimeRate) < 70);
-    if (poorPerformers.length > 0) {
-      response += `⚠️ ${poorPerformers.length} vendor(s) with <70% on-time rate need attention\n`;
-    }
-
-    return response;
-  }
-
-  if (lowerQuery.includes('material') || lowerQuery.includes('usage') || lowerQuery.includes('demand')) {
-    if (materialsSummary.length === 0) {
-      return `No material data available. Add materials to your project to get usage insights.`;
-    }
-
-    let response = `📦 **Material Usage Analysis** (${totalMaterials} materials tracked)\n\n`;
-    response += `**Top Materials:**\n`;
-
-    materialsSummary.slice(0, 5).forEach((m, i) => {
-      response += `${i + 1}. **${m.material_name}**\n`;
-      response += `   • Quantity: ${m.qty} ${m.unit || 'units'}\n`;
-      response += `   • Vendor: ${m.vendor || 'Not specified'}\n`;
-      response += `   • Status: ${getStatusLabel(m.material_status)}\n\n`;
+    riskyWorkItems.forEach(w => {
+      const riskLevel = w.days_until <= 3 ? 'critical' : w.days_until <= 7 ? 'high' : 'medium';
+      alerts.push({
+        id: `risk-workitem-${w.id}`,
+        type: 'work_item_risk',
+        severity: riskLevel,
+        title: `Work Item at Risk`,
+        message: `"${w.name}" starts in ${w.days_until} days but has ${w.pending_materials} pending materials`,
+        details: {
+          work_item_id: w.id,
+          work_item_name: w.name,
+          work_date: w.work_date,
+          days_until: w.days_until,
+          total_materials: w.material_count,
+          pending_materials: w.pending_materials
+        },
+        action_required: true,
+        created_at: new Date().toISOString()
+      });
     });
 
-    const ordered = materialsSummary.filter(m => m.material_status === 2).length;
-    const arrived = materialsSummary.filter(m => m.material_status === 0).length;
+    // ALERT TYPE 3: Budget Overruns (Cost exceeding projections)
+    const [costData] = await dbPool.query(`
+      SELECT 
+        SUM(mu.qty * COALESCE(mu.unit_price, 0)) as current_cost,
+        COUNT(mu.id) as materials_with_price,
+        COUNT(*) as total_materials
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ?
+    `, [projectId]);
 
-    response += `**Status Summary:**\n`;
-    response += `• ${arrived} materials arrived\n`;
-    response += `• ${ordered} materials ordered\n`;
+    if (costData[0] && costData[0].current_cost > 0) {
+      const avgCostPerMaterial = costData[0].current_cost / costData[0].materials_with_price;
+      const projectedTotal = avgCostPerMaterial * costData[0].total_materials;
+      const overrun = projectedTotal - costData[0].current_cost;
 
-    return response;
-  }
-
-  if (lowerQuery.includes('cost') || lowerQuery.includes('budget') || lowerQuery.includes('price')) {
-    if (materialsSummary.length === 0) {
-      return `No cost data available. Add material prices to track project costs.`;
+      if (overrun > costData[0].current_cost * 0.15) { // 15% over budget
+        alerts.push({
+          id: `budget-overrun-${projectId}`,
+          type: 'budget_risk',
+          severity: overrun > costData[0].current_cost * 0.3 ? 'critical' : 'high',
+          title: `Potential Budget Overrun Detected`,
+          message: `Project may exceed budget by $${overrun.toFixed(2)} (${((overrun / costData[0].current_cost) * 100).toFixed(1)}%)`,
+          details: {
+            current_cost: costData[0].current_cost,
+            projected_cost: projectedTotal,
+            potential_overrun: overrun,
+            materials_tracked: costData[0].total_materials
+          },
+          action_required: true,
+          created_at: new Date().toISOString()
+        });
+      }
     }
 
-    const materialsWithPrice = materialsSummary.filter(m => m.unit_price > 0);
-    const totalCost = materialsWithPrice.reduce((sum, m) =>
-      sum + (m.qty * (m.unit_price || 0)), 0
-    );
+    // ALERT TYPE 4: Quality Issues (Multiple defects from same vendor/material)
+    const [qualityIssues] = await dbPool.query(`
+      SELECT 
+        mu.vendor,
+        COUNT(DISTINCT dr.id) as defect_count,
+        GROUP_CONCAT(DISTINCT mu.material_name) as affected_materials,
+        MAX(dr.severity) as max_severity
+      FROM material_defect_reports dr
+      JOIN materials_used mu ON dr.material_id = mu.id
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ?
+        AND dr.status IN ('open', 'investigating')
+      GROUP BY mu.vendor
+      HAVING defect_count >= 2
+      ORDER BY defect_count DESC
+    `, [projectId]);
 
-    let response = `💰 **Cost Analysis**\n\n`;
-    response += `**Total Material Cost:** $${totalCost.toFixed(2)}\n`;
-    response += `**Materials Priced:** ${materialsWithPrice.length}/${totalMaterials}\n\n`;
+    qualityIssues.forEach(q => {
+      alerts.push({
+        id: `quality-${q.vendor}`,
+        type: 'quality_issue',
+        severity: q.max_severity === 'critical' ? 'critical' : q.max_severity === 'high' ? 'high' : 'medium',
+        title: `Recurring Quality Issues`,
+        message: `${q.defect_count} defects reported from vendor ${q.vendor || 'Unknown'}`,
+        details: {
+          vendor: q.vendor,
+          defect_count: q.defect_count,
+          affected_materials: q.affected_materials,
+          max_severity: q.max_severity
+        },
+        action_required: true,
+        created_at: new Date().toISOString()
+      });
+    });
 
-    if (materialsWithPrice.length > 0) {
-      // Find most expensive
-      const byValue = [...materialsWithPrice]
-        .map(m => ({ ...m, value: m.qty * m.unit_price }))
-        .sort((a, b) => b.value - a.value);
+    // ALERT TYPE 5: Low Inventory Warning (Stock running out)
+    const [lowStock] = await dbPool.query(`
+      SELECT 
+        mu.id as material_id,
+        mu.material_name,
+        mu.vendor,
+        mu.qty as total_needed,
+        COALESCE(SUM(mi.quantity_received), 0) as received,
+        (mu.qty - COALESCE(SUM(mi.quantity_received), 0)) as remaining,
+        mu.unit,
+        wi.work_date
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      LEFT JOIN material_inventory mi ON mu.id = mi.material_id
+      WHERE wi.project_id = ?
+        AND wi.work_date <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+        AND wi.work_date >= CURDATE()
+      GROUP BY mu.id, mu.material_name, mu.vendor, mu.qty, mu.unit, wi.work_date
+      HAVING remaining > total_needed * 0.5
+      ORDER BY wi.work_date ASC
+    `, [projectId]);
 
-      response += `**Highest Value Materials:**\n`;
-      byValue.slice(0, 3).forEach((m, i) => {
-        response += `${i + 1}. ${m.material_name}: $${m.value.toFixed(2)}\n`;
+    lowStock.forEach(s => {
+      const urgency = s.remaining >= s.total_needed * 0.8 ? 'critical' : 'high';
+      alerts.push({
+        id: `stock-${s.material_id}`,
+        type: 'inventory_low',
+        severity: urgency,
+        title: `Low Stock Alert`,
+        message: `${s.material_name} needed in ${Math.ceil((new Date(s.work_date) - new Date()) / (1000 * 60 * 60 * 24))} days but only ${((1 - s.remaining / s.total_needed) * 100).toFixed(0)}% received`,
+        details: {
+          material_id: s.material_id,
+          material_name: s.material_name,
+          vendor: s.vendor,
+          total_needed: s.total_needed,
+          received: s.received,
+          remaining: s.remaining,
+          unit: s.unit,
+          work_date: s.work_date
+        },
+        action_required: true,
+        created_at: new Date().toISOString()
+      });
+    });
+
+    // Sort by severity and limit to top 20 most critical
+    const severityOrder = { 'critical': 1, 'high': 2, 'medium': 3, 'low': 4 };
+    alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+
+    res.json({
+      success: true,
+      alerts: alerts.slice(0, 20),
+      total_alerts: alerts.length,
+      critical_count: alerts.filter(a => a.severity === 'critical').length,
+      high_count: alerts.filter(a => a.severity === 'high').length
+    });
+
+  } catch (error) {
+    console.error('Get alerts error:', error);
+    res.status(500).json({
+      success: false,
+      message: '伺服器錯誤: ' + error.message
+    });
+  }
+});
+
+// 2. DISMISS/ACKNOWLEDGE ALERT
+app.post('/api/alerts/:alertId/acknowledge', async (req, res) => {
+  const { alertId } = req.params;
+  const { acknowledged_by, notes } = req.body;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Store acknowledgment in alerts_acknowledgments table
+    const [result] = await dbPool.query(`
+      INSERT INTO alerts_acknowledgments 
+      (alert_id, acknowledged_by, notes, acknowledged_at)
+      VALUES (?, ?, ?, NOW())
+    `, [alertId, acknowledged_by, notes || '']);
+
+    res.json({
+      success: true,
+      message: 'Alert acknowledged',
+      acknowledgment_id: result.insertId
+    });
+  } catch (error) {
+    console.error('Acknowledge alert error:', error);
+    res.status(500).json({
+      success: false,
+      message: '伺服器錯誤: ' + error.message
+    });
+  }
+});
+
+// ============ COMPREHENSIVE REPORTS ============
+
+// 3. GENERATE PROJECT HEALTH REPORT
+app.get('/api/project/:projectId/report/health', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Get project basic info
+    const [projectInfo] = await dbPool.query(`
+      SELECT * FROM projects WHERE id = ?
+    `, [projectId]);
+
+    if (projectInfo.length === 0) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+
+    // Work Items Summary
+    const [workItemsStats] = await dbPool.query(`
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as ahead,
+        SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as on_time,
+        SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as \`delayed\`,
+        SUM(CASE WHEN work_date < CURDATE() THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN work_date >= CURDATE() THEN 1 ELSE 0 END) as upcoming
+      FROM work_items
+      WHERE project_id = ?
+    `, [projectId]);
+
+    // Materials Summary - FIXED with correct status mapping
+    const [materialsStats] = await dbPool.query(`
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN material_status = 0 THEN 1 ELSE 0 END) as arrived,
+        SUM(CASE WHEN material_status = 1 THEN 1 ELSE 0 END) as in_transit,
+        SUM(CASE WHEN material_status = 2 THEN 1 ELSE 0 END) as \`ordered\`,
+        SUM(CASE WHEN material_status = 3 THEN 1 ELSE 0 END) as \`delayed\`,
+        SUM(qty * COALESCE(unit_price, 0)) as total_cost
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ?
+    `, [projectId]);
+
+    // Quality Summary
+    const [qualityStats] = await dbPool.query(`
+      SELECT 
+        AVG(score) as avg_quality_score,
+        COUNT(*) as total_inspections,
+        COUNT(DISTINCT material_id) as materials_inspected
+      FROM material_quality_scores qs
+      JOIN materials_used mu ON qs.material_id = mu.id
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ?
+    `, [projectId]);
+
+    // Defects Summary
+    const [defectsStats] = await dbPool.query(`
+      SELECT 
+        COUNT(*) as total_defects,
+        SUM(CASE WHEN dr.severity = 'critical' THEN 1 ELSE 0 END) as critical,
+        SUM(CASE WHEN dr.severity = 'high' THEN 1 ELSE 0 END) as high,
+        SUM(CASE WHEN dr.status = 'open' THEN 1 ELSE 0 END) as open_defects 
+      FROM material_defect_reports dr
+      JOIN materials_used mu ON dr.material_id = mu.id
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ?
+    `, [projectId]);
+
+    // Vendor Performance
+    const [vendorStats] = await dbPool.query(`
+      SELECT 
+        COUNT(DISTINCT vendor) as total_vendors,
+        AVG(CASE 
+          WHEN al.delivery_status = 'delivered' AND al.actual_date <= al.expected_date 
+          THEN 1 ELSE 0 
+        END) * 100 as avg_on_time_rate
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      LEFT JOIN material_arrival_logs al ON mu.id = al.material_id
+      WHERE wi.project_id = ?
+    `, [projectId]);
+
+    // Calculate overall health score (0-100)
+    const workItemScore = ((workItemsStats[0].ahead + workItemsStats[0].on_time) / workItemsStats[0].total) * 100 || 0;
+    const materialScore = ((materialsStats[0].arrived) / materialsStats[0].total) * 100 || 0;
+    const qualityScore = (qualityStats[0].avg_quality_score / 10) * 100 || 0;
+    const defectScore = Math.max(0, 100 - (defectsStats[0].open_defects * 10));
+
+    const overallHealth = (workItemScore * 0.4 + materialScore * 0.3 + qualityScore * 0.2 + defectScore * 0.1);
+
+    const report = {
+      project: {
+        id: projectInfo[0].id,
+        name: projectInfo[0].project_name,
+        owner: projectInfo[0].owner,
+        tags: projectInfo[0].tags
+      },
+      health_score: {
+        overall: overallHealth.toFixed(1),
+        status: overallHealth >= 80 ? 'excellent' :
+          overallHealth >= 60 ? 'good' :
+            overallHealth >= 40 ? 'fair' : 'poor',
+        components: {
+          work_items: workItemScore.toFixed(1),
+          materials: materialScore.toFixed(1),
+          quality: qualityScore.toFixed(1),
+          defects: defectScore.toFixed(1)
+        }
+      },
+      work_items: workItemsStats[0],
+      materials: materialsStats[0],
+      quality: qualityStats[0],
+      defects: defectsStats[0],
+      vendors: vendorStats[0],
+      generated_at: new Date().toISOString()
+    };
+
+    res.json({ success: true, report });
+
+  } catch (error) {
+    console.error('Generate health report error:', error);
+    res.status(500).json({
+      success: false,
+      message: '伺服器錯誤: ' + error.message
+    });
+  }
+});
+
+// 4. GENERATE PREDICTIVE DELAY REPORT
+app.get('/api/project/:projectId/report/predictions', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const predictions = {
+      project_id: projectId,
+      analysis_date: new Date().toISOString(),
+      predictions: []
+    };
+
+    // PREDICTION 1: Work items likely to be delayed
+    const [atRiskItems] = await dbPool.query(`
+      SELECT 
+        wi.*,
+        COUNT(mu.id) as total_materials,
+        SUM(CASE WHEN mu.material_status IN (1,2,3) THEN 1 ELSE 0 END) as pending_materials,
+        DATEDIFF(wi.work_date, CURDATE()) as days_until,
+        AVG(al.days_delayed) as avg_vendor_delay
+      FROM work_items wi
+      LEFT JOIN materials_used mu ON wi.id = mu.work_item_id
+      LEFT JOIN (
+        SELECT material_id, AVG(DATEDIFF(actual_date, expected_date)) as days_delayed
+        FROM material_arrival_logs
+        WHERE delivery_status = 'delivered'
+        GROUP BY material_id
+      ) al ON mu.id = al.material_id
+      WHERE wi.project_id = ?
+        AND wi.work_date > CURDATE()
+        AND wi.status != 0
+      GROUP BY wi.id
+      HAVING pending_materials > 0 OR days_until < 7
+      ORDER BY days_until ASC
+    `, [projectId]);
+
+    atRiskItems.forEach(item => {
+      const riskScore = calculateDelayRisk(
+        item.pending_materials,
+        item.total_materials,
+        item.days_until,
+        item.avg_vendor_delay
+      );
+
+      if (riskScore >= 50) {
+        predictions.predictions.push({
+          type: 'work_item_delay',
+          target: `Work Item: ${item.name}`,
+          likelihood: riskScore >= 80 ? 'very_high' : riskScore >= 60 ? 'high' : 'medium',
+          risk_score: riskScore,
+          factors: [
+            `${item.pending_materials}/${item.total_materials} materials not yet received`,
+            `Scheduled in ${item.days_until} days`,
+            item.avg_vendor_delay > 0 ? `Historical vendor delay: ${item.avg_vendor_delay.toFixed(1)} days` : null
+          ].filter(Boolean),
+          impact: item.days_until < 3 ? 'critical' : item.days_until < 7 ? 'high' : 'medium',
+          recommendation: generateDelayRecommendation(item)
+        });
+      }
+    });
+
+    // PREDICTION 2: Budget overrun forecast
+    const [budgetData] = await dbPool.query(`
+      SELECT 
+        SUM(mu.qty * COALESCE(mu.unit_price, 0)) as current_cost,
+        COUNT(CASE WHEN mu.unit_price > 0 THEN 1 END) as priced_materials,
+        COUNT(*) as total_materials,
+        AVG(mu.unit_price) as avg_price
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ?
+    `, [projectId]);
+
+    if (budgetData[0] && budgetData[0].priced_materials > 0) {
+      const currentCost = budgetData[0].current_cost;
+      const pricedRatio = budgetData[0].priced_materials / budgetData[0].total_materials;
+      const projectedCost = currentCost / pricedRatio;
+      const overrunPercent = ((projectedCost - currentCost) / currentCost) * 100;
+
+      if (overrunPercent > 10) {
+        predictions.predictions.push({
+          type: 'budget_overrun',
+          target: 'Project Budget',
+          likelihood: overrunPercent > 30 ? 'very_high' : overrunPercent > 20 ? 'high' : 'medium',
+          risk_score: Math.min(100, overrunPercent * 2),
+          factors: [
+            `Current cost: $${currentCost.toFixed(2)}`,
+            `Projected final cost: $${projectedCost.toFixed(2)}`,
+            `${((1 - pricedRatio) * 100).toFixed(0)}% of materials not yet priced`
+          ],
+          impact: 'high',
+          recommendation: `Review material pricing and negotiate with vendors. Consider cost-saving alternatives for remaining ${budgetData[0].total_materials - budgetData[0].priced_materials} materials.`
+        });
+      }
+    }
+
+    // PREDICTION 3: Quality degradation warning
+    const [qualityTrend] = await dbPool.query(`
+      SELECT 
+        DATE_FORMAT(inspection_date, '%Y-%m') as month,
+        AVG(score) as avg_score
+      FROM material_quality_scores qs
+      JOIN materials_used mu ON qs.material_id = mu.id
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ?
+      GROUP BY month
+      ORDER BY month DESC
+      LIMIT 3
+    `, [projectId]);
+
+    if (qualityTrend.length >= 2) {
+      const recentScore = qualityTrend[0].avg_score;
+      const previousScore = qualityTrend[1].avg_score;
+      const decline = previousScore - recentScore;
+
+      if (decline > 1) {
+        predictions.predictions.push({
+          type: 'quality_decline',
+          target: 'Overall Quality Standards',
+          likelihood: decline > 2 ? 'high' : 'medium',
+          risk_score: Math.min(100, decline * 20),
+          factors: [
+            `Quality score dropped from ${previousScore.toFixed(1)} to ${recentScore.toFixed(1)}`,
+            `Decline of ${decline.toFixed(1)} points detected`
+          ],
+          impact: decline > 2 ? 'high' : 'medium',
+          recommendation: 'Conduct vendor review meetings, implement stricter quality controls, and increase inspection frequency.'
+        });
+      }
+    }
+
+    res.json({ success: true, predictions });
+
+  } catch (error) {
+    console.error('Generate predictions error:', error);
+    res.status(500).json({
+      success: false,
+      message: '伺服器錯誤: ' + error.message
+    });
+  }
+});
+
+// Helper function to calculate delay risk
+function calculateDelayRisk(pendingMaterials, totalMaterials, daysUntil, avgVendorDelay) {
+  let risk = 0;
+
+  // Factor 1: Material readiness (0-40 points)
+  if (totalMaterials > 0) {
+    const pendingRatio = pendingMaterials / totalMaterials;
+    risk += pendingRatio * 40;
+  }
+
+  // Factor 2: Time pressure (0-40 points)
+  if (daysUntil <= 0) risk += 40;
+  else if (daysUntil <= 3) risk += 35;
+  else if (daysUntil <= 7) risk += 25;
+  else if (daysUntil <= 14) risk += 15;
+  else risk += 5;
+
+  // Factor 3: Historical vendor performance (0-20 points)
+  if (avgVendorDelay > 5) risk += 20;
+  else if (avgVendorDelay > 3) risk += 15;
+  else if (avgVendorDelay > 1) risk += 10;
+  else if (avgVendorDelay > 0) risk += 5;
+
+  return Math.min(100, risk);
+}
+
+// Helper function to generate recommendations
+function generateDelayRecommendation(item) {
+  const recommendations = [];
+
+  if (item.pending_materials > 0) {
+    recommendations.push(`Contact vendors to expedite ${item.pending_materials} pending materials`);
+  }
+
+  if (item.days_until < 3) {
+    recommendations.push('Consider rescheduling or allocating additional resources');
+  }
+
+  if (item.avg_vendor_delay > 2) {
+    recommendations.push('Source backup vendors for critical materials');
+  }
+
+  return recommendations.join('. ') || 'Monitor closely and update status regularly.';
+}
+
+// 5. EXPORT REPORT AS PDF/EXCEL (Metadata endpoint - actual file generation would use libraries)
+app.post('/api/project/:projectId/report/export', async (req, res) => {
+  const { projectId } = req.params;
+  const { format, report_type } = req.body; // format: 'pdf' | 'excel', report_type: 'health' | 'predictions' | 'full'
+
+  // In production, this would generate actual PDF/Excel files using libraries like:
+  // - pdfkit or puppeteer for PDF
+  // - exceljs for Excel
+
+  res.json({
+    success: true,
+    message: 'Report export queued',
+    download_url: `/downloads/project-${projectId}-${report_type}-${Date.now()}.${format}`,
+    estimated_time: '30 seconds'
+  });
+});
+// ============ ADD THESE EXPORT ENDPOINTS TO YOUR app.js ============
+
+// 5. EXPORT PREDICTIONS REPORT AS PDF
+app.post('/api/project/:projectId/export-predictions-pdf', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Fetch predictions data
+    const response = await fetch(`http://localhost:${PORT}/api/project/${projectId}/report/predictions`);
+    const data = await response.json();
+
+    if (!data.success) {
+      return res.status(404).json({ success: false, message: 'Predictions data not found' });
+    }
+
+    const { predictions } = data;
+    const [projectInfo] = await dbPool.query('SELECT * FROM projects WHERE id = ?', [projectId]);
+
+    // Generate PDF
+    const filename = `predictions-report-${projectId}-${Date.now()}.pdf`;
+    const filepath = path.join(downloadsDir, filename);
+    const doc = new PDFDocument({ margin: 50 });
+    const stream = fs.createWriteStream(filepath);
+
+    doc.pipe(stream);
+
+    // Header
+    doc.fontSize(24).text('Predictive Analysis Report', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Project: ${projectInfo[0].project_name}`, { align: 'center' });
+    doc.text(`Analysis Date: ${new Date(predictions.analysis_date).toLocaleString()}`, { align: 'center' });
+    doc.moveDown(2);
+
+    // Predictions
+    if (predictions.predictions.length === 0) {
+      doc.fontSize(14).text('✅ No significant risks detected. Project is on track!', { align: 'center' });
+    } else {
+      doc.fontSize(16).text('Risk Predictions', { underline: true });
+      doc.moveDown();
+
+      predictions.predictions.forEach((pred, index) => {
+        doc.fontSize(12).font('Helvetica-Bold');
+        doc.text(`${index + 1}. ${pred.target}`, { continued: false });
+
+        doc.font('Helvetica').fontSize(10);
+        doc.text(`   Likelihood: ${pred.likelihood.replace('_', ' ').toUpperCase()}`);
+        doc.text(`   Risk Score: ${pred.risk_score}/100`);
+        doc.text(`   Impact: ${pred.impact.toUpperCase()}`);
+
+        doc.text('   Risk Factors:', { underline: true });
+        pred.factors.forEach(factor => {
+          doc.text(`      • ${factor}`);
+        });
+
+        doc.text('   Recommendation:', { underline: true });
+        doc.text(`      ${pred.recommendation}`);
+        doc.moveDown();
+
+        if (doc.y > 700) {
+          doc.addPage();
+        }
       });
     }
 
-    response += `\n**Tip:** Track price trends across vendors to identify savings opportunities.`;
+    // Footer
+    doc.moveDown(2);
+    doc.fontSize(8).text('Generated by Procura Construction Management System', { align: 'center' });
 
-    return response;
+    doc.end();
+
+    stream.on('finish', () => {
+      res.json({
+        success: true,
+        filename,
+        download_url: `/downloads/${filename}`
+      });
+    });
+
+    stream.on('error', (error) => {
+      console.error('PDF generation error:', error);
+      res.status(500).json({ success: false, message: 'Failed to generate PDF' });
+    });
+
+  } catch (error) {
+    console.error('Export predictions PDF error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
+});
 
-  if (lowerQuery.includes('delay') || lowerQuery.includes('risk') || lowerQuery.includes('late')) {
-    const delayed = materialsSummary.filter(m => m.material_status === 3).length;
-    const ordered = materialsSummary.filter(m => m.material_status === 2).length;
+// 6. EXPORT QUALITY REPORT AS PDF
+app.post('/api/project/:projectId/export-quality-pdf', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
 
-    let response = `⚠️ **Project Risk Assessment**\n\n`;
+  try {
+    const [materials] = await dbPool.query(`
+            SELECT 
+                mu.id as material_id,
+                mu.material_name,
+                mu.vendor,
+                AVG(qs.score) as avg_quality_score,
+                COUNT(DISTINCT qs.id) as quality_score_count,
+                COUNT(DISTINCT dr.id) as defect_count,
+                COUNT(DISTINCT tr.id) as test_count
+            FROM materials_used mu
+            JOIN work_items wi ON mu.work_item_id = wi.id
+            LEFT JOIN material_quality_scores qs ON mu.id = qs.material_id
+            LEFT JOIN material_defect_reports dr ON mu.id = dr.material_id
+            LEFT JOIN material_test_results tr ON mu.id = tr.material_id
+            WHERE wi.project_id = ?
+            GROUP BY mu.id, mu.material_name, mu.vendor
+            ORDER BY mu.material_name
+        `, [projectId]);
 
-    if (delayed > 0) {
-      response += `**🚨 Critical Issues:**\n`;
-      response += `• ${delayed} material(s) delayed\n`;
-      response += `• Risk Level: ${delayed > 5 ? 'HIGH' : 'MEDIUM'}\n\n`;
-      response += `**Immediate Actions:**\n`;
-      response += `1. Contact vendors for delayed items\n`;
-      response += `2. Identify alternative suppliers\n`;
-      response += `3. Adjust work schedule if needed\n`;
-    } else if (ordered > 0) {
-      response += `**⏳ Pending Deliveries:**\n`;
-      response += `• ${ordered} material(s) awaiting arrival\n`;
-      response += `• Monitor arrival dates closely\n`;
-    } else {
-      response += `**✅ All Clear:**\n`;
-      response += `• No major delays detected\n`;
-      response += `• Project timeline on track\n`;
+    const [projectInfo] = await dbPool.query('SELECT * FROM projects WHERE id = ?', [projectId]);
+
+    // Generate PDF
+    const filename = `quality-report-${projectId}-${Date.now()}.pdf`;
+    const filepath = path.join(downloadsDir, filename);
+    const doc = new PDFDocument({ margin: 50 });
+    const stream = fs.createWriteStream(filepath);
+
+    doc.pipe(stream);
+
+    // Header
+    doc.fontSize(24).text('Quality Control Report', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Project: ${projectInfo[0].project_name}`, { align: 'center' });
+    doc.text(`Generated: ${new Date().toLocaleString()}`, { align: 'center' });
+    doc.moveDown(2);
+
+    // Summary Statistics
+    const avgQuality = materials.reduce((sum, m) => sum + parseFloat(m.avg_quality_score || 0), 0) / materials.length;
+    const totalDefects = materials.reduce((sum, m) => sum + m.defect_count, 0);
+    const totalTests = materials.reduce((sum, m) => sum + m.test_count, 0);
+
+    doc.fontSize(14).text('Quality Summary', { underline: true });
+    doc.fontSize(11);
+    doc.text(`Total Materials: ${materials.length}`);
+    doc.text(`Average Quality Score: ${avgQuality.toFixed(1)}/10`);
+    doc.text(`Total Defects: ${totalDefects}`);
+    doc.text(`Total Tests Performed: ${totalTests}`);
+    doc.moveDown(2);
+
+    // Materials Table
+    doc.addPage();
+    doc.fontSize(14).text('Materials Quality Details', { underline: true });
+    doc.moveDown();
+
+    const tableTop = doc.y;
+    const colWidths = [150, 100, 60, 60, 60];
+    const headers = ['Material', 'Vendor', 'Avg Score', 'Inspections', 'Defects'];
+
+    // Table headers
+    doc.fontSize(10).font('Helvetica-Bold');
+    let x = 50;
+    headers.forEach((header, i) => {
+      doc.text(header, x, tableTop, { width: colWidths[i] });
+      x += colWidths[i];
+    });
+
+    // Table rows
+    doc.font('Helvetica').fontSize(9);
+    let y = tableTop + 20;
+    materials.forEach(mat => {
+      x = 50;
+      doc.text(mat.material_name.substring(0, 25), x, y, { width: colWidths[0] });
+      doc.text(mat.vendor || 'N/A', x + colWidths[0], y, { width: colWidths[1] });
+      doc.text(`${parseFloat(mat.avg_quality_score || 0).toFixed(1)}/10`, x + colWidths[0] + colWidths[1], y, { width: colWidths[2] });
+      doc.text(mat.quality_score_count.toString(), x + colWidths[0] + colWidths[1] + colWidths[2], y, { width: colWidths[3] });
+      doc.text(mat.defect_count.toString(), x + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], y, { width: colWidths[4] });
+      y += 20;
+
+      if (y > 700) {
+        doc.addPage();
+        y = 50;
+      }
+    });
+
+    doc.moveDown(2);
+    doc.fontSize(8).text('Generated by Procura Construction Management System', { align: 'center' });
+
+    doc.end();
+
+    stream.on('finish', () => {
+      res.json({
+        success: true,
+        filename,
+        download_url: `/downloads/${filename}`
+      });
+    });
+
+    stream.on('error', (error) => {
+      console.error('PDF generation error:', error);
+      res.status(500).json({ success: false, message: 'Failed to generate PDF' });
+    });
+
+  } catch (error) {
+    console.error('Export quality PDF error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 7. EXPORT VENDOR REPORT AS EXCEL
+app.post('/api/project/:projectId/export-vendors-excel', async (req, res) => {
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const response = await fetch(`http://localhost:${PORT}/api/vendor-performance`);
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error('Failed to fetch vendor performance data');
     }
 
-    return response;
+    // Generate Excel
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Procura System';
+    workbook.created = new Date();
+
+    data.data.forEach(category => {
+      const sheet = workbook.addWorksheet(category.category.substring(0, 30)); // Excel sheet name limit
+
+      sheet.columns = [
+        { header: 'Vendor Name', key: 'vendor_name', width: 30 },
+        { header: 'Order Count', key: 'order_count', width: 15 },
+        { header: 'Avg Rating', key: 'avg_rating', width: 12 },
+        { header: 'Reviews', key: 'rating_count', width: 12 }
+      ];
+
+      sheet.getRow(1).font = { bold: true };
+      sheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFD3D3D3' }
+      };
+
+      category.vendors.forEach(vendor => {
+        sheet.addRow({
+          vendor_name: vendor.vendor_name,
+          order_count: vendor.order_count,
+          avg_rating: `${vendor.avg_rating}/5`,
+          rating_count: vendor.rating_count
+        });
+      });
+    });
+
+    // Summary sheet
+    const summarySheet = workbook.addWorksheet('Summary');
+    summarySheet.columns = [
+      { width: 30 },
+      { width: 20 }
+    ];
+
+    summarySheet.addRow(['Vendor Performance Report']);
+    summarySheet.getCell('A1').font = { size: 16, bold: true };
+    summarySheet.addRow([]);
+    summarySheet.addRow(['Generated', new Date().toLocaleString()]);
+    summarySheet.addRow(['Total Categories', data.data.length]);
+
+    const filename = `vendor-performance-${Date.now()}.xlsx`;
+    const filepath = path.join(downloadsDir, filename);
+    await workbook.xlsx.writeFile(filepath);
+
+    res.json({
+      success: true,
+      filename,
+      download_url: `/downloads/${filename}`
+    });
+
+  } catch (error) {
+    console.error('Export vendors Excel error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
+});
 
-  // Default response with actual data
-  return `📊 **Project Overview**\n\n` +
-    `• **Total Materials:** ${totalMaterials}\n` +
-    `• **Active Vendors:** ${vendors.length}\n\n` +
-    `**Available Insights:**\n` +
-    `• Vendor performance and reliability\n` +
-    `• Material usage and demand patterns\n` +
-    `• Cost analysis and budget tracking\n` +
-    `• Risk assessment and delays\n\n` +
-    `**Try asking:**\n` +
-    `"Which vendors have the best on-time delivery rates?"\n` +
-    `"Show me material usage trends"\n` +
-    `"What are my cost risks?"`;
-}
+// 8. EXPORT INVENTORY REPORT AS EXCEL
+app.post('/api/project/:projectId/export-inventory-excel', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
 
-// Helper function to convert status codes to labels
-function getStatusLabel(status) {
-  const labels = {
-    0: '✅ Arrived',
-    1: '📦 In Transit',
-    2: '🔄 Ordered',
-    3: '⚠️ Delayed'
-  };
-  return labels[status] || 'Unknown';
-}
+  try {
+    const [inventory] = await dbPool.query(`
+            SELECT 
+                mu.id as material_id,
+                mu.material_name,
+                mu.vendor,
+                mu.qty as total_ordered,
+                COALESCE(SUM(mi.quantity_received), 0) as total_received,
+                (mu.qty - COALESCE(SUM(mi.quantity_received), 0)) as remaining,
+                mu.unit,
+                mu.material_status,
+                wi.work_date,
+                wi.name as work_item_name
+            FROM materials_used mu
+            JOIN work_items wi ON mu.work_item_id = wi.id
+            LEFT JOIN material_inventory mi ON mu.id = mi.material_id
+            WHERE wi.project_id = ?
+            GROUP BY mu.id, mu.material_name, mu.vendor, mu.qty, mu.unit, mu.material_status, wi.work_date, wi.name
+            ORDER BY mu.material_name
+        `, [projectId]);
 
+    const [projectInfo] = await dbPool.query('SELECT * FROM projects WHERE id = ?', [projectId]);
+
+    // Generate Excel
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Inventory Status');
+
+    sheet.columns = [
+      { header: 'Material', key: 'material_name', width: 35 },
+      { header: 'Vendor', key: 'vendor', width: 25 },
+      { header: 'Ordered', key: 'total_ordered', width: 12 },
+      { header: 'Received', key: 'total_received', width: 12 },
+      { header: 'Remaining', key: 'remaining', width: 12 },
+      { header: 'Unit', key: 'unit', width: 10 },
+      { header: '% Received', key: 'percent_received', width: 12 },
+      { header: 'Status', key: 'status', width: 15 },
+      { header: 'Work Item', key: 'work_item_name', width: 25 },
+      { header: 'Work Date', key: 'work_date', width: 12 }
+    ];
+
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4472C4' }
+    };
+    sheet.getRow(1).font.color = { argb: 'FFFFFFFF' };
+
+    const statusLabels = {
+      0: 'Arrived',
+      1: 'In Transit',
+      2: 'Ordered',
+      3: 'Delayed'
+    };
+
+    inventory.forEach(item => {
+      const percentReceived = (item.total_received / item.total_ordered) * 100;
+      const row = sheet.addRow({
+        material_name: item.material_name,
+        vendor: item.vendor || 'N/A',
+        total_ordered: item.total_ordered,
+        total_received: item.total_received,
+        remaining: item.remaining,
+        unit: item.unit || '',
+        percent_received: `${percentReceived.toFixed(0)}%`,
+        status: statusLabels[item.material_status] || 'Unknown',
+        work_item_name: item.work_item_name,
+        work_date: item.work_date ? new Date(item.work_date).toISOString().split('T')[0] : ''
+      });
+
+      // Highlight rows with low stock
+      if (item.remaining > 0 && percentReceived < 50) {
+        row.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFCCCC' }
+        };
+      }
+    });
+
+    // Add summary
+    sheet.addRow([]);
+    const summaryRow = sheet.addRow(['SUMMARY', '', '', '', '', '', '', '', '', '']);
+    summaryRow.font = { bold: true };
+
+    const totalOrdered = inventory.reduce((sum, i) => sum + parseFloat(i.total_ordered), 0);
+    const totalReceived = inventory.reduce((sum, i) => sum + parseFloat(i.total_received), 0);
+
+    sheet.addRow(['Total Materials', inventory.length]);
+    sheet.addRow(['Total Ordered', totalOrdered.toFixed(2)]);
+    sheet.addRow(['Total Received', totalReceived.toFixed(2)]);
+    sheet.addRow(['Overall % Received', `${((totalReceived / totalOrdered) * 100).toFixed(1)}%`]);
+
+    const filename = `inventory-status-${projectId}-${Date.now()}.xlsx`;
+    const filepath = path.join(downloadsDir, filename);
+    await workbook.xlsx.writeFile(filepath);
+
+    res.json({
+      success: true,
+      filename,
+      download_url: `/downloads/${filename}`
+    });
+
+  } catch (error) {
+    console.error('Export inventory Excel error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+// ==================== ADD THIS ENDPOINT TO YOUR app.js ====================
+// Place this with your other Material Management APIs (around line 500-600)
+
+// GET MATERIALS FOR DELIVERY DROPDOWN
+// This endpoint returns all materials in a project that can have arrival logs
+app.get('/api/project/:projectId/materials-for-delivery', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Get all materials for this project
+    const [materials] = await dbPool.query(`
+      SELECT 
+        mu.id,
+        mu.material_name,
+        mu.vendor,
+        mu.qty,
+        mu.unit,
+        mu.material_status,
+        wi.name as work_item_name,
+        wi.work_date
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE wi.project_id = ?
+      ORDER BY wi.work_date DESC, mu.material_name
+    `, [projectId]);
+
+    // Format for dropdown (id + label)
+    const formattedMaterials = materials.map(m => ({
+      id: m.id,
+      label: `${m.material_name} (${m.qty} ${m.unit || 'units'}) - ${m.work_item_name}`,
+      material_name: m.material_name,
+      vendor: m.vendor,
+      qty: m.qty,
+      unit: m.unit,
+      work_date: m.work_date
+    }));
+
+    res.json({
+      success: true,
+      materials: formattedMaterials
+    });
+
+  } catch (error) {
+    console.error('Get materials for delivery error:', error);
+    res.status(500).json({
+      success: false,
+      message: '伺服器錯誤: ' + error.message
+    });
+  }
+});
 // 啟動伺服器
 app.listen(PORT, () => {
   console.log(`[Express] Server running on port ${PORT}`);
   console.log(`Access: http://localhost:${PORT}`);
+});
+
+// ==================== SUPPLIER LOGIN & MANAGEMENT SYSTEM ====================
+// Add these endpoints to your existing app.js file
+
+// ============ SUPPLIER AUTHENTICATION ============
+
+// 1. SUPPLIER SIGNUP
+app.post('/api/supplier/signup', async (req, res) => {
+  const { company_name, email, password, contact_person, phone } = req.body;
+  const dbPool = app.locals.dbPool;
+
+  if (!company_name || !email || !password) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Company name, email, and password are required.' 
+    });
+  }
+
+  try {
+    // Check if company exists
+    const [companies] = await dbPool.query(
+      'SELECT company_id FROM Company WHERE LOWER(name) = LOWER(?)',
+      [company_name]
+    );
+
+    if (companies.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Company not found. Please contact admin to register your company.' 
+      });
+    }
+
+    const company_id = companies[0].company_id;
+
+    // Check if supplier user already exists
+    const [existing] = await dbPool.query(
+      'SELECT id FROM supplier_users WHERE company_id = ? OR email = ?',
+      [company_id, email]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({ 
+        success: false, 
+        message: 'Supplier account already exists for this company or email.' 
+      });
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Create supplier user
+    const [result] = await dbPool.query(`
+      INSERT INTO supplier_users 
+      (company_id, email, password_hash, contact_person_name, contact_phone)
+      VALUES (?, ?, ?, ?, ?)
+    `, [company_id, email, passwordHash, contact_person, phone]);
+
+    res.json({ 
+      success: true, 
+      message: 'Supplier account created successfully.',
+      supplier_id: result.insertId
+    });
+
+  } catch (error) {
+    console.error('Supplier signup error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error during signup.' 
+    });
+  }
+});
+
+// 2. SUPPLIER LOGIN
+app.post('/api/supplier/login', async (req, res) => {
+  const { email, password } = req.body;
+  const dbPool = app.locals.dbPool;
+
+  if (!email || !password) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Email and password are required.' 
+    });
+  }
+
+  try {
+    // Get supplier user with company info
+    const [users] = await dbPool.query(`
+      SELECT 
+        su.id,
+        su.company_id,
+        su.email,
+        su.password_hash,
+        su.contact_person_name,
+        su.is_active,
+        c.name as company_name
+      FROM supplier_users su
+      JOIN Company c ON su.company_id = c.company_id
+      WHERE su.email = ? AND su.is_active = TRUE
+    `, [email]);
+
+    if (users.length === 0) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid email or password.' 
+      });
+    }
+
+    const user = users[0];
+
+    // Verify password
+    const match = await bcrypt.compare(password, user.password_hash);
+
+    if (!match) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid email or password.' 
+      });
+    }
+
+    // Update last login
+    await dbPool.query(
+      'UPDATE supplier_users SET last_login = NOW() WHERE id = ?',
+      [user.id]
+    );
+
+    // Return user info (excluding password hash)
+    res.json({
+      success: true,
+      message: 'Login successful.',
+      supplier: {
+        id: user.id,
+        company_id: user.company_id,
+        company_name: user.company_name,
+        email: user.email,
+        contact_person: user.contact_person_name
+      }
+    });
+
+  } catch (error) {
+    console.error('Supplier login error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error during login.' 
+    });
+  }
+});
+
+// ============ SUPPLIER DASHBOARD ENDPOINTS ============
+
+// 3. GET SUPPLIER DASHBOARD SUMMARY
+app.get('/api/supplier/:supplierId/dashboard', async (req, res) => {
+  const { supplierId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Get supplier company info
+    const [supplier] = await dbPool.query(`
+      SELECT su.*, c.name as company_name
+      FROM supplier_users su
+      JOIN Company c ON su.company_id = c.company_id
+      WHERE su.id = ?
+    `, [supplierId]);
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Supplier not found.' 
+      });
+    }
+
+    const companyName = supplier[0].company_name;
+
+    // Get order statistics
+    const [stats] = await dbPool.query(`
+      SELECT 
+        COUNT(*) as total_orders,
+        SUM(CASE WHEN material_status = 2 THEN 1 ELSE 0 END) as pending_orders,
+        SUM(CASE WHEN material_status = 1 THEN 1 ELSE 0 END) as in_transit_orders,
+        SUM(CASE WHEN material_status = 0 THEN 1 ELSE 0 END) as delivered_orders,
+        SUM(CASE WHEN material_status = 3 THEN 1 ELSE 0 END) as delayed_orders,
+        SUM(qty * COALESCE(unit_price, 0)) as total_value,
+        COUNT(DISTINCT wi.project_id) as active_projects
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      WHERE LOWER(TRIM(mu.vendor)) = LOWER(TRIM(?))
+    `, [companyName]);
+
+    // Get urgent orders (required within 7 days)
+    const [urgentOrders] = await dbPool.query(`
+      SELECT 
+        mu.id,
+        mu.material_name,
+        mu.qty,
+        mu.unit,
+        wi.work_date,
+        p.project_name,
+        DATEDIFF(wi.work_date, CURDATE()) as days_until
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      JOIN projects p ON wi.project_id = p.id
+      WHERE LOWER(TRIM(mu.vendor)) = LOWER(TRIM(?))
+        AND mu.material_status IN (2, 3)
+        AND wi.work_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+      ORDER BY wi.work_date ASC
+      LIMIT 10
+    `, [companyName]);
+
+    // Get unread notifications count
+    const [notifications] = await dbPool.query(`
+      SELECT COUNT(*) as unread_count
+      FROM supplier_notifications
+      WHERE supplier_company_id = ? AND is_read = FALSE
+    `, [supplier[0].company_id]);
+
+    res.json({
+      success: true,
+      dashboard: {
+        supplier_info: supplier[0],
+        statistics: stats[0],
+        urgent_orders: urgentOrders,
+        unread_notifications: notifications[0].unread_count
+      }
+    });
+
+  } catch (error) {
+    console.error('Get supplier dashboard error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// 4. GET ALL ORDERS FOR SUPPLIER
+app.get('/api/supplier/:supplierId/orders', async (req, res) => {
+  const { supplierId } = req.params;
+  const { status, project_id, date_from, date_to } = req.query;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Get supplier company name
+    const [supplier] = await dbPool.query(`
+      SELECT c.name as company_name
+      FROM supplier_users su
+      JOIN Company c ON su.company_id = c.company_id
+      WHERE su.id = ?
+    `, [supplierId]);
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Supplier not found.' 
+      });
+    }
+
+    const companyName = supplier[0].company_name;
+
+    // Build query with filters
+    let query = `
+      SELECT 
+        mu.id,
+        mu.material_name,
+        mu.qty,
+        mu.unit,
+        mu.unit_price,
+        (mu.qty * COALESCE(mu.unit_price, 0)) as total_value,
+        mu.material_status,
+        wi.name as work_item_name,
+        wi.work_date as required_date,
+        p.id as project_id,
+        p.project_name,
+        p.owner as project_owner,
+        al.expected_date,
+        al.actual_date,
+        al.delivery_status,
+        CASE mu.material_status
+          WHEN 0 THEN 'Delivered'
+          WHEN 1 THEN 'In Transit'
+          WHEN 2 THEN 'Pending Order'
+          WHEN 3 THEN 'Delayed'
+        END as status_label
+      FROM materials_used mu
+      JOIN work_items wi ON mu.work_item_id = wi.id
+      JOIN projects p ON wi.project_id = p.id
+      LEFT JOIN material_arrival_logs al ON mu.id = al.material_id
+      WHERE LOWER(TRIM(mu.vendor)) = LOWER(TRIM(?))
+    `;
+
+    const params = [companyName];
+
+    // Add filters
+    if (status !== undefined) {
+      query += ' AND mu.material_status = ?';
+      params.push(status);
+    }
+
+    if (project_id) {
+      query += ' AND p.id = ?';
+      params.push(project_id);
+    }
+
+    if (date_from) {
+      query += ' AND wi.work_date >= ?';
+      params.push(date_from);
+    }
+
+    if (date_to) {
+      query += ' AND wi.work_date <= ?';
+      params.push(date_to);
+    }
+
+    query += ' ORDER BY wi.work_date ASC, mu.id DESC';
+
+    const [orders] = await dbPool.query(query, params);
+
+    res.json({
+      success: true,
+      orders: orders,
+      total_count: orders.length
+    });
+
+  } catch (error) {
+    console.error('Get supplier orders error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// 5. UPDATE ORDER STATUS (Supplier confirms shipment)
+app.put('/api/supplier/orders/:orderId/status', async (req, res) => {
+  const { orderId } = req.params;
+  const { status, notes, expected_delivery_date, supplier_id } = req.body;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Verify supplier owns this order
+    const [order] = await dbPool.query(`
+      SELECT mu.*, c.company_id
+      FROM materials_used mu
+      LEFT JOIN Company c ON LOWER(TRIM(c.name)) = LOWER(TRIM(mu.vendor))
+      JOIN supplier_users su ON c.company_id = su.company_id
+      WHERE mu.id = ? AND su.id = ?
+    `, [orderId, supplier_id]);
+
+    if (order.length === 0) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Order not found or access denied.' 
+      });
+    }
+
+    // Log status change
+    await dbPool.query(`
+      INSERT INTO supplier_order_status_log 
+      (material_id, old_status, new_status, notes, changed_by)
+      VALUES (?, ?, ?, ?, ?)
+    `, [orderId, order[0].material_status, status, notes, `Supplier-${supplier_id}`]);
+
+    // Update material status
+    await dbPool.query(
+      'UPDATE materials_used SET material_status = ? WHERE id = ?',
+      [status, orderId]
+    );
+
+    // Update or create arrival log
+    if (expected_delivery_date) {
+      const [existingLog] = await dbPool.query(
+        'SELECT id FROM material_arrival_logs WHERE material_id = ? ORDER BY created_at DESC LIMIT 1',
+        [orderId]
+      );
+
+      if (existingLog.length > 0) {
+        await dbPool.query(`
+          UPDATE material_arrival_logs 
+          SET expected_date = ?, delivery_status = ?, notes = ?
+          WHERE id = ?
+        `, [expected_delivery_date, 
+            status === 1 ? 'in_transit' : status === 0 ? 'delivered' : 'pending',
+            notes, existingLog[0].id]);
+      } else {
+        await dbPool.query(`
+          INSERT INTO material_arrival_logs 
+          (material_id, expected_date, delivery_status, notes)
+          VALUES (?, ?, ?, ?)
+        `, [orderId, expected_delivery_date, 
+            status === 1 ? 'in_transit' : 'pending', notes]);
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Order status updated successfully.' 
+    });
+
+  } catch (error) {
+    console.error('Update order status error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// 6. GET SUPPLIER NOTIFICATIONS
+app.get('/api/supplier/:supplierId/notifications', async (req, res) => {
+  const { supplierId } = req.params;
+  const { unread_only } = req.query;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Supplier not found.' 
+      });
+    }
+
+    let query = `
+      SELECT * FROM supplier_notifications
+      WHERE supplier_company_id = ?
+    `;
+
+    if (unread_only === 'true') {
+      query += ' AND is_read = FALSE';
+    }
+
+    query += ' ORDER BY created_at DESC LIMIT 50';
+
+    const [notifications] = await dbPool.query(query, [supplier[0].company_id]);
+
+    res.json({ 
+      success: true, 
+      notifications: notifications 
+    });
+
+  } catch (error) {
+    console.error('Get notifications error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// 7. MARK NOTIFICATION AS READ
+app.put('/api/supplier/notifications/:notificationId/read', async (req, res) => {
+  const { notificationId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    await dbPool.query(
+      'UPDATE supplier_notifications SET is_read = TRUE WHERE id = ?',
+      [notificationId]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Notification marked as read.' 
+    });
+
+  } catch (error) {
+    console.error('Mark notification read error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// 8. GET SUPPLIER PERFORMANCE METRICS
+app.get('/api/supplier/:supplierId/performance', async (req, res) => {
+  const { supplierId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [supplier] = await dbPool.query(`
+      SELECT c.name as company_name, c.company_id
+      FROM supplier_users su
+      JOIN Company c ON su.company_id = c.company_id
+      WHERE su.id = ?
+    `, [supplierId]);
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Supplier not found.' 
+      });
+    }
+
+    const companyName = supplier[0].company_name;
+
+    // On-time delivery rate
+    const [deliveryMetrics] = await dbPool.query(`
+      SELECT 
+        COUNT(*) as total_deliveries,
+        SUM(CASE 
+          WHEN al.delivery_status = 'delivered' AND al.actual_date <= al.expected_date 
+          THEN 1 ELSE 0 
+        END) as on_time_deliveries
+      FROM materials_used mu
+      JOIN material_arrival_logs al ON mu.id = al.material_id
+      WHERE LOWER(TRIM(mu.vendor)) = LOWER(TRIM(?))
+        AND al.delivery_status = 'delivered'
+    `, [companyName]);
+
+    // Average quality score
+    const [qualityMetrics] = await dbPool.query(`
+      SELECT 
+        AVG(qs.score) as avg_quality_score,
+        COUNT(*) as total_inspections
+      FROM material_quality_scores qs
+      JOIN materials_used mu ON qs.material_id = mu.id
+      WHERE LOWER(TRIM(mu.vendor)) = LOWER(TRIM(?))
+    `, [companyName]);
+
+    // Ratings
+    const [ratings] = await dbPool.query(`
+      SELECT 
+        AVG(rating) as avg_rating,
+        COUNT(*) as total_ratings
+      FROM vendor_ratings
+      WHERE LOWER(TRIM(vendor_name)) = LOWER(TRIM(?))
+    `, [companyName]);
+
+    // Defect count
+    const [defects] = await dbPool.query(`
+      SELECT COUNT(*) as defect_count
+      FROM material_defect_reports dr
+      JOIN materials_used mu ON dr.material_id = mu.id
+      WHERE LOWER(TRIM(mu.vendor)) = LOWER(TRIM(?))
+        AND dr.status IN ('open', 'investigating')
+    `, [companyName]);
+
+    const onTimeRate = deliveryMetrics[0].total_deliveries > 0
+      ? (deliveryMetrics[0].on_time_deliveries / deliveryMetrics[0].total_deliveries * 100)
+      : 0;
+
+    res.json({
+      success: true,
+      performance: {
+        delivery: {
+          total: deliveryMetrics[0].total_deliveries,
+          on_time: deliveryMetrics[0].on_time_deliveries,
+          on_time_rate: onTimeRate.toFixed(1)
+        },
+        quality: {
+          avg_score: qualityMetrics[0].avg_quality_score 
+            ? parseFloat(qualityMetrics[0].avg_quality_score).toFixed(1) 
+            : 'N/A',
+          total_inspections: qualityMetrics[0].total_inspections
+        },
+        ratings: {
+          avg_rating: ratings[0].avg_rating 
+            ? parseFloat(ratings[0].avg_rating).toFixed(1) 
+            : 'N/A',
+          total_ratings: ratings[0].total_ratings
+        },
+        defects: defects[0].defect_count
+      }
+    });
+
+  } catch (error) {
+    console.error('Get supplier performance error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// ==================== SUPPLIER ACCOUNT INITIALIZATION SCRIPT ====================
+// Add this to your app.js or run it as a separate initialization script
+
+/**
+ * Initialize supplier accounts for all companies in the database
+ * Default password: "123"
+ */
+async function initializeSupplierAccounts() {
+  const dbPool = app.locals.dbPool;
+  
+  try {
+    console.log('[Supplier Setup] Starting supplier account initialization...');
+
+    // Get all companies
+    const [companies] = await dbPool.query(`
+      SELECT 
+        c.company_id,
+        c.name,
+        ci.email,
+        ci.phone
+      FROM Company c
+      JOIN ContactInfo ci ON c.FK_contact_id = ci.contact_id
+      WHERE c.name IS NOT NULL AND c.name != ''
+      ORDER BY c.name
+    `);
+
+    console.log(`[Supplier Setup] Found ${companies.length} companies`);
+
+    // Hash the default password "123"
+    const defaultPassword = '123';
+    const passwordHash = await bcrypt.hash(defaultPassword, 10);
+
+    let successCount = 0;
+    let skipCount = 0;
+
+    for (const company of companies) {
+      try {
+        // Check if supplier user already exists
+        const [existing] = await dbPool.query(
+          'SELECT id FROM supplier_users WHERE company_id = ?',
+          [company.company_id]
+        );
+
+        if (existing.length > 0) {
+          console.log(`[Supplier Setup] Skipping ${company.name} - account already exists`);
+          skipCount++;
+          continue;
+        }
+
+        // Generate email from company name
+        const email = company.email || 
+          `${company.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@supplier.com`;
+
+        // Create supplier account
+        await dbPool.query(`
+          INSERT INTO supplier_users 
+          (company_id, email, password_hash, contact_person_name, contact_phone)
+          VALUES (?, ?, ?, ?, ?)
+        `, [
+          company.company_id,
+          email,
+          passwordHash,
+          company.name,
+          company.phone
+        ]);
+
+        console.log(`[Supplier Setup] ✓ Created account for: ${company.name}`);
+        console.log(`   Email: ${email}`);
+        console.log(`   Password: ${defaultPassword}`);
+        successCount++;
+
+      } catch (error) {
+        console.error(`[Supplier Setup] Failed to create account for ${company.name}:`, error.message);
+      }
+    }
+
+    console.log('\n[Supplier Setup] Initialization complete!');
+    console.log(`   Created: ${successCount} accounts`);
+    console.log(`   Skipped: ${skipCount} accounts (already exist)`);
+    console.log(`   Total: ${companies.length} companies\n`);
+
+    // Show login credentials
+    console.log('[Supplier Setup] Login Credentials Summary:');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    const [supplierAccounts] = await dbPool.query(`
+      SELECT 
+        su.id,
+        su.email,
+        c.name as company_name
+      FROM supplier_users su
+      JOIN Company c ON su.company_id = c.company_id
+      ORDER BY c.name
+      LIMIT 20
+    `);
+
+    supplierAccounts.forEach((account, index) => {
+      console.log(`${index + 1}. ${account.company_name}`);
+      console.log(`   Email: ${account.email}`);
+      console.log(`   Password: 123`);
+      console.log('   ─────────────────────────────────────');
+    });
+
+    if (supplierAccounts.length < companies.length) {
+      console.log(`   ... and ${companies.length - supplierAccounts.length} more accounts`);
+    }
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+  } catch (error) {
+    console.error('[Supplier Setup] Initialization failed:', error);
+  }
+}
+
+/**
+ * Update a specific supplier's password
+ */
+async function updateSupplierPassword(email, newPassword) {
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    const [result] = await dbPool.query(
+      'UPDATE supplier_users SET password_hash = ? WHERE email = ?',
+      [passwordHash, email]
+    );
+
+    if (result.affectedRows > 0) {
+      console.log(`[Supplier Setup] Password updated for ${email}`);
+      return true;
+    } else {
+      console.log(`[Supplier Setup] Supplier not found: ${email}`);
+      return false;
+    }
+  } catch (error) {
+    console.error(`[Supplier Setup] Failed to update password:`, error);
+    return false;
+  }
+}
+
+/**
+ * Get all supplier login credentials (for testing)
+ */
+async function getAllSupplierCredentials() {
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [suppliers] = await dbPool.query(`
+      SELECT 
+        su.id,
+        su.email,
+        c.name as company_name,
+        c.company_id,
+        su.created_at
+      FROM supplier_users su
+      JOIN Company c ON su.company_id = c.company_id
+      ORDER BY c.name
+    `);
+
+    console.log('\n[Supplier Credentials] All Supplier Accounts:');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    suppliers.forEach((supplier, index) => {
+      console.log(`${index + 1}. ${supplier.company_name} (ID: ${supplier.company_id})`);
+      console.log(`   Email: ${supplier.email}`);
+      console.log(`   Password: 123 (default)`);
+      console.log(`   Created: ${supplier.created_at}`);
+      console.log('   ─────────────────────────────────────');
+    });
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+    return suppliers;
+  } catch (error) {
+    console.error('[Supplier Credentials] Failed to fetch:', error);
+    return [];
+  }
+}
+
+// ==================== API ENDPOINT FOR MANUAL INITIALIZATION ====================
+
+// Add this endpoint to manually trigger initialization via API
+app.post('/api/admin/initialize-suppliers', async (req, res) => {
+  const { admin_key } = req.body;
+
+  // Simple security check (replace with proper authentication)
+  if (admin_key !== '417') {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Unauthorized' 
+    });
+  }
+
+  try {
+    await initializeSupplierAccounts();
+    const credentials = await getAllSupplierCredentials();
+
+    res.json({
+      success: true,
+      message: 'Supplier accounts initialized successfully',
+      total_accounts: credentials.length,
+      accounts: credentials.map(c => ({
+        company_name: c.company_name,
+        email: c.email,
+        default_password: '123'
+      }))
+    });
+
+  } catch (error) {
+    console.error('Initialization error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
+// ==================== AUTO-RUN ON SERVER START ====================
+
+// Automatically initialize supplier accounts when server starts
+// Add this after your database initialization in app.js
+
+setTimeout(async () => {
+  if (app.locals.dbPool) {
+    console.log('\n[Server] Checking supplier accounts...\n');
+    
+    // Check if any supplier accounts exist
+    const [existing] = await app.locals.dbPool.query(
+      'SELECT COUNT(*) as count FROM supplier_users'
+    );
+
+    if (existing[0].count === 0) {
+      console.log('[Server] No supplier accounts found. Initializing...\n');
+      await initializeSupplierAccounts();
+    } else {
+      console.log(`[Server] Found ${existing[0].count} existing supplier accounts.\n`);
+      // Uncomment to see all credentials:
+      // await getAllSupplierCredentials();
+    }
+  }
+}, 3000); // Wait 3 seconds after server start
+
+// Export functions for manual use
+module.exports = {
+  initializeSupplierAccounts,
+  updateSupplierPassword,
+  getAllSupplierCredentials
+};
+
+// ==================== ADD THESE TO YOUR app.js ====================
+// Supplier Product Catalog & RFQ Management APIs
+
+// ============ SUPPLIER PRODUCT CATALOG MANAGEMENT ============
+
+// 1. GET ALL PRODUCTS FOR A SUPPLIER
+app.get('/api/supplier/:supplierId/products', async (req, res) => {
+  const { supplierId } = req.params;
+  const { category, available_only } = req.query;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    let query = `
+      SELECT * FROM supplier_products 
+      WHERE supplier_company_id = ?
+    `;
+    const params = [supplier[0].company_id];
+
+    if (category) {
+      query += ' AND category = ?';
+      params.push(category);
+    }
+
+    if (available_only === 'true') {
+      query += ' AND is_available = TRUE';
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const [products] = await dbPool.query(query, params);
+
+    res.json({ success: true, products });
+  } catch (error) {
+    console.error('Get supplier products error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 2. CREATE NEW PRODUCT
+app.post('/api/supplier/:supplierId/products', async (req, res) => {
+  const { supplierId } = req.params;
+  const {
+    product_name, description, category, unit,
+    price_min, price_max, current_stock,
+    min_order_quantity, lead_time_days, specifications
+  } = req.body;
+  const dbPool = app.locals.dbPool;
+
+  if (!product_name || !unit) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Product name and unit are required' 
+    });
+  }
+
+  try {
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    const [result] = await dbPool.query(`
+      INSERT INTO supplier_products 
+      (supplier_company_id, product_name, description, category, unit, 
+       price_min, price_max, current_stock, min_order_quantity, 
+       lead_time_days, specifications)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      supplier[0].company_id, product_name, description, category, unit,
+      price_min || null, price_max || null, current_stock || 0,
+      min_order_quantity || 1, lead_time_days || 7,
+      specifications ? JSON.stringify(specifications) : null
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Product created successfully',
+      product_id: result.insertId
+    });
+  } catch (error) {
+    console.error('Create product error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 3. UPDATE PRODUCT
+app.put('/api/supplier/:supplierId/products/:productId', async (req, res) => {
+  const { supplierId, productId } = req.params;
+  const updateData = req.body;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Verify ownership
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    const [product] = await dbPool.query(
+      'SELECT id FROM supplier_products WHERE id = ? AND supplier_company_id = ?',
+      [productId, supplier[0].company_id]
+    );
+
+    if (product.length === 0) {
+      return res.status(403).json({ success: false, message: 'Product not found or access denied' });
+    }
+
+    // Build dynamic update query
+    const allowedFields = [
+      'product_name', 'description', 'category', 'unit', 'price_min', 'price_max',
+      'current_stock', 'min_order_quantity', 'lead_time_days', 'is_available', 'specifications'
+    ];
+    
+    const updates = [];
+    const values = [];
+
+    for (const [key, value] of Object.entries(updateData)) {
+      if (allowedFields.includes(key)) {
+        updates.push(`${key} = ?`);
+        values.push(key === 'specifications' ? JSON.stringify(value) : value);
+      }
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, message: 'No valid fields to update' });
+    }
+
+    values.push(productId);
+
+    await dbPool.query(
+      `UPDATE supplier_products SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    res.json({ success: true, message: 'Product updated successfully' });
+  } catch (error) {
+    console.error('Update product error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 4. DELETE PRODUCT
+app.delete('/api/supplier/:supplierId/products/:productId', async (req, res) => {
+  const { supplierId, productId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    const [result] = await dbPool.query(
+      'DELETE FROM supplier_products WHERE id = ? AND supplier_company_id = ?',
+      [productId, supplier[0].company_id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    res.json({ success: true, message: 'Product deleted successfully' });
+  } catch (error) {
+    console.error('Delete product error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 5. BROWSE ALL SUPPLIER PRODUCTS (For Contractors)
+app.get('/api/products/browse', async (req, res) => {
+  const { category, search, supplier_id, price_max } = req.query;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    let query = `
+      SELECT 
+        sp.*,
+        c.name as supplier_name,
+        ci.phone as supplier_phone,
+        ci.email as supplier_email
+      FROM supplier_products sp
+      JOIN Company c ON sp.supplier_company_id = c.company_id
+      JOIN ContactInfo ci ON c.FK_contact_id = ci.contact_id
+      WHERE sp.is_available = TRUE
+    `;
+    const params = [];
+
+    if (category) {
+      query += ' AND sp.category = ?';
+      params.push(category);
+    }
+
+    if (search) {
+      query += ' AND (sp.product_name LIKE ? OR sp.description LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (supplier_id) {
+      query += ' AND sp.supplier_company_id = ?';
+      params.push(supplier_id);
+    }
+
+    if (price_max) {
+      query += ' AND sp.price_min <= ?';
+      params.push(price_max);
+    }
+
+    query += ' ORDER BY sp.created_at DESC LIMIT 100';
+
+    const [products] = await dbPool.query(query, params);
+
+    res.json({ success: true, products });
+  } catch (error) {
+    console.error('Browse products error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============ RFQ (REQUEST FOR QUOTATION) MANAGEMENT ============
+
+// 6. CREATE RFQ (Contractor)
+app.post('/api/projects/:projectId/rfqs', async (req, res) => {
+  const { projectId } = req.params;
+  const {
+    requester_user_id, material_name, description, quantity, unit,
+    required_by_date, budget_range_min, budget_range_max,
+    delivery_address, special_requirements, invited_suppliers
+  } = req.body;
+  const dbPool = app.locals.dbPool;
+
+  if (!material_name || !quantity || !unit || !required_by_date) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Material name, quantity, unit, and required date are required' 
+    });
+  }
+
+  try {
+    // Create RFQ
+    const [result] = await dbPool.query(`
+      INSERT INTO rfq_requests 
+      (project_id, requester_user_id, material_name, description, quantity, unit,
+       required_by_date, budget_range_min, budget_range_max, 
+       delivery_address, special_requirements, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
+    `, [
+      projectId, requester_user_id, material_name, description, quantity, unit,
+      required_by_date, budget_range_min, budget_range_max,
+      delivery_address, special_requirements
+    ]);
+
+    const rfqId = result.insertId;
+
+    // Invite suppliers if provided
+    if (invited_suppliers && Array.isArray(invited_suppliers)) {
+      for (const supplierId of invited_suppliers) {
+        await dbPool.query(`
+          INSERT INTO rfq_invitations (rfq_id, supplier_company_id)
+          VALUES (?, ?)
+        `, [rfqId, supplierId]);
+
+        // Create notification for supplier
+        await dbPool.query(`
+          INSERT INTO supplier_notifications 
+          (supplier_company_id, notification_type, title, message, related_project_id)
+          VALUES (?, 'new_order', ?, ?, ?)
+        `, [
+          supplierId,
+          'New RFQ Available',
+          `You have been invited to quote for ${material_name}`,
+          projectId
+        ]);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'RFQ created successfully',
+      rfq_id: rfqId
+    });
+  } catch (error) {
+    console.error('Create RFQ error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 7. GET RFQs FOR SUPPLIER
+app.get('/api/supplier/:supplierId/rfqs', async (req, res) => {
+  const { supplierId } = req.params;
+  const { status } = req.query;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    let query = `
+      SELECT 
+        r.*,
+        p.project_name,
+        u.company_name as requester_company,
+        i.viewed_at,
+        q.id as my_quotation_id,
+        q.status as my_quotation_status
+      FROM rfq_requests r
+      JOIN projects p ON r.project_id = p.id
+      JOIN users u ON r.requester_user_id = u.id
+      LEFT JOIN rfq_invitations i ON r.id = i.rfq_id AND i.supplier_company_id = ?
+      LEFT JOIN supplier_quotations q ON r.id = q.rfq_id AND q.supplier_company_id = ?
+      WHERE (i.rfq_id IS NOT NULL OR r.status = 'published')
+    `;
+    const params = [supplier[0].company_id, supplier[0].company_id];
+
+    if (status) {
+      query += ' AND r.status = ?';
+      params.push(status);
+    }
+
+    query += ' ORDER BY r.required_by_date ASC';
+
+    const [rfqs] = await dbPool.query(query, params);
+
+    res.json({ success: true, rfqs });
+  } catch (error) {
+    console.error('Get supplier RFQs error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 8. MARK RFQ AS VIEWED
+app.post('/api/supplier/:supplierId/rfqs/:rfqId/view', async (req, res) => {
+  const { supplierId, rfqId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    await dbPool.query(`
+      UPDATE rfq_invitations 
+      SET viewed_at = NOW() 
+      WHERE rfq_id = ? AND supplier_company_id = ? AND viewed_at IS NULL
+    `, [rfqId, supplier[0].company_id]);
+
+    res.json({ success: true, message: 'RFQ marked as viewed' });
+  } catch (error) {
+    console.error('Mark RFQ viewed error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 9. SUBMIT QUOTATION (Supplier Response to RFQ)
+app.post('/api/supplier/:supplierId/rfqs/:rfqId/quote', async (req, res) => {
+  const { supplierId, rfqId } = req.params;
+  const {
+    unit_price, quantity_offered, estimated_delivery_date,
+    payment_terms, notes, validity_days
+  } = req.body;
+  const dbPool = app.locals.dbPool;
+
+  if (!unit_price || !quantity_offered || !estimated_delivery_date) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Price, quantity, and delivery date are required' 
+    });
+  }
+
+  try {
+    const [supplier] = await dbPool.query(
+      'SELECT company_id FROM supplier_users WHERE id = ?',
+      [supplierId]
+    );
+
+    if (supplier.length === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    // Get RFQ details
+    const [rfq] = await dbPool.query(
+      'SELECT unit FROM rfq_requests WHERE id = ? AND status = "published"',
+      [rfqId]
+    );
+
+    if (rfq.length === 0) {
+      return res.status(404).json({ success: false, message: 'RFQ not found or closed' });
+    }
+
+    const totalPrice = parseFloat(unit_price) * parseFloat(quantity_offered);
+
+    // Check if quotation already exists
+    const [existing] = await dbPool.query(
+      'SELECT id FROM supplier_quotations WHERE rfq_id = ? AND supplier_company_id = ?',
+      [rfqId, supplier[0].company_id]
+    );
+
+    let quotationId;
+
+    if (existing.length > 0) {
+      // Update existing quotation
+      await dbPool.query(`
+        UPDATE supplier_quotations 
+        SET unit_price = ?, total_price = ?, quantity_offered = ?,
+            estimated_delivery_date = ?, payment_terms = ?, notes = ?,
+            validity_days = ?, status = 'submitted', submitted_at = NOW()
+        WHERE id = ?
+      `, [
+        unit_price, totalPrice, quantity_offered,
+        estimated_delivery_date, payment_terms, notes,
+        validity_days || 30, existing[0].id
+      ]);
+      quotationId = existing[0].id;
+    } else {
+      // Create new quotation
+      const [result] = await dbPool.query(`
+        INSERT INTO supplier_quotations 
+        (rfq_id, supplier_company_id, supplier_user_id, unit_price, total_price,
+         quantity_offered, unit, estimated_delivery_date, payment_terms, notes,
+         validity_days, status, submitted_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', NOW())
+      `, [
+        rfqId, supplier[0].company_id, supplierId, unit_price, totalPrice,
+        quantity_offered, rfq[0].unit, estimated_delivery_date,
+        payment_terms, notes, validity_days || 30
+      ]);
+      quotationId = result.insertId;
+    }
+
+    res.json({
+      success: true,
+      message: 'Quotation submitted successfully',
+      quotation_id: quotationId
+    });
+  } catch (error) {
+    console.error('Submit quotation error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 10. GET RFQs FOR PROJECT (Contractor View)
+app.get('/api/projects/:projectId/rfqs', async (req, res) => {
+  const { projectId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [rfqs] = await dbPool.query(`
+      SELECT 
+        r.*,
+        COUNT(DISTINCT i.supplier_company_id) as invited_count,
+        COUNT(DISTINCT q.id) as quotation_count,
+        MIN(q.unit_price) as lowest_quote,
+        MAX(q.unit_price) as highest_quote
+      FROM rfq_requests r
+      LEFT JOIN rfq_invitations i ON r.id = i.rfq_id
+      LEFT JOIN supplier_quotations q ON r.id = q.rfq_id AND q.status = 'submitted'
+      WHERE r.project_id = ?
+      GROUP BY r.id
+      ORDER BY r.created_at DESC
+    `, [projectId]);
+
+    res.json({ success: true, rfqs });
+  } catch (error) {
+    console.error('Get project RFQs error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 11. GET QUOTATIONS FOR AN RFQ (Contractor View)
+app.get('/api/rfqs/:rfqId/quotations', async (req, res) => {
+  const { rfqId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [quotations] = await dbPool.query(`
+      SELECT 
+        q.*,
+        c.name as supplier_name,
+        ci.phone as supplier_phone,
+        ci.email as supplier_email,
+        AVG(vr.rating) as supplier_avg_rating
+      FROM supplier_quotations q
+      JOIN Company c ON q.supplier_company_id = c.company_id
+      JOIN ContactInfo ci ON c.FK_contact_id = ci.contact_id
+      LEFT JOIN vendor_ratings vr ON vr.vendor_name = c.name
+      WHERE q.rfq_id = ? AND q.status = 'submitted'
+      GROUP BY q.id, c.name, ci.phone, ci.email
+      ORDER BY q.unit_price ASC
+    `, [rfqId]);
+
+    res.json({ success: true, quotations });
+  } catch (error) {
+    console.error('Get RFQ quotations error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 12. ACCEPT QUOTATION (Contractor)
+app.post('/api/quotations/:quotationId/accept', async (req, res) => {
+  const { quotationId } = req.params;
+  const dbPool = app.locals.dbPool;
+
+  try {
+    // Get quotation details
+    const [quotation] = await dbPool.query(
+      'SELECT rfq_id, supplier_company_id FROM supplier_quotations WHERE id = ?',
+      [quotationId]
+    );
+
+    if (quotation.length === 0) {
+      return res.status(404).json({ success: false, message: 'Quotation not found' });
+    }
+
+    // Update quotation status
+    await dbPool.query(
+      'UPDATE supplier_quotations SET status = "accepted" WHERE id = ?',
+      [quotationId]
+    );
+
+    // Reject other quotations for this RFQ
+    await dbPool.query(
+      'UPDATE supplier_quotations SET status = "rejected" WHERE rfq_id = ? AND id != ?',
+      [quotation[0].rfq_id, quotationId]
+    );
+
+    // Close the RFQ
+    await dbPool.query(
+      'UPDATE rfq_requests SET status = "closed" WHERE id = ?',
+      [quotation[0].rfq_id]
+    );
+
+    // Notify supplier
+    await dbPool.query(`
+      INSERT INTO supplier_notifications 
+      (supplier_company_id, notification_type, title, message)
+      VALUES (?, 'order_update', 'Quotation Accepted', 'Your quotation has been accepted!')
+    `, [quotation[0].supplier_company_id]);
+
+    res.json({ success: true, message: 'Quotation accepted successfully' });
+  } catch (error) {
+    console.error('Accept quotation error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 13. GET PRODUCT CATEGORIES
+app.get('/api/products/categories', async (req, res) => {
+  const dbPool = app.locals.dbPool;
+
+  try {
+    const [categories] = await dbPool.query(`
+      SELECT DISTINCT category, COUNT(*) as product_count
+      FROM supplier_products
+      WHERE is_available = TRUE
+      GROUP BY category
+      ORDER BY category
+    `);
+
+    res.json({ success: true, categories });
+  } catch (error) {
+    console.error('Get categories error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
