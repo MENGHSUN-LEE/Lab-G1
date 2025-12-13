@@ -7,7 +7,7 @@ const bcrypt = require('bcrypt'); // 用於加密密碼
 const config = require('./config'); // 引入您的配置檔
 
 const app = express();
-const PORT = process.env.PORT || 80;
+const PORT = process.env.PORT || 8080;
 
 // --- 中介軟體 (Middleware) ---
 // 1. 處理 JSON 格式的請求體 (POST/PUT 請求)

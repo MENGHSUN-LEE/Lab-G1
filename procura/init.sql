@@ -1,23 +1,4 @@
-
---------Step1 建立的資料庫(assignment 3)--------
-
--- 1.1 create datebase --
-docker run --name assignment-mysql --env "MYSQL_ROOT_PASSWORD=417" --network my-assignment-net -p 3306:3306 --detach mysql:latest
-docker start assignment-mysql
-docker exec -it assignment-mysql mysql -p
-exit
-
--- 1.2 import data--
-docker cp C:\Users\417\Downloads\companies.tsv assignment-mysql:/var/lib/mysql-files/companies.tsv
-docker cp C:\Users\417\Downloads\transactions.tsv assignment-mysql:/var/lib/mysql-files/transactions.tsv
-docker cp C:\Users\417\Downloads\materials.tsv assignment-mysql:/var/lib/mysql-files/materials.tsv
-
--- 1.3 Table的sql語法--
-docker exec -it assignment-mysql mysql -p
-
-CREATE DATABASE assignment_db;
 USE assignment_db;
-
 
 CREATE TABLE Companies (
     company_id VARCHAR(20),
@@ -731,60 +712,3 @@ CREATE TABLE IF NOT EXISTS material_inventory (
     FOREIGN KEY (material_id) REFERENCES materials_used(id) ON DELETE CASCADE
 );
 
---------Step2 建立的虛擬機--------
-
--- 2.1 建立帳號密碼連接assignment-mysql的table --
-docker exec -it assignment-mysql mysql -p
-USE assignment_db; 
-CREATE USER 'Procura'@'%' IDENTIFIED BY '417'; 
-GRANT ALL ON assignment_db.* TO 'Procura'@'%';
-EXIT;
-
-
--- 2.2 建立虛擬機的docker --
-docker run -it --name procura-dev --network my-assignment-net -p 8080:80 -v C:\Users\417\Documents\Lab-G1\procura:/app node bash
-cd /app
-npm install express
-npm install mysql2
-node app.js
-
--- 2.3 Set the Groq API key (get it from https://console.groq.com/) ==> required to buy an AI (additional)
-export GROQ_API_KEY="gsk_your_actual_key_here"
-echo $GROQ_API_KEY
-cd /app
-node app.js
-
--- 2.4 重新虛擬機的docker --
-docker start procura-dev
-docker exec -it procura-dev bash
-cd /app
-node app.js
-
-
-----------------------------------------------------------
-
-網頁架構表:
-
-procura/
-├── app.js                    # Express 伺服器主入口
-├── config.js                 # 資料庫連線配置
-├── procura.html              # 網站主結構 (無內容，僅主容器)
-├── procura.css               # 網站樣式
-├── /js
-│   ├── app.js               # 前端應用程式啟動、狀態、DOM 注入
-│   ├── router.js            # 前端路由 (hashchange)
-│   ├── data.js              # 假資料與狀態常數 (待移除/替換)
-│   ├── /templates           # HTML 結構模組
-│   │   ├── login.js        # 登入/註冊 HTML 模版
-│   │   ├── search.js       # 搜尋頁 HTML 模版
-│   │   └── detail.js       # 專案細項頁 HTML 模版
-│   └── /pages               # 頁面邏輯模組
-│       ├── common.js        # 跨頁面共用工具 (Tab 切換, 狀態 CSS)
-│       ├── login.js         # 登入/註冊事件綁定
-│       ├── search.js        # 搜尋邏輯與結果渲染
-│       └── /detail          # 專案細項頁專屬模組
-│           ├── index.js     # Detail 頁主控台、協調者
-│           ├── progress.js  # 進度渲染與日期篩選
-│           ├── create.js    # 新增工項與建材邏輯
-│           ├── edit.js      # 編輯工項/建材狀態邏輯
-│           └── materials.js # 材料總管表格渲染

@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  assignment-mysql:
+    image: mysql:latest
+    container_name: assignment-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "417"
+      MYSQL_DATABASE: assignment_db
+    
+    ports:
+      - "3306:3306"
+
+
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./companies.tsv:/var/lib/mysql-files/companies.tsv
+      - ./transactions.tsv:/var/lib/mysql-files/transactions.tsv
+      - ./materials.tsv:/var/lib/mysql-files/materials.tsv
+      - mysql_data:/var/lib/mysq
+
+    command: 
+      --local-infile=1 
+      
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 20s
+      timeout: 10s
+      start_period: 300s 
+      retries: 5
+
+    networks:
+      - my-assignment-net
+
+  procura-web:
+    build: .
+    container_name: procura-dev
+    restart: always
+    ports:
+      - "8080:8080" 
+    depends_on:
+      assignment-mysql:
+        condition: service_healthy
+
+    networks:
+      - my-assignment-net
+
+networks:
+  my-assignment-net:
+    name: my-assignment-net
+
+volumes:
+  mysql_data:
