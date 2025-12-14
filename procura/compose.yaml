@@ -18,7 +18,7 @@ services:
       - ./companies.tsv:/var/lib/mysql-files/companies.tsv
       - ./transactions.tsv:/var/lib/mysql-files/transactions.tsv
       - ./materials.tsv:/var/lib/mysql-files/materials.tsv
-      - mysql_data:/var/lib/mysq1
+      - mysql_data:/var/lib/mysql
 
     command: 
       --local-infile=1 

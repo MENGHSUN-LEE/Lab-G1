@@ -7,15 +7,11 @@ const bcrypt = require('bcrypt'); // 用於加密密碼
 const config = require('./config'); // 引入您的配置檔
 
 const app = express();
-<<<<<<< HEAD
 const PORT = process.env.PORT || 8080;
-=======
-const PORT = process.env.PORT || 80;
 const PDFDocument = require('pdfkit');
 const ExcelJS = require('exceljs');
 const fs = require('fs');
 const downloadsDir = path.join(__dirname, 'downloads');
->>>>>>> af97edda03db963412ac6753020c9195eec4bb20
 
 // Create downloads directory
 if (!fs.existsSync(downloadsDir)) {
@@ -4371,6 +4367,49 @@ async function initializeSupplierAccounts() {
   }
 }
 
+async function runSupplierInitializationWithRetry(maxRetries = 10, delay = 5000) {
+  const dbPool = app.locals.dbPool;
+  if (!dbPool) {
+    console.error('[Server] Cannot run supplier initialization: DB Pool not available.');
+    return;
+  }
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      console.log(`[Server] Checking supplier accounts... (Attempt ${i + 1}/${maxRetries})`);
+      
+      // 1. 檢查 supplier_users 資料表是否存在
+      const [existing] = await dbPool.query(
+        'SELECT COUNT(*) as count FROM supplier_users'
+      );
+
+      if (existing[0].count === 0) {
+        // 2. 如果不存在任何帳號，執行初始化
+        console.log('[Server] No supplier accounts found. Initializing...');
+        await initializeSupplierAccounts();
+        await getAllSupplierCredentials();
+      } else {
+        console.log(`[Server] Found ${existing[0].count} existing supplier accounts. Skipping initialization.`);
+      }
+
+      console.log('[Server] Supplier initialization process finished successfully.');
+      return; // 成功結束，退出函數
+      
+    } catch (error) {
+      if (error.code === 'ER_NO_SUCH_TABLE') {
+        // 如果是資料表不存在的錯誤，等待並重試
+        console.warn(`[Server] WARNING: Table 'supplier_users' does not exist yet. Retrying in ${delay / 1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue; // 進入下一個迴圈進行重試
+      }
+      
+      console.error('[Server] Fatal error during supplier initialization:', error);
+      return; // 其他致命錯誤，退出
+    }
+  }
+  console.error('[Server] Fatal: Supplier initialization failed after all retries.');
+}
+
 /**
  * Update a specific supplier's password
  */
@@ -4482,23 +4521,9 @@ app.post('/api/admin/initialize-suppliers', async (req, res) => {
 
 setTimeout(async () => {
   if (app.locals.dbPool) {
-    console.log('\n[Server] Checking supplier accounts...\n');
-    
-    // Check if any supplier accounts exist
-    const [existing] = await app.locals.dbPool.query(
-      'SELECT COUNT(*) as count FROM supplier_users'
-    );
-
-    if (existing[0].count === 0) {
-      console.log('[Server] No supplier accounts found. Initializing...\n');
-      await initializeSupplierAccounts();
-    } else {
-      console.log(`[Server] Found ${existing[0].count} existing supplier accounts.\n`);
-      // Uncomment to see all credentials:
-      // await getAllSupplierCredentials();
-    }
+    await runSupplierInitializationWithRetry(); 
   }
-}, 3000); // Wait 3 seconds after server start
+}, 3000);
 
 // Export functions for manual use
 module.exports = {
