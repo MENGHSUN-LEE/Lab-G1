@@ -11,6 +11,14 @@ CREATE TABLE Companies (
     comments TEXT
 );
 
+LOAD DATA INFILE '/var/lib/mysql-files/companies.tsv'
+INTO TABLE Companies
+FIELDS TERMINATED BY '\t'   
+OPTIONALLY ENCLOSED BY '"'  
+LINES TERMINATED BY '\r\n'    
+IGNORE 1 ROWS;
+
+
 CREATE TABLE Transactions (
     transaction_id VARCHAR(20),
     company_id VARCHAR(100),
@@ -23,6 +31,15 @@ CREATE TABLE Transactions (
     notes TEXT
 );
 
+
+LOAD DATA INFILE '/var/lib/mysql-files/transactions.tsv'
+INTO TABLE Transactions
+FIELDS TERMINATED BY '\t'
+OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\r\n'
+IGNORE 1 ROWS;
+
+
 CREATE TABLE Materials (
     material_id VARCHAR(100),
     Item TEXT,
@@ -31,6 +48,15 @@ CREATE TABLE Materials (
     PriceStdev VARCHAR(100),
     NoSamples VARCHAR(100)
 );
+
+
+LOAD DATA INFILE '/var/lib/mysql-files/materials.tsv'
+INTO TABLE Materials
+FIELDS TERMINATED BY '\t'
+OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\r\n'
+IGNORE 1 ROWS;
+
 
 -- 2. 過濾後的資料表 (Filtered Staging Tables)
 DROP TABLE IF EXISTS FilteredTransactions, FilteredMaterials, FilteredCompanies;
