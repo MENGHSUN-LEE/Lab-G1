@@ -190,27 +190,38 @@ async function loadRatingHistory(vendorName) {
     const list = document.getElementById("rating-history-list");
     if (!list) return;
 
-    if (!vendorName) {
-        list.innerHTML = `<p class="muted" style="text-align:center; padding: 20px;">Please select a vendor to view rating history.</p>`;
-        return;
+    // If vendorName is empty, it means "All Vendors" -> fetch latest 3 global ratings
+    let url = `/api/vendor-ratings`;
+    if (vendorName) {
+        url += `?vendor_name=${encodeURIComponent(vendorName)}`;
     }
 
     try {
-        const res = await fetch(`/api/vendor-ratings?vendor_name=${encodeURIComponent(vendorName)}`);
+        const res = await fetch(url);
         const result = await res.json();
 
         if (result.success && result.ratings.length > 0) {
-            list.innerHTML = result.ratings.map(r => `
+            // Update header if exists, or add a small title
+            const headerText = vendorName ? `Rating History for ${vendorName}` : `Latest 3 Ratings (All Vendors)`;
+
+            list.innerHTML = `
+                <h5 style="margin-bottom:10px; color:#666; font-size:0.9em; border-bottom:1px solid #eee; padding-bottom:5px;">
+                    ${headerText}
+                </h5>
+            ` + result.ratings.map(r => `
                 <div style="padding: 10px; border-bottom: 1px solid #eee;">
-                    <div style="display:flex; justify-content:space-between;">
-                        <span style="font-weight:bold;">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</span>
-                        <span class="muted" style="font-size: 0.85em;">${new Date(r.rated_at).toLocaleDateString()}</span>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span style="font-weight:bold; color:#333;">${r.vendor_name || vendorName}</span>
+                         <span class="muted" style="font-size: 0.85em;">${new Date(r.rated_at).toLocaleDateString()}</span>
                     </div>
-                    <p style="margin-top: 5px; color: #555;">${r.comment || "No comment"}</p>
+                    <div style="display:flex; align-items:center; margin-bottom:4px;">
+                        <span style="font-weight:bold; color:#FFD700; margin-right:8px;">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</span>
+                    </div>
+                    <p style="margin: 0; color: #555; font-size:0.95em;">${r.comment || "No comment"}</p>
                 </div>
             `).join("");
         } else {
-            list.innerHTML = `<p class="muted" style="text-align:center; padding: 20px;">No ratings found for this vendor.</p>`;
+            list.innerHTML = `<p class="muted" style="text-align:center; padding: 20px;">No ratings found.</p>`;
         }
     } catch (e) {
         console.error("Failed to load history", e);
