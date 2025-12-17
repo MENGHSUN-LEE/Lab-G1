@@ -18,11 +18,10 @@ services:
       - ./transactions.tsv:/var/lib/mysql-files/transactions.tsv
       - ./materials.tsv:/var/lib/mysql-files/materials.tsv
       - mysql_data:/var/lib/mysql
-<<<<<<< HEAD
-=======
+
 
     command: --local-infile=1
->>>>>>> main
+
 
     healthcheck:
       test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD" ]
@@ -39,11 +38,8 @@ services:
     container_name: procura-dev
     restart: always
     ports:
-<<<<<<< HEAD
       - "20251:8080" 
-=======
-      - "8080:80"
->>>>>>> main
+
     depends_on:
       assignment-mysql:
         condition: service_healthy

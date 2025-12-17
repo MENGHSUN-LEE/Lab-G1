@@ -7,20 +7,13 @@ const bcrypt = require('bcrypt'); // 用於加密密碼
 const config = require('./config'); // 引入您的配置檔
 
 const app = express();
-<<<<<<< HEAD
 const PORT = process.env.PORT || 8080;
-=======
-// 這裡同時保留了 Port 設定和下面的 PDF/Excel 套件
-const PORT = process.env.PORT || 80;
->>>>>>> main
+
 const PDFDocument = require('pdfkit');
 const ExcelJS = require('exceljs');
 const fs = require('fs');
 const downloadsDir = path.join(__dirname, 'downloads');
-<<<<<<< HEAD
 
-=======
->>>>>>> main
 // Create downloads directory
 if (!fs.existsSync(downloadsDir)) {
   fs.mkdirSync(downloadsDir, { recursive: true });
@@ -4543,11 +4536,7 @@ app.post('/api/admin/initialize-suppliers', async (req, res) => {
 /*
 setTimeout(async () => {
   if (app.locals.dbPool) {
-<<<<<<< HEAD
-    await runSupplierInitializationWithRetry(); 
-  }
-}, 3000);
-=======
+
     console.log('\n[Server] Checking supplier accounts...\n');
 
     // Check if any supplier accounts exist
@@ -4566,7 +4555,6 @@ setTimeout(async () => {
   }
 }, 3000); // Wait 3 seconds after server start
 */
->>>>>>> main
 
 // Export functions for manual use
 module.exports = {
