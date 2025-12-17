@@ -10,7 +10,7 @@ services:
       MYSQL_DATABASE: assignment_db
     
     ports:
-      - "3306:3306"
+      - "3333:3306"
 
 
     volumes:
@@ -38,7 +38,7 @@ services:
     container_name: procura-dev
     restart: always
     ports:
-      - "8080:8080" 
+      - "20251:8080" 
     depends_on:
       assignment-mysql:
         condition: service_healthy
