@@ -7,12 +7,20 @@ const bcrypt = require('bcrypt'); // 用於加密密碼
 const config = require('./config'); // 引入您的配置檔
 
 const app = express();
+<<<<<<< HEAD
 const PORT = process.env.PORT || 8080;
+=======
+// 這裡同時保留了 Port 設定和下面的 PDF/Excel 套件
+const PORT = process.env.PORT || 80;
+>>>>>>> main
 const PDFDocument = require('pdfkit');
 const ExcelJS = require('exceljs');
 const fs = require('fs');
 const downloadsDir = path.join(__dirname, 'downloads');
+<<<<<<< HEAD
 
+=======
+>>>>>>> main
 // Create downloads directory
 if (!fs.existsSync(downloadsDir)) {
   fs.mkdirSync(downloadsDir, { recursive: true });
@@ -1208,17 +1216,17 @@ app.get('/api/vendors-with-ids', async (req, res) => {
       WHERE name IS NOT NULL AND name != ''
       ORDER BY name
     `);
-    
+
     // Get unique vendors from materials_used
     const [vendorsFromMaterials] = await dbPool.execute(`
       SELECT DISTINCT vendor 
       FROM materials_used 
       WHERE vendor IS NOT NULL AND vendor != ''
     `);
-    
+
     // Combine both lists and try to match
     const vendorMap = new Map();
-    
+
     // Add all companies with their IDs
     companies.forEach(c => {
       vendorMap.set(c.name.toLowerCase().trim(), {
@@ -1226,33 +1234,33 @@ app.get('/api/vendors-with-ids', async (req, res) => {
         company_id: c.company_id
       });
     });
-    
+
     // Add vendors from materials_used, try to find matching company
     vendorsFromMaterials.forEach(v => {
       const vendorName = v.vendor;
       const normalizedName = vendorName.toLowerCase().trim();
-      
+
       // If not already in map, add with null company_id
       if (!vendorMap.has(normalizedName)) {
         // Try to find a matching company by fuzzy match
-        const matchingCompany = companies.find(c => 
+        const matchingCompany = companies.find(c =>
           c.name.toLowerCase().trim() === normalizedName
         );
-        
+
         vendorMap.set(normalizedName, {
           name: vendorName,
           company_id: matchingCompany ? matchingCompany.company_id : null
         });
       }
     });
-    
+
     // Convert to array and filter out nulls
     const vendors = Array.from(vendorMap.values())
       .filter(v => v.company_id !== null)
       .sort((a, b) => a.name.localeCompare(b.name));
-    
+
     console.log(`[Vendors API] Found ${vendors.length} vendors with company IDs`);
-    
+
     res.json({ success: true, vendors });
   } catch (error) {
     console.error('Get Vendors with IDs error:', error);
@@ -1293,7 +1301,20 @@ app.get('/api/vendor-ratings', async (req, res) => {
   const dbPool = app.locals.dbPool;
 
   if (!vendor_name) {
-    return res.status(400).json({ success: false, message: 'Vendor name is required.' });
+    // If no vendor name, return latest 3 ratings for ANY vendor
+    try {
+      const query = `
+        SELECT * FROM vendor_ratings 
+        ORDER BY rated_at DESC 
+        LIMIT 3
+      `;
+      const [rows] = await dbPool.execute(query);
+      res.json({ success: true, ratings: rows });
+    } catch (error) {
+      console.error('Get All Vendor Ratings error:', error);
+      res.status(500).json({ success: false, message: 'Server error retrieving ratings.' });
+    }
+    return;
   }
 
   try {
@@ -3688,9 +3709,9 @@ app.post('/api/supplier/signup', async (req, res) => {
   const dbPool = app.locals.dbPool;
 
   if (!company_name || !email || !password) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Company name, email, and password are required.' 
+    return res.status(400).json({
+      success: false,
+      message: 'Company name, email, and password are required.'
     });
   }
 
@@ -3702,9 +3723,9 @@ app.post('/api/supplier/signup', async (req, res) => {
     );
 
     if (companies.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Company not found. Please contact admin to register your company.' 
+      return res.status(404).json({
+        success: false,
+        message: 'Company not found. Please contact admin to register your company.'
       });
     }
 
@@ -3717,9 +3738,9 @@ app.post('/api/supplier/signup', async (req, res) => {
     );
 
     if (existing.length > 0) {
-      return res.status(409).json({ 
-        success: false, 
-        message: 'Supplier account already exists for this company or email.' 
+      return res.status(409).json({
+        success: false,
+        message: 'Supplier account already exists for this company or email.'
       });
     }
 
@@ -3733,17 +3754,17 @@ app.post('/api/supplier/signup', async (req, res) => {
       VALUES (?, ?, ?, ?, ?)
     `, [company_id, email, passwordHash, contact_person, phone]);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Supplier account created successfully.',
       supplier_id: result.insertId
     });
 
   } catch (error) {
     console.error('Supplier signup error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error during signup.' 
+    res.status(500).json({
+      success: false,
+      message: 'Server error during signup.'
     });
   }
 });
@@ -3754,9 +3775,9 @@ app.post('/api/supplier/login', async (req, res) => {
   const dbPool = app.locals.dbPool;
 
   if (!email || !password) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Email and password are required.' 
+    return res.status(400).json({
+      success: false,
+      message: 'Email and password are required.'
     });
   }
 
@@ -3777,9 +3798,9 @@ app.post('/api/supplier/login', async (req, res) => {
     `, [email]);
 
     if (users.length === 0) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid email or password.' 
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password.'
       });
     }
 
@@ -3789,9 +3810,9 @@ app.post('/api/supplier/login', async (req, res) => {
     const match = await bcrypt.compare(password, user.password_hash);
 
     if (!match) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid email or password.' 
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password.'
       });
     }
 
@@ -3816,9 +3837,9 @@ app.post('/api/supplier/login', async (req, res) => {
 
   } catch (error) {
     console.error('Supplier login error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error during login.' 
+    res.status(500).json({
+      success: false,
+      message: 'Server error during login.'
     });
   }
 });
@@ -3840,9 +3861,9 @@ app.get('/api/supplier/:supplierId/dashboard', async (req, res) => {
     `, [supplierId]);
 
     if (supplier.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Supplier not found.' 
+      return res.status(404).json({
+        success: false,
+        message: 'Supplier not found.'
       });
     }
 
@@ -3902,9 +3923,9 @@ app.get('/api/supplier/:supplierId/dashboard', async (req, res) => {
 
   } catch (error) {
     console.error('Get supplier dashboard error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error: ' + error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message
     });
   }
 });
@@ -3925,9 +3946,9 @@ app.get('/api/supplier/:supplierId/orders', async (req, res) => {
     `, [supplierId]);
 
     if (supplier.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Supplier not found.' 
+      return res.status(404).json({
+        success: false,
+        message: 'Supplier not found.'
       });
     }
 
@@ -3999,9 +4020,9 @@ app.get('/api/supplier/:supplierId/orders', async (req, res) => {
 
   } catch (error) {
     console.error('Get supplier orders error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error: ' + error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message
     });
   }
 });
@@ -4023,9 +4044,9 @@ app.put('/api/supplier/orders/:orderId/status', async (req, res) => {
     `, [orderId, supplier_id]);
 
     if (order.length === 0) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Order not found or access denied.' 
+      return res.status(403).json({
+        success: false,
+        message: 'Order not found or access denied.'
       });
     }
 
@@ -4054,29 +4075,29 @@ app.put('/api/supplier/orders/:orderId/status', async (req, res) => {
           UPDATE material_arrival_logs 
           SET expected_date = ?, delivery_status = ?, notes = ?
           WHERE id = ?
-        `, [expected_delivery_date, 
-            status === 1 ? 'in_transit' : status === 0 ? 'delivered' : 'pending',
-            notes, existingLog[0].id]);
+        `, [expected_delivery_date,
+          status === 1 ? 'in_transit' : status === 0 ? 'delivered' : 'pending',
+          notes, existingLog[0].id]);
       } else {
         await dbPool.query(`
           INSERT INTO material_arrival_logs 
           (material_id, expected_date, delivery_status, notes)
           VALUES (?, ?, ?, ?)
-        `, [orderId, expected_delivery_date, 
-            status === 1 ? 'in_transit' : 'pending', notes]);
+        `, [orderId, expected_delivery_date,
+          status === 1 ? 'in_transit' : 'pending', notes]);
       }
     }
 
-    res.json({ 
-      success: true, 
-      message: 'Order status updated successfully.' 
+    res.json({
+      success: true,
+      message: 'Order status updated successfully.'
     });
 
   } catch (error) {
     console.error('Update order status error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error: ' + error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message
     });
   }
 });
@@ -4094,9 +4115,9 @@ app.get('/api/supplier/:supplierId/notifications', async (req, res) => {
     );
 
     if (supplier.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Supplier not found.' 
+      return res.status(404).json({
+        success: false,
+        message: 'Supplier not found.'
       });
     }
 
@@ -4113,16 +4134,16 @@ app.get('/api/supplier/:supplierId/notifications', async (req, res) => {
 
     const [notifications] = await dbPool.query(query, [supplier[0].company_id]);
 
-    res.json({ 
-      success: true, 
-      notifications: notifications 
+    res.json({
+      success: true,
+      notifications: notifications
     });
 
   } catch (error) {
     console.error('Get notifications error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error: ' + error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message
     });
   }
 });
@@ -4138,16 +4159,16 @@ app.put('/api/supplier/notifications/:notificationId/read', async (req, res) => 
       [notificationId]
     );
 
-    res.json({ 
-      success: true, 
-      message: 'Notification marked as read.' 
+    res.json({
+      success: true,
+      message: 'Notification marked as read.'
     });
 
   } catch (error) {
     console.error('Mark notification read error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error: ' + error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message
     });
   }
 });
@@ -4166,9 +4187,9 @@ app.get('/api/supplier/:supplierId/performance', async (req, res) => {
     `, [supplierId]);
 
     if (supplier.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Supplier not found.' 
+      return res.status(404).json({
+        success: false,
+        message: 'Supplier not found.'
       });
     }
 
@@ -4229,14 +4250,14 @@ app.get('/api/supplier/:supplierId/performance', async (req, res) => {
           on_time_rate: onTimeRate.toFixed(1)
         },
         quality: {
-          avg_score: qualityMetrics[0].avg_quality_score 
-            ? parseFloat(qualityMetrics[0].avg_quality_score).toFixed(1) 
+          avg_score: qualityMetrics[0].avg_quality_score
+            ? parseFloat(qualityMetrics[0].avg_quality_score).toFixed(1)
             : 'N/A',
           total_inspections: qualityMetrics[0].total_inspections
         },
         ratings: {
-          avg_rating: ratings[0].avg_rating 
-            ? parseFloat(ratings[0].avg_rating).toFixed(1) 
+          avg_rating: ratings[0].avg_rating
+            ? parseFloat(ratings[0].avg_rating).toFixed(1)
             : 'N/A',
           total_ratings: ratings[0].total_ratings
         },
@@ -4246,9 +4267,9 @@ app.get('/api/supplier/:supplierId/performance', async (req, res) => {
 
   } catch (error) {
     console.error('Get supplier performance error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error: ' + error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message
     });
   }
 });
@@ -4262,7 +4283,7 @@ app.get('/api/supplier/:supplierId/performance', async (req, res) => {
  */
 async function initializeSupplierAccounts() {
   const dbPool = app.locals.dbPool;
-  
+
   try {
     console.log('[Supplier Setup] Starting supplier account initialization...');
 
@@ -4303,7 +4324,7 @@ async function initializeSupplierAccounts() {
         }
 
         // Generate email from company name
-        const email = company.email || 
+        const email = company.email ||
           `${company.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@supplier.com`;
 
         // Create supplier account
@@ -4484,9 +4505,9 @@ app.post('/api/admin/initialize-suppliers', async (req, res) => {
 
   // Simple security check (replace with proper authentication)
   if (admin_key !== '417') {
-    return res.status(403).json({ 
-      success: false, 
-      message: 'Unauthorized' 
+    return res.status(403).json({
+      success: false,
+      message: 'Unauthorized'
     });
   }
 
@@ -4507,9 +4528,9 @@ app.post('/api/admin/initialize-suppliers', async (req, res) => {
 
   } catch (error) {
     console.error('Initialization error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 });
@@ -4519,11 +4540,33 @@ app.post('/api/admin/initialize-suppliers', async (req, res) => {
 // Automatically initialize supplier accounts when server starts
 // Add this after your database initialization in app.js
 
+/*
 setTimeout(async () => {
   if (app.locals.dbPool) {
+<<<<<<< HEAD
     await runSupplierInitializationWithRetry(); 
   }
 }, 3000);
+=======
+    console.log('\n[Server] Checking supplier accounts...\n');
+
+    // Check if any supplier accounts exist
+    const [existing] = await app.locals.dbPool.query(
+      'SELECT COUNT(*) as count FROM supplier_users'
+    );
+
+    if (existing[0].count === 0) {
+      console.log('[Server] No supplier accounts found. Initializing...\n');
+      await initializeSupplierAccounts();
+    } else {
+      console.log(`[Server] Found ${existing[0].count} existing supplier accounts.\n`);
+      // Uncomment to see all credentials:
+      // await getAllSupplierCredentials();
+    }
+  }
+}, 3000); // Wait 3 seconds after server start
+*/
+>>>>>>> main
 
 // Export functions for manual use
 module.exports = {
@@ -4590,9 +4633,9 @@ app.post('/api/supplier/:supplierId/products', async (req, res) => {
   const dbPool = app.locals.dbPool;
 
   if (!product_name || !unit) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Product name and unit are required' 
+    return res.status(400).json({
+      success: false,
+      message: 'Product name and unit are required'
     });
   }
 
@@ -4661,7 +4704,7 @@ app.put('/api/supplier/:supplierId/products/:productId', async (req, res) => {
       'product_name', 'description', 'category', 'unit', 'price_min', 'price_max',
       'current_stock', 'min_order_quantity', 'lead_time_days', 'is_available', 'specifications'
     ];
-    
+
     const updates = [];
     const values = [];
 
@@ -4784,9 +4827,9 @@ app.post('/api/projects/:projectId/rfqs', async (req, res) => {
   const dbPool = app.locals.dbPool;
 
   if (!material_name || !quantity || !unit || !required_by_date) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Material name, quantity, unit, and required date are required' 
+    return res.status(400).json({
+      success: false,
+      message: 'Material name, quantity, unit, and required date are required'
     });
   }
 
@@ -4926,9 +4969,9 @@ app.post('/api/supplier/:supplierId/rfqs/:rfqId/quote', async (req, res) => {
   const dbPool = app.locals.dbPool;
 
   if (!unit_price || !quantity_offered || !estimated_delivery_date) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Price, quantity, and delivery date are required' 
+    return res.status(400).json({
+      success: false,
+      message: 'Price, quantity, and delivery date are required'
     });
   }
 
